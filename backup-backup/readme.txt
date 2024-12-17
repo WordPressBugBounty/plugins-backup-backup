@@ -2,8 +2,8 @@
 Contributors: Migrate
 Tags: Migration, Backup, Staging, Migrate, Backups
 Requires at least: 4.6
-Tested up to: 6.6
-Stable tag: 1.4.6
+Tested up to: 6.7.1
+Stable tag: 1.4.6.1
 License: GPLv3
 Requires PHP: 5.6
 
@@ -163,6 +163,10 @@ Vietnamese: [Tạo sao lưu, khôi phục các bản sao lưu và di chuyển c�
 
 == Changelog ==
 
+= 1.4.6.1 =
+* Tested with WordPress 6.7.1
+* Hotfix resolving a security issue
+
 = 1.4.6 =
 * Tested with WordPress 6.6
 * Minor performance improvements 
@@ -227,8 +231,7 @@ Old changelog has been removed due to WordPress limitation of 5000 characters.
 
 == Upgrade Notice ==
 
-= 1.4.6 =
-What's new in 1.4.6?
-* Tested with WordPress 6.6
-* Minor performance improvements 
-* Improvements for PHP 8 utilization
+= 1.4.6.1 =
+What's new in 1.4.6.1?
+* Tested with WordPress 6.7.1
+* Hotfix resolving a security issue

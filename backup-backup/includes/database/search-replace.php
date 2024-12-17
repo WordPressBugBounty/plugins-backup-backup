@@ -43,7 +43,7 @@ class BMI_Search_Replace_Engine {
 
   	try {
 
-  		if (is_string($data) && is_serialized($data) && ($unserialized = @maybe_unserialize($data)) !== false) {
+  		if (is_string($data) && is_serialized($data) && ($unserialized = @unserialize($data, ['allowed_classes' => ['stdClass']])) !== false) {
 
   			$data = $this->recursive_unserialize_replace($from, $to, $unserialized, true);
 
