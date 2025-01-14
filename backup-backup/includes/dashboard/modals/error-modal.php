@@ -77,7 +77,7 @@
           </div>
 
           <!-- OPTION 2: Debug it yourself -->
-          <div class="collapser failure-option shadow" group="failure-option">
+          <div class="collapser failure-option shadow debug-it-yourself" group="failure-option">
             <div class="header f20 pointer transition flex bold">
               <span class="right-arrow"></span>
               <span class="option-title">
@@ -86,34 +86,11 @@
             </div>
             <div class="content save-action f18 flex mm30 pbl" >
               <span class="there-are-reasons"><?php _e('Based on what we observed, the issue could be one of those:','backup-backup');?></span>
+              <span class="there-is-a-reason"><?php _e('Based on what we observed, the issue could be:','backup-backup');?></span>
               <?php if (current_user_can('manage_options') && current_user_can('administrator')): ?>
                 <ul class="failure-reasons">
                 </ul>
                 <?php endif; ?>
-                <!-- Disk space checking -->
-                <div class="space-checking">
-                  <?php echo $diskSpaceCheckStatment ?>
-                  <div class="loading hide_verbose"> 
-                    <div class="spinner-loader"></div>
-                    <span><?php _e('Checking','backup-backup');?></span>
-                  </div>
-                  <div class="checking-result">
-                    <div class="failed hide_verbose">
-                      <span class="failure-icon">×</span>
-                      <span><?php _e('Failed to check disk space, ','backup-backup');?></span>
-                      <span><?php _e("We couldn't check available disk space, there may not be enough space for the backup, please double check.",'backup-backup');?></span>
-                    </div>
-                    <div class="not-enough-space hide_verbose">
-                      <span class="failure-icon"></span>
-                      <span><?php _e('The minimum required disk space is ','backup-backup'); ?><span class="required-space"></span><?php _e(' , while the available disk space is ','backup-backup'); ?><span class="available-space"></span></span>
-                    </div>
-                    <div class="enough-space hide_verbose">
-                      <span class="success-icon"></span>
-                      <span><?php _e('There is enough disk space on your server.','backup-backup');?></span>
-                    </div>
-                  </div>
-                </div>
-                <!-- End of space checking -->
               <?php echo $debugSectionStatment ?>
               <span class="there-are-reasons"><?php _e(' If not:','backup-backup'); ?></span>
               <span class="there-are-no-reasons"><br><br><?php _e('If you still struggle, feel free to contact us, we will help!','backup-backup'); ?></span>

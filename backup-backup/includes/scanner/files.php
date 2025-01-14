@@ -291,37 +291,32 @@
 
       if (!is_readable($path) || is_link($path)) return $files;
       foreach (new \DirectoryIterator($path) as $fileInfo) {
-
-        if (!is_readable($fileInfo->getPathname())) continue;
-        if ($fileInfo->isDot()) continue;
-        if ($fileInfo->isLink()) continue;
-        if (!$fileInfo->isDir()) {
-
-          if (!$fileInfo->isLink()) {
-            $files[] = $fileInfo->getFilename();
+          $fullPath = $fileInfo->getPathname();
+  
+          if (!is_readable($fullPath)) continue;
+          if ($fileInfo->isDot()) continue;
+          if ($fileInfo->isLink()) continue;
+          if (in_array($fullPath, $ignored)) {
+              Logger::debug('Ignoring ' . $fullPath);
+              continue;
           }
 
-        } else {
+          if ($fileInfo->isDir()) {
+              $dirName = $fileInfo->getFilename();
 
-          $dirName = $fileInfo->getFilename();
-          if (in_array($dirName, $ignored)) {
-            Logger::debug('Dodging ' . $dirName);
-            continue;
+              $files[] = [];
+              $index = sizeof($files) - 1;
+              $newBase = $fullPath;
+              $files[$index] = BMI_FileScanner::scanDirectoryNameOnlyAndIgnore($newBase, $ignored);
+              array_unshift($files[$index], $dirName);
+          } else {
+              $files[] = $fileInfo->getFilename();
           }
-
-          $files[] = [];
-          $index = sizeof($files) - 1;
-          $newBase = $path . DIRECTORY_SEPARATOR . $dirName;
-          $files[$index] = BMI_FileScanner::scanDirectoryNameOnlyAndIgnore($newBase, $ignored);
-          array_unshift($files[$index], $dirName);
-
-        }
-
       }
 
       return $files;
-
-    }
+  }
+  
 
     public static function scanDirectoryNameOnlyAndIgnoreFBC($path, $ignored_folders = [], $ignored_paths = []) {
 
@@ -385,7 +380,7 @@
 
     }
 
-    public static function getFileFullPaths($base, $fileList) {
+    public static function getFileFullPaths($base, $fileList, $setSize = true) {
 
       $paths = []; $merge = [];
       for ($i = 0; $i < sizeOf($fileList); $i++) {
@@ -396,7 +391,7 @@
           $base = $dir;
           if (is_readable($dir)) {
             if (sizeof(scandir($dir)) <= 2) {
-              $paths[] = $dir . ',0';
+              $paths[] = $dir . (!$setSize ? '' : ', 0');
             }
           }
           continue;
@@ -409,7 +404,7 @@
 
         } else {
 
-          $merge[] = BMI_FileScanner::getFileFullPaths($base, $fileList[$i]);
+          $merge[] = BMI_FileScanner::getFileFullPaths($base, $fileList[$i], $setSize);
 
         }
 
@@ -441,6 +436,8 @@
     }
 
     public static function scanFilesGetNamesWithIgnore($path, $ignored = []) {
+      // Normalize ignored paths to absolute paths
+      $ignored = array_map('realpath', $ignored);
 
       // Require Zipper
       require_once BMI_INCLUDES . '/zipper/zipping.php';
@@ -457,7 +454,7 @@
 
       // Parse Output to Array of Full Paths
       $path = substr($path, 0, -(strlen($z) + 1));
-      $y = BMI_FileScanner::getFileFullPaths($path, $x);
+      $y = BMI_FileScanner::getFileFullPaths($path, $x, false);
 
       // Return array of Full Paths
       return $y;

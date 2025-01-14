@@ -355,6 +355,7 @@
 
       // Remove backup
       if (file_exists(BMI_BACKUPS . '/.running')) $this->unlinksafe(BMI_BACKUPS . '/.running');
+      if (file_exists(BMI_BACKUPS . '/.space_check')) $this->unlinksafe(BMI_BACKUPS . '/.space_check');
       if (file_exists(BMI_BACKUPS . '/.abort')) $this->unlinksafe(BMI_BACKUPS . '/.abort');
       if (file_exists(BMI_BACKUPS . '/.last_triggered')) $this->unlinksafe(BMI_BACKUPS . '/.last_triggered');
 
@@ -733,8 +734,15 @@
 
         $_abspath = ABSPATH;
         $_bmi_tmp = BMI_TMP;
+        $_wp_content = WP_CONTENT_DIR;
         if (strpos($_abspath, 'file://') !== false) $_abspath = substr($_abspath, 7);
         if (strpos($_bmi_tmp, 'file://') !== false) $_bmi_tmp = substr($_bmi_tmp, 7);
+        if (strpos($_wp_content, 'file://') !== false) $_wp_content = substr($_wp_content, 7);
+
+        $needManipulation = false;
+        if ( strpos($_wp_content, $_abspath) === false ) {
+          $needManipulation = true;
+        }
 
         // Add files
         if ($final || $dbLog) {
@@ -768,10 +776,18 @@
           if ($zipArchive) {
             
             for ($i = 0; $i < sizeof($files); ++$i) {
+
+              if ($needManipulation) {
+                if (strpos($files[$i], $_wp_content) !== false) {
+                  $path = 'wordpress' . DIRECTORY_SEPARATOR . 'wp-content' . DIRECTORY_SEPARATOR . substr($files[$i], strlen($_wp_content));
+                } else {
+                  $path = 'wordpress' . DIRECTORY_SEPARATOR . substr($files[$i], strlen($_abspath));
+                }
+              } else {
+                $path = 'wordpress' . DIRECTORY_SEPARATOR . substr($files[$i], strlen($_abspath));
+              }
               
-              $path = 'wordpress' . DIRECTORY_SEPARATOR . substr($files[$i], strlen($_abspath));
-              
-              $path = str_replace('\\', '/', $path);
+              $path = BMP::fixSlashes($path);
               
               // Add the file
               if (is_dir($files[$i])) {
@@ -783,13 +799,24 @@
             }
             
           } else {
-            
-            // Additional path
-            $add_path = 'wordpress' . DIRECTORY_SEPARATOR;
 
-            // Casual configuration
-            if (sizeof($files) > 0) {
-              $back = $this->_lib->add($files, PCLZIP_OPT_REMOVE_PATH, $_abspath, PCLZIP_OPT_ADD_PATH, $add_path, PCLZIP_OPT_ADD_TEMP_FILE_ON, PCLZIP_OPT_TEMP_FILE_THRESHOLD, $this->safelimit);
+            if ($needManipulation) {
+              $coreFiles = [];
+              $contentFiles = [];
+              foreach ($files as $file) {
+                if (strpos($file, $_wp_content) !== false) {
+                  $contentFiles[] = $file;
+                } else {
+                  $coreFiles[] = $file;
+                }
+              }
+              
+              $back_1 = $this->_lib->add($coreFiles, PCLZIP_OPT_REMOVE_PATH, $_abspath, PCLZIP_OPT_ADD_PATH, 'wordpress' . DIRECTORY_SEPARATOR, PCLZIP_OPT_ADD_TEMP_FILE_ON, PCLZIP_OPT_TEMP_FILE_THRESHOLD, $this->safelimit);
+              $back_2 = $this->_lib->add($contentFiles, PCLZIP_OPT_REMOVE_PATH, $_wp_content, PCLZIP_OPT_ADD_PATH, 'wordpress' . DIRECTORY_SEPARATOR . 'wp-content' . DIRECTORY_SEPARATOR, PCLZIP_OPT_ADD_TEMP_FILE_ON, PCLZIP_OPT_TEMP_FILE_THRESHOLD, $this->safelimit);
+              $back = $back_1 && $back_2;
+              
+            } else {
+              $back = $this->_lib->add($files, PCLZIP_OPT_REMOVE_PATH, $_abspath, PCLZIP_OPT_ADD_PATH, 'wordpress' . DIRECTORY_SEPARATOR, PCLZIP_OPT_ADD_TEMP_FILE_ON, PCLZIP_OPT_TEMP_FILE_THRESHOLD, $this->safelimit);
             }
             
           }
@@ -810,6 +837,7 @@
               }
 
             } else {
+              $this->output->log('not_enough_space', 'verbose');
 
               $this->send_error('Error, there is most likely not enough space for the backup.');
               return false;
@@ -1187,8 +1215,8 @@
       // DB File Name for that type of backup
       $dbbackupname = 'bmi_database_backup.sql';
       $database_file = $this->fixSlashes(BMI_TMP . DIRECTORY_SEPARATOR . $dbbackupname);
-
-      if (Dashboard\bmi_get_config('BACKUP:DATABASE') == 'true') {
+      $shouldBackupDB = apply_filters('bmip_database_backup', Dashboard\bmi_get_config('BACKUP:DATABASE') == 'true');
+      if ( $shouldBackupDB ) {
 
         if (Dashboard\bmi_get_config('OTHER:BACKUP:DB:SINGLE:FILE') == 'true') {
 
@@ -1285,8 +1313,8 @@
       Logger::log("Backup file created successfully via backup-process.php");
       BMP::handle_after_cron();
       
-      if (has_action('bmi_premium_after_process')){
-        do_action('bmi_premium_after_process', $success, 'backup');
+      if (has_action('bmi_premium_after_process') || (defined('BACKUP_TRIGGERED_BY_URL') && BACKUP_TRIGGERED_BY_URL === true)){
+        do_action('bmi_premium_after_process', $success, 'backup', defined('BACKUP_TRIGGERED_BY_URL') && BACKUP_TRIGGERED_BY_URL === true);
       }    
       
       return null;

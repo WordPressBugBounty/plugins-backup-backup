@@ -32,8 +32,16 @@ interface Comparision {
  * The Version_Comparision class implements the Comparision interface for version comparisons.
  */
 class Version_Comparision implements Comparision {
-    public function compare($value, $recommendation, $operator = '>=') {
-        return version_compare($value, $recommendation, '>=');
+
+    protected $operator;
+
+    public function __construct($operator = '>=') {
+        $this->operator = $operator;
+    }
+
+
+    public function compare($value, $recommendation) {
+        return version_compare($value, $recommendation, $this->operator);
     }
 }
 
@@ -137,10 +145,6 @@ abstract class Compatibility_Attribute {
     public function isCompatible($system){
         if ($this->keyExists($system)) {
             return $this->comparision->compare($system[$this->key], $this->recommendation);
-        }else{
-            if (method_exists($this, 'checkValue')) {
-                return $this->checkValue();
-            }
         }
         return false;
     }
@@ -172,39 +176,6 @@ abstract class Compatibility_Attribute {
 }
 
 /**
- * The PHP_Version class extends Compatibility_Attribute to check the PHP version compatibility.
- */
-class PHP_Version extends Compatibility_Attribute {
-
-    function __construct($recommendation, $key, $comparision)
-    {
-        parent::__construct($recommendation, $key, $comparision);
-        $this->error_message = __("Your site is on PHP 8+, and some of your plugins are only compatible with older PHP versions, causing issues during the backup creation. Either disable those plugins or temporarily change to an earlier PHP version.", 'backup-backup');
-
-    }
-    protected function checkValue() {
-        $value = explode(' ', phpversion())[0]; 
-        return !$this->comparision->compare($value, $this->recommendation);
-    }
-}
-
-/**
- * The WP_Debug_Enabled class extends Compatibility_Attribute to check if WP_DEBUG is enabled.
- */
-class WP_Debug_Enabled extends Compatibility_Attribute {
-
-    function __construct($recommendation, $key, $comparision)
-    {
-        parent::__construct($recommendation, $key, $comparision);
-        $this->error_message = __("The WP_DEBUG is not active. It is recommended to enable it.", 'backup-backup');
-    }
-    protected function checkValue() {
-        return $this->comparision->compare(WP_DEBUG, $this->recommendation);
-    }
-
-}
-
-/**
  * The KeepAlive_Timeout class extends Compatibility_Attribute to check the KeepAlive timeout compatibility.
  * Note: The checkValue method is not implemented yet.
  */
@@ -220,9 +191,9 @@ class KeepAlive_Timeout extends Compatibility_Attribute {
             $this->error_message
         );
     }
-    protected function checkValue() {
-        //TODO: implement the check        
-    }
+    // public function isCompatible($system) {
+    //     //TODO: implement the check        
+    // }
    
 }
 
@@ -235,8 +206,7 @@ class CURL_Enabled extends Compatibility_Attribute {
         $this->error_message = __("The CURL is not enabled. It is recommended to enable it.", 'backup-backup');
     }
 
-    // return false if curl is not enabled and user use alternative backup method
-    protected function checkValue() {
+    public function isCompatible($system) {
         return $this->comparision->compare(System_Info::is_curl_work(), $this->recommendation);
 
     }
@@ -251,12 +221,8 @@ class PHP_CLI_Enabled extends Compatibility_Attribute {
     }
 
     // return false if php_cli is not enabled and user use default backup method
-    protected function checkValue() {
+    public function isCompatible($system) {
         return $this->comparision->compare(System_Info::is_php_cli_runnable(), $this->recommendation);
-    }
-
-    function getErrorMessage() {
-        return $this->error_message;
     }
 }
 
@@ -275,7 +241,7 @@ class Disk_Space extends Compatibility_Attribute {
             $this->error_message
         );
     }
-    protected function checkValue() {
+    public function isCompatible($system) {
         return $this->comparision->compare(intval($this->available_space), intval($this->recommendation));
     }
 
@@ -342,6 +308,67 @@ class Normal_Attribute extends Compatibility_Attribute{
     }
 }
 
+/**
+ * Check if any incompatible plugins are active and ask the user to temporarily deactivate them.
+ */
+class Incompatible_Plugins extends Compatibility_Attribute {
+    protected $incompatiblePlugins;
+
+    public function __construct($incompatiblePlugins, $key, $comparison)
+    {
+        parent::__construct($incompatiblePlugins, $key, $comparison);
+        $this->incompatiblePlugins = $incompatiblePlugins;
+    }
+
+    public function isCompatible($system) {
+        // incompatiblePlugins = ['plugin1', 'plugin2', ...]
+        $activePlugins = $system['wp_active_plugins_info']; // [ ['name' => 'Plugin 1', 'version' => '1.0', 'slug' => 'plugin1'], ... ]
+        $incompatibleActivePlugins = array_filter($activePlugins, function($plugin) {
+            return in_array($plugin['slug'], $this->incompatiblePlugins);
+        });
+        
+        $isCompatible = empty($incompatibleActivePlugins);
+
+        $this->error_message = $this->generateErrorMessage($incompatibleActivePlugins);
+        return $isCompatible;
+    }
+
+    protected function generateErrorMessage($incompatibleActivePlugins) {
+        $count = count($incompatibleActivePlugins);
+
+        if ($count === 0) {
+            return '';
+        }
+
+        $pluginList = $this->formatPluginList($incompatibleActivePlugins);
+
+        if ($count === 1) {
+            return sprintf(
+                __("We've detected that the plugin %s is currently active and may interfere with our process. Please temporarily deactivate it and try again.", 'backup-backup'),
+                $pluginList
+            );
+        }
+
+        return sprintf(
+            __("We've detected that the following plugins are currently active and may interfere with our process: %s. Please temporarily deactivate them and try again.", 'backup-backup'),
+            $pluginList
+        );
+    }
+
+    protected function formatPluginList($incompatibleActivePlugins) {
+        $plugins = array_map(function($plugin) {
+            return "<strong>". $plugin['name'] ."</strong>";
+        }, $incompatibleActivePlugins);
+
+        if (count($plugins) > 1) {
+            $lastPlugin = array_pop($plugins);
+            return implode(', ', $plugins) . ' ' . __('and', 'backup-backup') . ' ' . $lastPlugin;
+        }
+
+        return reset($plugins);
+    }
+}
+
 
 /**
  * The Compatibility class is used to add compatibility strategies and check the compatibility of the system.
@@ -349,6 +376,7 @@ class Normal_Attribute extends Compatibility_Attribute{
 class Compatibility {
     private $attrs = [];
     protected $errors = [];
+    protected $mainReasonFound = false;
     protected $system_info;
 
     protected $for;
@@ -369,6 +397,22 @@ class Compatibility {
      * Add default compatibility strategies based on the type of operation.
      */
     public function addDefaultStrategies() {
+        $this->addStrategy(new Normal_Attribute('5.5', 'mysql_version', new Version_Comparision(), __("MySQL version is not compatible. recommended to use version 5.5+.", 'backup-backup')));
+        $this->addStrategy(new Normal_Attribute(['Apache', 'Nginx'], 'web_server_name', new In_Comparision(), __("We recommend using Apache/Nginx server type.", 'backup-backup')));
+        $this->addStrategy(new Normal_Attribute('8.0', 'php_version_full', new Version_Comparision('<'), __("Your site is on PHP 8+, and some of your plugins are only compatible with older PHP versions, causing issues during the backup creation. Either disable those plugins or temporarily change to an earlier PHP version.", 'backup-backup')));
+        $this->addStrategy(new Incompatible_Plugins(['wordfence', 'security-ninja'], null, null));
+
+        $max_execution_time = new Normal_Attribute('300', 'php_max_execution_time', new Int_Comparision());
+        $max_execution_time_error = __("PHP max execution time is %s1. The recommended value is %s2.", 'backup-backup');
+        $max_execution_time_error = str_replace(
+            ['%s1', '%s2'],
+            [$this->system_info['php_max_execution_time'], '300'],
+            $max_execution_time_error
+        );
+        $max_execution_time->setErrorMessage($max_execution_time_error);
+        $this->addStrategy($max_execution_time);
+        
+
         if ($this->for == 'backup') {
             $this->addBackupDefaultStrategies();
         } else if ($this->for == 'migration') {
@@ -380,20 +424,6 @@ class Compatibility {
      * Add default compatibility strategies for migration.
      */
     public function addMigrationDefaultStrategies() {
-        $this->addStrategy(new Normal_Attribute(true, 'php_allow_url_fopen', new Bool_Comparision(), __("allow_url_fopen is not enabled.", 'backup-backup')));
-        $this->addStrategy(new Normal_Attribute('5.5', 'mysql_version', new Version_Comparision(), __("MySQL version is not compatible. recommended to use version 5.5+.", 'backup-backup')));
-        $this->addStrategy(new Normal_Attribute(['Apache', 'Nginx'], 'web_server_name', new In_Comparision(), __("We recommend using Apache/Nginx server type.", 'backup-backup')));
-        $this->addStrategy(new PHP_Version('8.0', null, new Version_Comparision()));
-
-        $max_execution_time = new Normal_Attribute('180', 'php_max_execution_time', new Int_Comparision());
-        $max_execution_time_error = __("PHP max execution time is %s1. The recommended value is %s2.", 'backup-backup');
-        $max_execution_time_error = str_replace(
-            ['%s1', '%s2'],
-            [$this->system_info['php_max_execution_time'], '180'],
-            $max_execution_time_error
-        );
-        $max_execution_time->setErrorMessage($max_execution_time_error);
-        $this->addStrategy($max_execution_time);
     }
 
     /**
@@ -402,20 +432,6 @@ class Compatibility {
     public function addBackupDefaultStrategies() {
 
         $this->addStrategy(new CURL_Enabled(true, null, new Bool_Comparision()));
-        $this->addStrategy(new Normal_Attribute(true, 'php_allow_url_fopen', new Bool_Comparision(), __("allow_url_fopen is not enabled.", 'backup-backup')));
-        $this->addStrategy(new Normal_Attribute('5.5', 'mysql_version', new Version_Comparision(), __("MySQL version is not compatible. recommended to use version 5.5+.", 'backup-backup')));
-        $this->addStrategy(new Normal_Attribute(['Apache', 'Nginx'], 'web_server_name', new In_Comparision(), __("We recommend using Apache/Nginx server type.", 'backup-backup')));
-        $this->addStrategy(new PHP_Version('8.0', null, new Version_Comparision()));
-
-        $max_execution_time = new Normal_Attribute('180', 'php_max_execution_time', new Int_Comparision());
-        $max_execution_time_error = __("PHP max execution time is %s1. The recommended value is %s2.", 'backup-backup');
-        $max_execution_time_error = str_replace(
-            ['%s1', '%s2'],
-            [$this->system_info['php_max_execution_time'], '180'],
-            $max_execution_time_error
-        );
-        $max_execution_time->setErrorMessage($max_execution_time_error);
-        $this->addStrategy($max_execution_time);
     }
 
     /**
@@ -425,6 +441,19 @@ class Compatibility {
     public function addMoreRecommendations() {
         // e.g.
         // $this->addRecommendation('missing space.', __("The disk space is not enough. Please free up some space.", 'backup-backup'));
+        $requiredSpace = get_option('bmi_required_space', false);
+        if (is_numeric($requiredSpace) && intval($requiredSpace) > 0) {
+            $message = __("There is not enough free space on the server. Please secure more free space (%s1) and then try to run the process again.", 'backup-backup');
+            $message = str_replace(
+                ['%s1'],
+                [BMP::humanSize(intval($requiredSpace))],
+                $message
+            );
+            if ($this->addRecommendation('not_enough_space', $message)) {
+                delete_option('bmi_required_space');
+                $this->mainReasonFound = true;
+            }
+        }
         if ($this->for == 'backup') {
             $this->addBackupRecommendations();
         } else if ($this->for == 'migration') {
@@ -436,22 +465,23 @@ class Compatibility {
     }
 
     public function addBackupRecommendations() {
-        $this->addRecommendation('Disk quota exceeded', __("There is not enough space for the backup, please free up some space.", 'backup-backup'));
     }
 
     /**
      * Add recommendation based on vebose in log
      * @param string $verbose The verbose in log
      * @param string $the message to show
-     * @return void
+     * @return bool True if the the recommendation is added, false otherwise.
      */
     public function addRecommendation($verbose, $message) {
-        $file = dirname(BMI_BACKUPS) . DIRECTORY_SEPARATOR . 'backups' . DIRECTORY_SEPARATOR . 'latest.log';
+        $file = dirname(BMI_BACKUPS) . DIRECTORY_SEPARATOR . 'backups' . DIRECTORY_SEPARATOR . 'latest' . ($this->for == 'backup' ? '' : '_migration') . '.log';
         $content = file_get_contents($file);
         $pattern = '#^\[VERBOSE\] \[[0-9-]+ [0-9:]+\] ' . $verbose . '#mi'; // e.g. [VERBOSE] [2021-12-31 23:59:59] missing space.
         if (preg_match($pattern, $content, $matches)) {
             array_push($this->errors, $message);
+            return true;
         }
+        return false;
 
     }
     /**
@@ -467,8 +497,12 @@ class Compatibility {
      * @return array The errors found during the compatibility check.
      */
     public function check() {
+        if ($this->mainReasonFound) {
+            return $this->errors;
+        }
+
         foreach ($this->attrs as $attribute) {
-            if(is_array($this->system_info) && !$attribute->isCompatible($this->system_info)) {
+            if(!$attribute->isCompatible($this->system_info)) {
                 array_push($this->errors, $attribute->getErrorMessage());
             }
         }

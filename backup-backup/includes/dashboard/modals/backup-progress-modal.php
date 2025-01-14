@@ -13,7 +13,7 @@
   <div class="bmi-modal-wrapper" style="max-width: 900px; max-width: min(900px, 80vw)">
     <div class="bmi-modal-content center">
 
-      <div class="mm60 f26 bold black"><?php _e('Backup in progress', 'backup-backup') ?></div>
+      <div class="mm60 f26 bold black title"><?php _e('Backup in progress', 'backup-backup') ?></div>
 
       <div class="progress-bar-wrapper">
 

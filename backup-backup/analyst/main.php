@@ -62,7 +62,7 @@ if (!function_exists('analyst_init')) {
 	function analyst_init($__options) {
     if (did_action('init') > 0 && function_exists('current_user_can')) ___analyst_init($__options);
     else {
-      add_action('init', function () use ($__options) {
+      add_action('wp_loaded', function () use ($__options) {
         ___analyst_init($__options);
       }, -1000);
     }

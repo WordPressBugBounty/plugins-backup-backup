@@ -2,14 +2,13 @@
 
   // Namespace
   namespace BMI\Plugin\Dashboard;
-  use BMI\Plugin\Backup_Migration_Plugin AS BMP;
 
   // Exit on direct access
   if (!defined('ABSPATH')) exit;
 
 ?>
 
-<?php if (get_transient('bmip_display_quota_issues')): ?>
+<?php if (get_transient('bmip_display_quota_issues') && !get_option('bmip_dismissed_quota_notice', false)): ?>
 
 <div class="error-noticer" id="quota-issues">
   <div class="error-header">

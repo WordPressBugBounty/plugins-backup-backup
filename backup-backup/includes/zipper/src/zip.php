@@ -111,7 +111,8 @@ class Zip {
 
   public function createDatabaseDump($dbbackupname, $better_database_files_dir, &$database_file, $database_file_dir, $dbBackupEngine = 'v4') {
 
-    if (Dashboard\bmi_get_config('BACKUP:DATABASE') == 'true') {
+    $shouldBackupDB = apply_filters('bmip_database_backup', Dashboard\bmi_get_config('BACKUP:DATABASE') == 'true');
+    if ( $shouldBackupDB ) {
 
       if (Dashboard\bmi_get_config('OTHER:BACKUP:DB:SINGLE:FILE') == 'true') {
 
@@ -354,17 +355,19 @@ class Zip {
       // All files
       $max = sizeof($this->org_files);
 
+      $legacyVersion = apply_filters('bmi_legacy_version', BMI_LEGACY_VERSION);
+      $legacyHardVersion = apply_filters('bmi_legacy_hard_version', BMI_LEGACY_HARD_VERSION);
       // Verbose
-      $legacy = BMI_LEGACY_VERSION;
-      if ($legacy) $legacy = BMI_LEGACY_HARD_VERSION;
+      $legacy = $legacyVersion;
+      if ($legacy) $legacy = $legacyHardVersion;
       if (class_exists('\ZipArchive') || class_exists('ZipArchive')) {
         $this->zip_progress->log(__("ZipArchive is available this process should use ZipArchive", 'backup-backup'), 'INFO');
       } else {
         $this->zip_progress->log(__("Using PclZip module to create the backup", 'backup-backup'), 'INFO');
       }
-      if (!BMI_LEGACY_VERSION) {
+      if (!$legacyVersion) {
         $this->zip_progress->log(__("Legacy setting: Using server-sided script and cURL based loop for better capabilities", 'backup-backup'), 'INFO');
-      } elseif (!BMI_LEGACY_HARD_VERSION) {
+      } elseif (!$legacyHardVersion) {
         $this->zip_progress->log(__("Legacy setting: Using user browser as middleware for full capabilities", 'backup-backup'), 'INFO');
       } else {
 
@@ -379,7 +382,9 @@ class Zip {
       }
 
       // Run the backup in background
-      if ((!defined('BMI_USING_CLI_FUNCTIONALITY') || BMI_USING_CLI_FUNCTIONALITY === false) && ($legacy === false || BMI_CLI_ENABLED === true) && sizeof($this->org_files) > 10 && !defined('BMI_CLI_FAILED')) {
+      $cliEnabled = false;
+      if (defined('BMI_CLI_ENABLED')) $cliEnabled = apply_filters('bmi_cli_enabled', BMI_CLI_ENABLED);
+      if ((!defined('BMI_USING_CLI_FUNCTIONALITY') || BMI_USING_CLI_FUNCTIONALITY === false) && ($legacy === false || $cliEnabled === true) && sizeof($this->org_files) > 10 && !defined('BMI_CLI_FAILED')) {
         file_put_contents($database_file_dir . 'bmi_backup_manifest.json', $this->zip_progress->createManifest($dbBackupEngine));
         // $url = plugins_url('') . '/backup-backup/includes/middleware-backup-proxy.php';
         $url = admin_url('admin-ajax.php');
@@ -418,7 +423,7 @@ class Zip {
         touch(BMI_TMP . DIRECTORY_SEPARATOR . '.' . $identy);
 
         if ($fix === true) {
-          if (BMI_LEGACY_HARD_VERSION === false && $cron === false) {
+          if ($legacyHardVersion === false && $cron === false) {
             $remote_settings['browser'] = true;
             $this->zip_progress->log(__("Saving backup configuration for current session...", 'backup-backup'), 'INFO');
             $this->saveRemoteSettings($remote_settings);
@@ -591,7 +596,7 @@ class Zip {
               
               $zAresult = $zip->close();
               if ($zAresult !== true) {
-                
+                $this->zip_progress->log('not_enough_space', 'verbose');
                 $this->zip_failed('Error, there is most likely not enough space for the backup.');
                 return false;
               
@@ -672,13 +677,25 @@ class Zip {
           });
           
           if (sizeof($chunk) > 0) {
+            $needManipulation = false;
+            if (strpos(WP_CONTENT_DIR, ABSPATH) === false) {
+              $needManipulation = true;
+            }
             if ($zipArchive) {
               for ($j = 0; $j < sizeof($chunk); ++$j) {
-                
-                $path = 'wordpress' . DIRECTORY_SEPARATOR . substr($chunk[$j], strlen(ABSPATH));
+
+                if ($needManipulation) {
+                  if (strpos($chunk[$j], WP_CONTENT_DIR) !== false) {
+                    $path = 'wordpress' . DIRECTORY_SEPARATOR . 'wp-content' . DIRECTORY_SEPARATOR . substr($chunk[$j], strlen(WP_CONTENT_DIR));
+                  } else {
+                    $path = 'wordpress' . DIRECTORY_SEPARATOR . substr($chunk[$j], strlen(ABSPATH));
+                  }
+                } else {
+                  $path = 'wordpress' . DIRECTORY_SEPARATOR . substr($chunk[$j], strlen(ABSPATH));
+                }
                 
                 // Add the file
-                $path = str_replace('\\', '/', $path);
+                $path = BMP::fixSlashes($path);
                 if (is_dir($chunk[$j])) {
                   $zip->addEmptyDir($path);
                 } else {
@@ -689,7 +706,7 @@ class Zip {
               
               $zAresult = $zip->close();
               if ($zAresult !== true) {
-                
+                $this->zip_progress->log('not_enough_space', 'verbose');
                 $this->zip_failed('Error, there is most likely not enough space for the backup.');
                 return false;
               
@@ -697,8 +714,26 @@ class Zip {
               $zip->open($this->new_file_path);
             } else {
             
-              $back = $lib->add($chunk, PCLZIP_OPT_REMOVE_PATH, $abs, PCLZIP_OPT_ADD_PATH, 'wordpress' . DIRECTORY_SEPARATOR, PCLZIP_OPT_ADD_TEMP_FILE_ON, PCLZIP_OPT_TEMP_FILE_THRESHOLD, $safe_limit);
-              
+              if ($needManipulation) {
+                $abs = BMP::fixSlashes(ABSPATH) . DIRECTORY_SEPARATOR;
+                $content = BMP::fixSlashes(WP_CONTENT_DIR) . DIRECTORY_SEPARATOR;
+                $coreFiles = [];
+                $contentFiles = [];
+                foreach ($chunk as $file) {
+                  if (strpos($file, $content) !== false) {
+                    $contentFiles[] = $file;
+                  } else {
+                    $coreFiles[] = $file;
+                  }
+                }
+                
+                $back_1 = $lib->add($coreFiles, PCLZIP_OPT_REMOVE_PATH, $abs, PCLZIP_OPT_ADD_PATH, 'wordpress' . DIRECTORY_SEPARATOR, PCLZIP_OPT_ADD_TEMP_FILE_ON, PCLZIP_OPT_TEMP_FILE_THRESHOLD, $safe_limit);
+                $back_2 = $lib->add($contentFiles, PCLZIP_OPT_REMOVE_PATH, $content, PCLZIP_OPT_ADD_PATH, 'wordpress' . DIRECTORY_SEPARATOR . 'wp-content' . DIRECTORY_SEPARATOR, PCLZIP_OPT_ADD_TEMP_FILE_ON, PCLZIP_OPT_TEMP_FILE_THRESHOLD, $safe_limit);
+                $back = $back_1 && $back_2;
+                
+              } else {
+                $back = $lib->add($chunk, PCLZIP_OPT_REMOVE_PATH, ABSPATH, PCLZIP_OPT_ADD_PATH, 'wordpress' . DIRECTORY_SEPARATOR, PCLZIP_OPT_ADD_TEMP_FILE_ON, PCLZIP_OPT_TEMP_FILE_THRESHOLD, $safe_limit);
+              }
               if ($back == 0) {
                 $this->zip_failed($lib->errorInfo(true));
                 return false;
@@ -789,7 +824,7 @@ class Zip {
             
             $zAresult = $zip->close();
             if ($zAresult !== true) {
-              
+              $this->zip_progress->log('not_enough_space', 'verbose');
               $this->zip_failed('Error, there is most likely not enough space for the backup.');
               return false;
             

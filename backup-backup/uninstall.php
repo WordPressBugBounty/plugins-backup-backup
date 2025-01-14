@@ -6,65 +6,57 @@
   // Exit on direct access
   if (!defined('ABSPATH')) exit;
 
-  // Get config
-  $dir = WP_CONTENT_DIR . DIRECTORY_SEPARATOR . 'backup-migration' . DIRECTORY_SEPARATOR;
-  $config = $dir . 'config.json';
-  if (file_exists($config)) {
-    $config = json_decode(file_get_contents($config));
-    if (json_last_error() == JSON_ERROR_NONE) {
+  // Get config file
+  $configFile = WP_CONTENT_DIR . DIRECTORY_SEPARATOR . 'backup-migration-config.php';
 
-      if (isset($config->{'OTHER:UNINSTALL:BACKUPS'})) {
-        if ($config->{'OTHER:UNINSTALL:BACKUPS'} === 'true' || $config->{'OTHER:UNINSTALL:BACKUPS'} === true) {
-          if (isset($config->{'STORAGE::LOCAL::PATH'})) {
-            if ($config->{'STORAGE::LOCAL::PATH'} == 'default') {
-              $backups = WP_CONTENT_DIR . DIRECTORY_SEPARATOR . 'backup-migration' . DIRECTORY_SEPARATOR . 'backups';
-            } else {
-              $backups = $config->{'STORAGE::LOCAL::PATH'} . DIRECTORY_SEPARATOR . 'backups';
-            }
+  if (!file_exists($configFile)) {
+    return;
+  }
 
-            if (file_exists($backups) && is_dir($backups)) {
+  $config = file_get_contents($configFile);
+  $config = json_decode(substr($config, 8), true);
 
-              $files = scandir($backups);
-              for ($i = 0; $i < sizeof($files); ++$i) {
 
-                $file = $backups . DIRECTORY_SEPARATOR . $files[$i];
-                if (is_file($file) && !in_array($files[$i], ['.', '..'])) {
-                  @unlink($file);
-                }
+  $deleteBackups = $config['OTHER:UNINSTALL:BACKUPS'];
+  $deleteConfigs = $config['OTHER:UNINSTALL:CONFIGS'];
 
-              }
 
-              $files = scandir($backups);
-              if (sizeof($files) <= 2) rmdir($backups);
+  if ($deleteBackups === 'true' || $deleteBackups === true) {
+      $backupsPath = $config['STORAGE::LOCAL::PATH'];
+      $backupsPath = $backupsPath . DIRECTORY_SEPARATOR . 'backups';
 
-            }
-          }
+    if (file_exists($backupsPath) && is_dir($backupsPath)) {
+
+      $files = scandir($backupsPath);
+      for ($i = 0; $i < sizeof($files); ++$i) {
+
+        $file = $backupsPath . DIRECTORY_SEPARATOR . $files[$i];
+        if (is_file($file) && !in_array($files[$i], ['.', '..'])) {
+          @unlink($file);
         }
+
       }
 
-      if (isset($config->{'OTHER:UNINSTALL:CONFIGS'})) {
-        if ($config->{'OTHER:UNINSTALL:CONFIGS'} === 'true' || $config->{'OTHER:UNINSTALL:CONFIGS'} === true) {
-
-          $files = scandir($dir);
-          for ($i = 0; $i < sizeof($files); ++$i) {
-
-            $file = $dir . DIRECTORY_SEPARATOR . $files[$i];
-            if (is_file($file) && !in_array($files[$i], ['.', '..'])) {
-              @unlink($file);
-            }
-
-          }
-
-          $files = scandir($dir);
-          if (sizeof($files) <= 2) rmdir($dir);
-
-        }
-      }
+      $files = scandir($backupsPath);
+      if (sizeof($files) <= 2) rmdir($backupsPath);
 
     }
+  }
 
-    if (function_exists('delete_option')) {
-      delete_option('bmi_pro_gd_client_id');
-      delete_option('bmi_pro_gd_token');
+  if ($deleteConfigs === 'true' || $deleteConfigs === true) {
+    $configFile = WP_CONTENT_DIR . DIRECTORY_SEPARATOR . 'backup-migration-config.php';
+
+    if (file_exists($configFile)) {
+      @unlink($configFile);
     }
+
+    global $wpdb;
+
+
+    $free_options = $wpdb->get_results( "SELECT option_name FROM $wpdb->options WHERE option_name LIKE 'bmi_%'" );
+
+    foreach( $free_options as $option ) {
+        delete_option( $option->option_name );
+    }
+    
   }

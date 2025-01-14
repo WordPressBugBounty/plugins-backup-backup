@@ -20,7 +20,8 @@
     public function scanBackupDir($path) {
 
       $files = [];
-      foreach (new \DirectoryIterator($path) as $fileInfo) {
+      $dirs = new \DirectoryIterator($path);
+      foreach ($dirs as $fileInfo) {
 
         if ($fileInfo->isDot()) continue;
         if ($fileInfo->isFile()) {
@@ -32,6 +33,17 @@
               'size' => $fileInfo->getSize()
             );
 
+          } else if (strlen($fileInfo->getExtension()) == 6) { // Remove old partial backups e.g. abcdef.zip.g1wdas
+            $extentions = explode('.', $fileInfo->getFilename());
+            if (in_array($extentions[count($extentions) - 2],['zip', 'tar', 'tar.gz', 'gz', 'rar', '7zip', '7z'])) {
+              if (!file_exists(BMI_BACKUPS . DIRECTORY_SEPARATOR . '.running')) {
+                @unlink($path . DIRECTORY_SEPARATOR . $fileInfo->getFilename());
+              }
+            }
+          } else if ($fileInfo->getFilename() == '.space_check') {
+            if (!file_exists(BMI_BACKUPS . DIRECTORY_SEPARATOR . '.running')) {
+              @unlink($path . DIRECTORY_SEPARATOR . $fileInfo->getFilename());
+            }
           }
         }
 
@@ -174,7 +186,7 @@
 
     }
 
-    public function getAvailableBackups() {
+    public function getAvailableBackups($scope = "all") {
 
       // Require Universal Zip Library
       require_once BMI_INCLUDES . '/zipper/zipping.php';
@@ -206,13 +218,19 @@
         
         $manifest = $this->getManifestFromZip($path, $zipper);
         if ($manifest) $manifests[$backup['filename']] = $manifest;
-        else @unlink($path);
+        else{
+          if (!file_exists(BMI_BACKUPS . '/.running')) @unlink($path); // Prevents deletion of running backups
+        }
         
         // $fileend = $filestart - time();
         // $totalTime = $start - time();
         
         // if ($totalTime + $fileend > $maxTime) break;
         
+      }
+
+      if ($scope == "local") {
+        return [ 'local' => $manifests ];
       }
 
       if (defined('BMI_BACKUP_PRO') && defined('BMI_PRO_INC')) {

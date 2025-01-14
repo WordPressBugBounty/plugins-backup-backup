@@ -13,11 +13,11 @@
   <div class="bmi-modal-wrapper no-hpad" style="max-width: 900px; max-width: min(900px, 80vw)">
     <div class="bmi-modal-content center">
 
-      <div class="mm60 f30 bold black"><?php _e('Restoring in progress', 'backup-backup') ?></div>
+      <div class="mm60 f30 bold black title"><?php _e('Restoration in progress', 'backup-backup') ?></div>
 
       <div class="red-error-bg tml">
         <div class="red-warning mtl mbl f18">
-          <?php _e('Do not close this window as long as the restoring process is ongoing', 'backup-backup'); ?>
+          <?php _e('Do not close this window as long as the restoration process is ongoing', 'backup-backup'); ?>
         </div>
       </div>
 

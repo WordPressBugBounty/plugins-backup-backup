@@ -24,7 +24,7 @@ $beforename = $name;
 $name = substr($name, 0, -(strlen($ext) + 1));
 $noextname = $name;
 $file_name = $name . '-' . $taskStart . '.' . $ext;
-$newfile = BMI_BACKUPS . '/' . $file_name;
+$newfile = BMI_BACKUPS . '/' . $file_name . '.part'; // Temporary .part file during upload
 $afterfile = BMI_BACKUPS . '/' . $beforename;
 $url = plugin_dir_url(BMI_ROOT_FILE) . '/backups' . '/' . $file_name;
 

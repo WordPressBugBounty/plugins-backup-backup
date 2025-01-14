@@ -26,12 +26,11 @@
   $tooltip_files = str_replace('"', '“', $tooltip_files);
   $tooltip_premium_details = str_replace('"', '“', $tooltip_premium_details);
 
-  if (defined('BMI_PREMIUM_TOOLTIP')) {
-    $tooltip_smart_exclusion = str_replace('"', "'", BMI_PREMIUM_TOOLTIP);
+  if (defined('BMI_ALREADY_IN_PRO')) {
+    $tooltip_smart_exclusion = str_replace('"', "'", BMI_ALREADY_IN_PRO);
   }
 
   $tooltip_premium_details .= '';
-  $tooltip_smart_exclusion = '';
   if (!function_exists('bmi_cb_collapsible')) {
     function bmi_cb_collapsible($c) {
       echo ' class="bmi_will_collapse" data-if-checked="' . $c . '"';
@@ -359,7 +358,8 @@
   </div>
 
 
-  <div class="mm92 lh30 mbl npb">
+</div>
+  <div class="mm mtl lh30">
 
     <div class="cf">
       <div class="left inline-radio semibold">
@@ -369,13 +369,13 @@
       <div class="left d-flex mr60 ia-center">
         <label id="nnmysql" class="container-radio active">
           <?php _e("No", 'backup-backup'); ?>
-          <input id="nnmysql" type="radio" name="smart_exclusion_db_first_bm" value="true" checked>
+          <input id="nnmysql" type="radio" name="smart_exclusion_db_first_bm" value="false" <?php bmi_try_checked('SMART:EXCLUSION:ENABLED', true); ?> <?php bmi_cb_collapsible('smart-exclusion-wrapper'); ?>>
           <span class="checkmark-radio"></span>
         </label>
-        <span class="cf premium-wrapper" tooltip="<?php echo $tooltip_smart_exclusion; ?>">
-          <label class="left container-radio ml25 not-allowed">
+        <span class="cf premium-<?php bmi_pro_features($pros, true, __("You will be able to exclude data from your database based on smart rules.", 'backup-backup')); ?>">
+          <label class="left container-radio ml25 <?php echo ($pros) ? '' : 'not-allowed'; ?>">
             <?php _e("Yes", 'backup-backup'); ?>
-            <input type="radio" disabled name="smart_exclusion_db_first_bm">
+            <input type="radio" name="smart_exclusion_db_first_bm" <?php echo ($pros) ? '' : 'disabled'; ?> id="smart-exclusion-enabled" <?php bmi_try_checked('SMART:EXCLUSION:ENABLED'); ?> <?php bmi_cb_collapsible('smart-exclusion-wrapper'); ?> value="true">
             <span class="checkmark-radio"></span>
           </label>
           <span class="left premium premium-img premium-nt mtf3"></span>
@@ -385,49 +385,41 @@
 
   </div>
 
-  <div class="mm92 lh30 mbll">
+  <div class="mm lh30 mbll">
     <?php _e('With the "Files" and "Databases" options above you can already define what to include or exclude in your backup. However, you may want to exclude elements in your backups where you are not sure in which file or table they reside. For example, you may want to exclude all spam comments in your backups. This is what the "smart" exclusion rules are for. This is also a good way to clean your site of things you do not want.', 'backup-backup'); ?>
   </div>
 
-  <div class="mm92 mtl mbl lh40 bg-second f20 overlayed">
+  <div class="mm mtl mbl lh40 bg-second f20 overlayed" id="smart-exclusion-wrapper">
 
-    <?php include BMI_INCLUDES . '/dashboard/templates/premium-overlay.php'; ?>
+    <?php  if (!$pros):?>
+      <?php include BMI_INCLUDES . '/dashboard/templates/premium-function-overlay.php'; ?>
+    <?php endif; ?>
+
 
     <div class="cf">
       <label class="left half chhl">
-        <input type="checkbox" name="" value="">
-        <span><?php _e("Exclude", 'backup-backup'); ?> <b><?php _e("spam comments", 'backup-backup'); ?></b></span>
-      </label>
-      <label class="left half chhl">
-        <input type="checkbox" name="" value="">
+        <input type="checkbox" name="smart-exclusion-cache" value="" id="smart-exclusion-cache" <?php bmi_try_checked('SMART:EXCLUSION:CACHE'); ?>>
         <span><?php _e("Exclude all", 'backup-backup'); ?> <b><?php _e("cache files", 'backup-backup'); ?></b></span>
       </label>
       <label class="left half chhl">
-        <input type="checkbox" name="" value="">
+        <input type="checkbox" name="smart-exclusion-deactivated-plugins" value="" <?php bmi_try_checked('SMART:EXCLUSION:DPLUGINS'); ?> id="smart-exclusion-deactivated-plugins">
         <span><?php _e("Exclude all", 'backup-backup'); ?> <b><?php _e("deactivated plugins", 'backup-backup'); ?></b></span>
       </label>
       <label class="left half chhl">
-        <input type="checkbox" name="" value="">
+        <input type="checkbox" name="smart-exclusion-debug-logs" value="" id="smart-exclusion-debug-logs" <?php bmi_try_checked('SMART:EXCLUSION:DLOGS'); ?>>
         <span><?php _e("Exclude all", 'backup-backup'); ?> <b><?php _e("debug logs", 'backup-backup'); ?></b></span>
       </label>
       <label class="left half chhl">
-        <input type="checkbox" name="" value="">
+        <input type="checkbox" name="smart-exclusion-non-used-themes" value="" id="smart-exclusion-non-used-themes" <?php bmi_try_checked('SMART:EXCLUSION:NUTHEMES'); ?>>
         <span><?php _e("Exclude", 'backup-backup'); ?> <b><?php _e("all non-used themes", 'backup-backup'); ?></b></span>
       </label>
       <label class="left half chhl">
-        <input type="checkbox" name="" value="">
-        <span><?php _e("Exclude all", 'backup-backup'); ?> <b><?php _e("thumbnails", 'backup-backup'); ?></b></span>
-      </label>
-      <label class="left half chhl">
-        <input type="checkbox" name="" value="">
+        <input type="checkbox" name="smart-exclusion-post-revisions" value="" id="smart-exclusion-post-revisions" <?php bmi_try_checked('SMART:EXCLUSION:PREVISIONS'); ?>>
         <span><?php _e("Exclude", 'backup-backup'); ?> <b><?php _e("post revisions", 'backup-backup'); ?></b></span>
       </label>
     </div>
 
   </div>
-
-</div>
-
 
 <div class="mm mt mblll bold">
   <?php _e("Summary / Sanity check", 'backup-backup'); ?>

@@ -3,7 +3,7 @@ Contributors: Migrate
 Tags: Migration, Backup, Staging, Migrate, Backups
 Requires at least: 4.6
 Tested up to: 6.7.1
-Stable tag: 1.4.6.1
+Stable tag: 1.4.7
 License: GPLv3
 Requires PHP: 5.6
 
@@ -163,9 +163,24 @@ Vietnamese: [Tạo sao lưu, khôi phục các bản sao lưu và di chuyển c�
 
 == Changelog ==
 
-= 1.4.6.1 =
+= 1.4.7 =
 * Tested with WordPress 6.7.1
-* Hotfix resolving a security issue
+* [FEATURE] Backup size limit has been bumped to 4GB (previously it was 2GB).
+* [FIX] Fixed an issue with restore failing when it reaches DB restoring setup.
+* [FIX] Fixed a restoration issue with the same file being moved multiple times.
+* [FIX] Bug fix which prevented the CLI method from being used due to a lock file logic.
+* [FIX] Bug fix related to early loading of translation (https://core.trac.wordpress.org/changeset/59127).
+* [FIX] Fixed a security issue in the backup restore feature.
+* [ENHANCEMENT] Enhancements to compatibility notices and "not enough space" error handling.
+* [ENHANCEMENT] Enhanced Debug-It-Yourself notice when an issue occurs.
+* [ENHANCEMENT] Updated incompatible plugins list (which are known to interfere with the working of the plugin).
+* [ENHANCEMENT] Clear indication of space issues (if any) when backup/restore fails.
+* [ENHANCEMENT] Minor adjustments to cloud storage listing.
+* [ENHANCEMENT] Optimization of backups list fetching.
+* [ENHANCEMENT] Enhanced backup file path handling for core and content files.
+* [ENHANCEMENT] Enhanced restore progress modal with dynamic titles and warnings based on the restore process state.
+* [ENHANCEMENT] Enhanced backup file handling and cleanup logic (after backup errors).
+
 
 = 1.4.6 =
 * Tested with WordPress 6.6
@@ -217,13 +232,6 @@ Vietnamese: [Tạo sao lưu, khôi phục các bản sao lưu và di chuyển c�
 = 1.4.3 =
 * [REMOVED] Backup middleware PHP file has been removed
 * [CHANGE] We lowered requirements for our upload area, now it requires max_upload_size minimum at 1 MB.
-* [CHANGE] Default configuration for scheduled backups changed to weekly (previously: monthly)
-* [CHANGE] Bypass backup methods no longer rely on headers, these are no longer in use
-* [CHANGE] Cache directories will be now included in backups again (default behavior)
-* [CHANGE] Censor for table prefix simplified to ***_ (previously: ***prefix***)
-* [CHANGE] Scheduled backups are now forced to use new CURL backup method
-* [CHANGE] Updated plugin welcome title to something more fancy
-* [CHANGE] New users will now have PHP CLI disabled by default
 * [... and more ...]
 
 = previous =
@@ -231,7 +239,21 @@ Old changelog has been removed due to WordPress limitation of 5000 characters.
 
 == Upgrade Notice ==
 
-= 1.4.6.1 =
-What's new in 1.4.6.1?
+= 1.4.7 =
+What's new in 1.4.7?
 * Tested with WordPress 6.7.1
-* Hotfix resolving a security issue
+* [FEATURE] Backup size limit has been bumped to 4GB (previously it was 2GB).
+* [FIX] Fixed an issue with restore failing when it reaches DB restoring setup.
+* [FIX] Fixed a restoration issue with the same file being moved multiple times.
+* [FIX] Bug fix which prevented the CLI method from being used due to a lock file logic.
+* [FIX] Bug fix related to early loading of translation (https://core.trac.wordpress.org/changeset/59127).
+* [FIX] Fixed a security issue in the backup restore feature.
+* [ENHANCEMENT] Enhancements to compatibility notices and "not enough space" error handling.
+* [ENHANCEMENT] Enhanced Debug-It-Yourself notice when an issue occurs.
+* [ENHANCEMENT] Updated incompatible plugins list (which are known to interfere with the working of the plugin).
+* [ENHANCEMENT] Clear indication of space issues (if any) when backup/restore fails.
+* [ENHANCEMENT] Minor adjustments to cloud storage listing.
+* [ENHANCEMENT] Optimization of backups list fetching.
+* [ENHANCEMENT] Enhanced backup file path handling for core and content files.
+* [ENHANCEMENT] Enhanced restore progress modal with dynamic titles and warnings based on the restore process state.
+* [ENHANCEMENT] Enhanced backup file handling and cleanup logic (after backup errors).

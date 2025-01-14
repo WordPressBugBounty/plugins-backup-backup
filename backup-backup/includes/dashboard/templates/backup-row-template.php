@@ -3,20 +3,24 @@
   // Namespace
   namespace BMI\Plugin\Dashboard;
 
-  // Exit on direct access
-  if (!defined('ABSPATH')) exit;
-  
-  $bmiGDriveBackupTooltip = 'Google Drive';
-  $bmiFtpBackupTooltip = 'FTP';
-  if (!defined('BMI_PRO_INC')) {
-    $bmiGDriveBackupTooltip = __('%sNever lose a backup by also saving it on Google Drive!%s%sUpgrade to %sPremium%s today%s%s%sWe made it really affordable!%s', 'backup-backup');
-    $bmiGDriveBackupTooltip = sprintf($bmiGDriveBackupTooltip, '<div class="bmi-center-text">', '<br>', '<a href="' . BMI_AUTHOR_URI . '" target="_blank">', '<span class="bmi-premium-bg-stars">', '</span>', '</a>', '<br>', '<b>', '</b>', '</div>');
-  }
+  use BMI\Plugin\Dashboard as Dashboard;
 
-    if (!defined('BMI_PRO_INC')) {
-      $bmiFtpBackupTooltip = __('%sNever lose a backup by also saving it on FTP!%s%sUpgrade to %sPremium%s today%s%s%sWe made it really affordable!%s', 'backup-backup');
-      $bmiFtpBackupTooltip = sprintf($bmiFtpBackupTooltip, '<div class="bmi-center-text">', '<br>', '<a href="' . BMI_AUTHOR_URI . '" target="_blank">', '<span class="bmi-premium-bg-stars">', '</span>', '</a>', '<br>', '<b>', '</b>', '</div>');
-    }
+// Exit on direct access
+if (!defined('ABSPATH')) exit;
+
+$clouds = [];
+$clouds["GDRIVE"] = [ "name" => "Google Drive", "icon" => "google-drive-mono.svg" ];
+$clouds["ONEDRIVE"] = [ "name" => "One Drive", "icon" => "one-drive-mono.svg" ];
+$clouds["DROPBOX"] = [ "name" => "Dropbox", "icon" => "dropbox-mono.svg" ];
+$clouds["FTP"] = [ "name" => "FTP", "icon" => "ftp-mono.svg" ];
+
+foreach ($clouds as $cloudKey => $cloudDetail) {
+  if (!defined('BMI_PRO_INC')) {
+    $clouds[$cloudKey]["tooltip"] = __('%sNever lose a backup by also saving it on ' . $cloudDetail["name"] . '!%s%sUpgrade to %sPremium%s today%s%s%sWe made it really affordable!%s', 'backup-backup');
+    $clouds[$cloudKey]["tooltip"] = sprintf($clouds[$cloudKey]["tooltip"], '<div class="bmi-center-text">', '<br>', '<a href="' . BMI_AUTHOR_URI . '" target="_blank">', '<span class="bmi-premium-bg-stars">', '</span>', '</a>', '<br>', '<b>', '</b>', '</div>');
+  }
+  $clouds[$cloudKey]["enabled"] = Dashboard\bmi_get_config('STORAGE::EXTERNAL::' . $cloudKey); //Make sure cloudNames you add has proper naming structure which matches the config name
+}
 
 ?>
 
@@ -38,27 +42,30 @@
             <use xlink:href="<?php echo $this->get_asset('images', 'local-server-2.svg#img') ?>"></use>
           </svg>
 
-          <svg class="list-storage-img strg-gdrive tooltip-html" tooltip="<?php echo esc_attr( $bmiGDriveBackupTooltip ); ?>" data-top="5">
-            <use xlink:href="<?php echo $this->get_asset('images', 'google-drive-mono.svg#img') ?>"></use>
-          </svg>
-
-            <svg class="list-storage-img strg-ftp tooltip-html" tooltip="<?php echo esc_attr( $bmiFtpBackupTooltip ); ?>" data-top="5">
-                <use xlink:href="<?php echo $this->get_asset('images', 'ftp-mono.svg#img') ?>"></use>
+          <?php foreach ($clouds as $cloudKey => $cloudDetail): ?>
+          <?php if ($cloudDetail["enabled"] === true || $cloudDetail["enabled"] === 'true'): ?>
+            <?php //Make sure again the class name you define .strg- conforms with the strucuture as implemented above.
+            ?>
+            <svg class="list-storage-img strg-<?php echo strtolower($cloudKey) ?> tooltip-html" tooltip="<?php echo esc_attr(isset($cloudDetail["tooltip"]) ? $cloudDetail["tooltip"] : $cloudDetail["name"]); ?>" data-top="5">
+              <use xlink:href="<?php echo $this->get_asset('images', $cloudDetail["icon"] . '#img') ?>"></use>
             </svg>
+          <?php endif; ?>
+          <?php endforeach; ?>
 
-        </div>
-        <?php if (defined('BMI_PRO_INC')): ?>
+      </div>
+
+      <?php if (defined('BMI_PRO_INC')): ?>
         <div class="right">
 
-          <svg class="list-storage-img strg-suc tooltip" tooltip="<?php _e('Backup is stored on: Google Drive & Local Storage.', 'backup-backup') ?>" data-top="5">
+          <!-- <svg class="list-storage-img strg-suc tooltip" tooltip="<?php _e('Backup is stored on: Cloud & Local Storage.', 'backup-backup') ?>" data-top="5">
             <use xlink:href="<?php echo $this->get_asset('images', 'list-success.svg#img') ?>"></use>
-          </svg>
+          </svg> -->
 
-          <svg class="list-storage-img strg-warn img-red tooltip" tooltip="<?php _e('There was an error during upload to: Google Drive.', 'backup-backup') ?>" data-top="5" style="display: none;">
+          <svg class="list-storage-img strg-warn img-red tooltip" tooltip="<?php _e('There was an error during upload to: Cloud.', 'backup-backup') ?>" data-top="5" style="display: none;">
             <use xlink:href="<?php echo $this->get_asset('images', 'list-warning.svg#img') ?>"></use>
           </svg>
 
-          <svg class="list-storage-img strg-ong ongoing tooltip" tooltip="<?php _e('Upload to Google Drive in progress:', 'backup-backup') ?>" data-top="5" style="display: none;">
+          <svg class="list-storage-img strg-ong ongoing tooltip" tooltip="<?php _e('Upload to Cloud in progress:', 'backup-backup') ?>" data-top="5" style="display: none;">
             <use xlink:href="<?php echo $this->get_asset('images', 'list-ongoing.svg#img') ?>"></use>
           </svg>
 
@@ -67,7 +74,7 @@
           </svg>
 
         </div>
-      </div>
+        </div>
       <?php endif; ?>
     </td>
     <td class="center">

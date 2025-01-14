@@ -25,7 +25,7 @@
 
 ?>
 
-<div class="translations">
+<div class="translations" style="display:none;visibility:hidden;height:0;width:0;">
   <div id="premium-tooltip">
     <?php if (defined('BMI_PREMIUM_TOOLTIP')): ?>
     <?php echo BMI_PREMIUM_TOOLTIP; ?>
@@ -197,6 +197,21 @@
   <div id="bmi-restore-error-modal-title">
     <?php _e("Restore failed", 'backup-backup') ?>
   </div>
+  <div id="bmi-backup-downloaded">
+    <?php _e('Backup downloaded successfully.', 'backup-backup') ?>
+  </div>
+  <div id="bmi-download-progress-modal-title">
+    <?php _e('Downloading backup file', 'backup-backup') ?>
+  </div>
+  <div id="bmi-download-warning">
+    <?php _e('Backup file needs to be downloaded before the parts can be selected', 'backup-backup') ?>
+  </div>
+  <div id="bmi-restore-progress-modal-title">
+    <?php _e('Restoration in progress', 'backup-backup') ?>
+  </div>
+  <div id="bmi-restore-progress-modal-warning">
+    <?php _e('Do not close this window as long as the restoration process is ongoing', 'backup-backup'); ?>
+  </div>
   <?php if (false) { ?>
   <div id="bmi-share-logs-thank-you">
     <?php _e("Thank you very much for your support!", 'backup-backup') ?>
@@ -205,6 +220,64 @@
     <?php _e('Preparing creation of staging site...', 'backup-backup') ?>
   </div>
   <?php } ?>
+  <div id="bmi-before-core-update-backup">
+    <?php _e('Core and database successfully backed up.', 'backup-backup') ?>
+  </div>
+  <div id="bmi-before-update-is-enabled">
+    <?php echo bmi_get_config('OTHER:TRIGGER:BEFORE:UPDATES') ? 1 : 0; ?>
+  </div>
+  <div id="bmi-before-update-backup">
+    <?php _e("Before update backup", 'backup-backup') ?>
+  </div>
+  <div id="creating-backup">
+    <?php _e("Creating backup...", 'backup-backup') ?>
+  </div>
+  <div id="core-backup-in-progress">
+    <?php _e("Core backup in progress...", 'backup-backup') ?>
+  </div>
+  <div id="theme-backup-in-progress">
+    <?php _e("Theme backup in progress...", 'backup-backup') ?>
+  </div>
+  <div id="plugins-backup-in-progress">
+    <?php _e("Plugins backup in progress...", 'backup-backup') ?>
+  </div>
+  <div id="backup-succeeded-update-will-start">
+    <?php _e("Backup created successfully. Proceeding with update.") ?>
+  </div>
+  <div id="backup-failed">
+    <?php _e("Backup failed: ", 'backup-backup') ?>
+  </div>
+  <div id="backup-failed-update-anyway">
+    <?php _e("Backup failed, update anyway", 'backup-backup') ?>
+  </div>
+  <div id="update-anyway">
+    <?php _e("Update anyway", 'backup-backup') ?>
+  </div>
+  <div id="error-occurred">
+    <?php _e("An error occurred during the backup process. Please check ", 'backup-backup') ?>
+  </div>
+  <div id="bmi-dashboard">
+    <?php _e("Backup Migration dashboard", 'backup-backup') ?>
+  </div>
+  <div id="or">
+    <?php _e("or ", 'backup-backup') ?>
+  </div>
+  <div id="update-anyway-small">
+    <?php _e("update anyway", 'backup-backup') ?>
+  </div>
+  <div id="proceed-without-backup">
+    <?php _e("to proceed without backup", 'backup-backup') ?>
+  </div>
+  <div id="updating">
+    <?php _e("Updating...", 'backup-backup') ?>
+  </div>
+  <div id="ask-if-update-anyway">
+    <?php _e('Would you like to proceed with the update without a backup? %sUpdate Anyway.%s', 'backup-backup') ?>
+  </div>
+
+
+
+
   <div id="BMI_URL_ROOT"><?php echo plugin_dir_url(BMI_ROOT_FILE); ?></div>
   <div id="BMI_BLOG_URL"><?php echo get_site_url(); ?></div>
   <div id="BMI_REV"><?php echo BMI_REV; ?></div>

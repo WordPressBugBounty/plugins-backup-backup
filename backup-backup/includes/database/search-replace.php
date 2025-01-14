@@ -43,6 +43,12 @@ class BMI_Search_Replace_Engine {
 
   	try {
 
+      $wasObject = false;
+      if (is_object($data)) {
+        $data = (array) $data;
+        $wasObject = true;
+      }
+
   		if (is_string($data) && is_serialized($data) && ($unserialized = @unserialize($data, ['allowed_classes' => ['stdClass']])) !== false) {
 
   			$data = $this->recursive_unserialize_replace($from, $to, $unserialized, true);
@@ -54,7 +60,12 @@ class BMI_Search_Replace_Engine {
   				$_tmp[$key] = $this->recursive_unserialize_replace($from, $to, $value, false);
   			}
 
-  			$data = $_tmp;
+        if ($wasObject) {
+          $data = (object) $_tmp;
+        } else {
+          $data = $_tmp;
+        }
+
   			unset($_tmp);
 
   		} else if (is_string($data)) $data = str_replace($from, $to, $data);

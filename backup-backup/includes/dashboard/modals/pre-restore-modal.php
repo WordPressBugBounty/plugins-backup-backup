@@ -10,8 +10,8 @@
 
   // Premium
   $sellcodes = BMI_AUTHOR_URI;
-  $tooltip = str_replace('"', "'", BMI_PREMIUM_TOOLTIP);
-
+  // $tooltip = str_replace('"', "'", );
+  $pros = defined('BMI_BACKUP_PRO') && BMI_BACKUP_PRO == 1;
 ?>
 
 <div class="bmi-modal" id="pre-restore-modal">
@@ -46,8 +46,8 @@
       </div>
 
       <div class="mm60 center mbl f18">
-        <div class="premium-wrapper center block inline" tooltip="<?php echo $tooltip; ?>">
-          <div class="premium premium-img">
+        <div class="center block inline premium-<?php bmi_pro_features($pros, true, __("Recover only what you need from your backup", 'backup-backup')); ?>">
+          <div class="premium premium-img restore-parts">
             <?php _e('Only want to restore parts of the backup?', 'backup-backup') ?>
           </div>
         </div>

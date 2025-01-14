@@ -275,10 +275,10 @@
 
         if (file_exists($src)) {
           $fileDest = BMP::fixSlashes($dest);
-          foreach ($preventMoveFiles as $idx => $preventedFile) {
-            if (strpos($src, $preventedFile) === false) {
-              rename($src, $fileDest);
-            }
+          $srcFileName = basename($src);
+
+          if (!in_array($srcFileName, $preventMoveFiles)) {
+            rename($src, $fileDest);
           }
         }
 
@@ -293,6 +293,25 @@
     }
 
     public function removePreviousSelectionsIfDatabaseIncluded() {
+      if (!isset($manifest)) {
+        $manifest = $this->getCurrentManifest();
+      }
+      $restorePartsFile= BMI_TMP . DIRECTORY_SEPARATOR . 'restore_parts.json';
+      $prefix = $manifest->config->table_prefix;
+      if (file_exists($restorePartsFile)) {
+        $restoreParts = json_decode(file_get_contents($restorePartsFile));
+        if (isset($restoreParts->backupName) && $restoreParts->backupName == basename($this->src)) {
+          if (!isset($restoreParts->dirs['db_tables']) &&  !isset($restoreParts->files[$prefix . 'options.sql'])) {
+            return;
+          }
+        }
+      } else {
+        $manager = new ZipManager();
+        $optionsTable = $manager->getZipFileContent($this->src, 'db_tables' . DIRECTORY_SEPARATOR . $prefix . 'options.sql');
+        if ($optionsTable === false) {
+          return;
+        }
+      }
 
       $themedir = get_theme_root();
       $tempTheme = $themedir . DIRECTORY_SEPARATOR . 'backup_migration_restoration_in_progress';
@@ -407,7 +426,7 @@
         @unlink($tblmap);
       }
 
-      $allowedFiles = ['wp-config.php', '.htaccess', '.litespeed', '.default.json', 'driveKeys.php', '.autologin.php', '.migrationFinished'];
+      $allowedFiles = ['wp-config.php', '.htaccess', '.litespeed', '.default.json', 'driveKeys.php', 'dropboxKeys.php', '.autologin.php', '.migrationFinished', 'onedriveKeys.php'];
       foreach (glob(BMI_TMP . DIRECTORY_SEPARATOR . 'backup-migration_??????????') as $filename) {
 
         $basename = basename($filename);
@@ -1340,6 +1359,9 @@
 
       $pro_gd_token = get_option('bmi_pro_gd_token', false);
       $pro_gd_client_id = get_option('bmi_pro_gd_client_id', false);
+      $dropboxId = get_option('bmip_dropbox', false);
+      $pro_dropbox_client_id = get_option('bmip_dropbox_auth_code', false);
+      $pro_onedrive_wid = get_option('bmi_pro_onedrive_wid', false);
 
       if ($pro_gd_token != false && $pro_gd_client_id != false) {
         $tempKeyDriveFile = BMI_TMP . DIRECTORY_SEPARATOR . 'driveKeys.php';
@@ -1347,6 +1369,21 @@
         $content .= "//" . $pro_gd_token . "\n";
         $content .= "//" . $pro_gd_client_id . "\n";
         file_put_contents($tempKeyDriveFile, $content);
+      }
+
+      if ($dropboxId != false && $pro_dropbox_client_id != false) {
+        $tempKeyDropboxFile = BMI_TMP . DIRECTORY_SEPARATOR . 'dropboxKeys.php';
+        $content = "<?php \n";
+        $content .= "//" . $dropboxId . "\n";
+        $content .= "//" . $pro_dropbox_client_id . "\n";
+        file_put_contents($tempKeyDropboxFile, $content);
+      }
+
+      if ($pro_onedrive_wid !== false) {
+        $tempKeyOneDriveFile = BMI_TMP . DIRECTORY_SEPARATOR . 'onedriveKeys.php';
+        $content = "<?php \n";
+        $content .= "//" . $pro_onedrive_wid . "\n";
+        file_put_contents($tempKeyOneDriveFile, $content);
       }
 
     }
@@ -1367,7 +1404,10 @@
       $manager = new ZipManager();
 
       $save = $this->scanFile;
-      $amount = $manager->getZipContentList($this->src, $save);
+      $amount = $manager->getPartsToRestore($this->src, $save);
+      if ($amount === false) {
+        $amount = $manager->getZipContentList($this->src, $save);
+      }
 
       $this->migration->log(__('Scan found ', 'backup-backup') . $amount . __(' files inside the backup.', 'backup-backup'), 'INFO');
 

@@ -7,6 +7,7 @@
   use BMI\Plugin\Backup_Migration_Plugin as BMP;
   use BMI\Plugin\BMI_Logger as Logger;
   use BMI\Plugin\Progress\BMI_ZipProgress as Progress;
+  use BMI\Plugin\BMI_Zip_Explorer as ZipExplorer;
 
   // Exit on direct access
   if (!defined('ABSPATH')) {
@@ -177,6 +178,50 @@
 
       }
 
+    }
+
+    public function getPartsToRestore($zippath, $savepath) {
+      if (!defined('BMI_PRO_INC') || !file_exists(BMI_PRO_INC . '/zip-explorer.php')) {
+          return false;
+      }
+  
+      require_once BMI_PRO_INC . '/zip-explorer.php';
+
+      $restorePartsFile = BMI_TMP . DIRECTORY_SEPARATOR . 'restore_parts.json';
+      if (!file_exists($restorePartsFile)) {
+          return false;
+      }
+  
+      $restorePartsContent = json_decode(file_get_contents($restorePartsFile), true);
+      if (!$restorePartsContent || !isset($restorePartsContent['backupName'])) {
+          return false;
+      }
+  
+      if ($restorePartsContent['backupName'] !== basename($zippath)) {
+          Logger::log('Ignoring restore parts file, because it does not match the backup name.');
+          @unlink($restorePartsFile);
+          return false;
+      }
+  
+      $zipExplorer = new ZipExplorer($zippath);
+      $amount = 0;
+      if (isset($restorePartsContent['dirs']) && is_array($restorePartsContent['dirs'])) {
+          foreach ($restorePartsContent['dirs'] as $dir) {
+              $amount += $zipExplorer->scanDir($dir, $savepath);
+          }
+
+      }
+  
+      if (isset($restorePartsContent['files']) && is_array($restorePartsContent['files'])) {
+          $amount += sizeof($restorePartsContent['files']);
+          $files = implode("\n", $restorePartsContent['files']);
+          file_put_contents($savepath, $files, FILE_APPEND);
+      }
+
+      file_put_contents($savepath, "\nbmi_backup_manifest.json", FILE_APPEND);
+      
+  
+      return $amount;
     }
 
     public function getZipFileContentPlain($zipname, $filename) {

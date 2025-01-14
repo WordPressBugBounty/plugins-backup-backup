@@ -7,7 +7,7 @@
    *  Author URI: https://inisev.com
    *  Plugin URI: https://backupbliss.com
    * Text Domain: backup-backup
-   *     Version: 1.4.6.1
+   *     Version: 1.4.7
    * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
   // Exit on direct access
@@ -21,7 +21,7 @@
     define('BMI_DEBUG', false);
   }
   if (!defined('BMI_VERSION')) {
-    define('BMI_VERSION', '1.4.6.1');
+    define('BMI_VERSION', '1.4.7');
   }
   if (!defined('BMI_ROOT_DIR')) {
     define('BMI_ROOT_DIR', __DIR__);
@@ -49,7 +49,7 @@
   require_once BMI_INCLUDES . DIRECTORY_SEPARATOR . 'analyst.php';
 
   // Load plugin after all
-  add_action('plugins_loaded', function () {
+  add_action('init', function () {
 
     // Global plugin variables
     require_once BMI_ROOT_DIR . DIRECTORY_SEPARATOR . 'includes' . DIRECTORY_SEPARATOR . 'constants.php';

@@ -112,7 +112,7 @@
       register_uninstall_hook(BMI_ROOT_FILE, 'bmi_uninstall_handler');
 
       // File downloading
-      add_action('init', [&$this, 'handle_downloading']);
+      add_action('wp_loaded', [&$this, 'handle_downloading']);
 
       // Additional actions
       if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] === 'GET') {
@@ -121,8 +121,8 @@
       // Handle CRONs
       add_action('bmi_do_backup_right_now', [&$this, 'handle_cron_backup']);
       add_action('bmi_handle_cron_check', [&$this, 'handle_cron_check']);
-      add_action('init', [&$this, 'handle_crons']);
-      add_action('init', [&$this, 'include_offline']);
+      add_action('wp_loaded', [&$this, 'handle_crons']);
+      add_action('wp_loaded', [&$this, 'include_offline']);
       add_action('admin_notices', [&$this, 'incompatibility_notices']);
       
       // Return if CRON time
@@ -171,6 +171,7 @@
       add_action('admin_init', [&$this, 'admin_init_hook']);
       add_action('admin_menu', [&$this, 'submenu']);
       add_action('admin_notices', [&$this, 'admin_notices']);
+
 
       // Settings action
       add_filter('plugin_action_links_' . plugin_basename(BMI_ROOT_FILE), [&$this, 'settings_action']);
@@ -475,6 +476,12 @@
       }
 
       $backup_path = BMI_BACKUPS . DIRECTORY_SEPARATOR . $backup;
+      $partial_backup_path = glob( BMI_BACKUPS . DIRECTORY_SEPARATOR . $backup . '.??????');
+      if (is_array($partial_backup_path) && count($partial_backup_path) > 0) {
+        foreach ($partial_backup_path as $key => $value) {
+          @unlink($value);
+        }
+      }
       if (file_exists($backup_path)) @unlink($backup_path);
       if (file_exists(BMI_BACKUPS . DIRECTORY_SEPARATOR . '.running')) @unlink(BMI_BACKUPS . DIRECTORY_SEPARATOR . '.running');
       if (file_exists(BMI_BACKUPS . DIRECTORY_SEPARATOR . '.abort')) @unlink(BMI_BACKUPS . DIRECTORY_SEPARATOR . '.abort');
@@ -754,28 +761,31 @@
         @unlink(BMI_BACKUPS . DIRECTORY_SEPARATOR . $name);
       }
 
-      // Auto GDrive Removal 
-      if (isset($availableBackups['external']['gdrive'])) {
-        $gdrive = $availableBackups['external']['gdrive'];
-        foreach ($gdrive as $md5 => $data) {
-          if ($gdrive[$md5][6] == true && $gdrive[$md5][5] == 'unlocked') {
-            $sortedMD5s[] = [$gdrive[$md5][1], $md5];
+      // Auto External Removal
+      $sortedMD5s = [];
+      $externalStorages = ['gdrive', 'dropbox', 'onedrive', 'FTP', 'sftp'];
+      foreach ($externalStorages as $storage) {
+        if (isset($availableBackups['external'][$storage])) {
+          $storageList = $availableBackups['external'][$storage];
+          foreach ($storageList as $md5 => $data) {
+            if ($storageList[$md5][6] == true && $storageList[$md5][5] == 'unlocked') {
+              $sortedMD5s[] = [$storageList[$md5][1], $md5];
+            }
           }
         }
+      }
+      $sortedMD5s = array_intersect_key($sortedMD5s, array_unique(array_map('serialize', $sortedMD5s)));
+      
+      usort($sortedMD5s, function ($a, $b) {
+        return (strtotime($a[0]) < strtotime($b[0])) ? -1 : 1;
+      });
 
-        $sortedMD5s = array_intersect_key($sortedMD5s, array_unique(array_map('serialize', $sortedMD5s)));
-        
-        usort($sortedMD5s, function ($a, $b) {
-          return (strtotime($a[0]) < strtotime($b[0])) ? -1 : 1;
-        });
+      $sortedMD5s = array_slice($sortedMD5s, 0, -(intval(Dashboard\bmi_get_config('CRON:KEEP'))));
+      foreach ($sortedMD5s as $index => $data) {
+        $md5 = $data[1];
 
-        $sortedMD5s = array_slice($sortedMD5s, 0, -(intval(Dashboard\bmi_get_config('CRON:KEEP'))));
-        foreach ($sortedMD5s as $index => $data) {
-          $md5 = $data[1];
-
-          do_action('bmi_premium_remove_backup_file', $md5);
-          do_action('bmi_premium_remove_backup_json_file', $md5 . '.json');
-        }
+        do_action('bmi_premium_remove_backup_file', $md5);
+        do_action('bmi_premium_remove_backup_json_file', $md5 . '.json');
       }
     }
 
@@ -825,6 +835,7 @@
       $line = str_replace(ABSPATH, '***ABSPATH***/', $line);
       $line = str_replace($dir_name, '***backup_path***', $line);
       $line = str_replace($table_prefix, '***_', $line);
+      $line = preg_replace('/^(.*?&sk=).*$/', '$1***', $line);
 
       for ($i = 0; $i < sizeof($scanned_directory); ++$i) {
 
@@ -963,15 +974,14 @@
       <?php }
 
       // Only for BM Settings
-      if (get_current_screen()->id != 'toplevel_page_backup-migration') {
-        return;
-      }
+      if (!in_array(get_current_screen()->id, ['toplevel_page_backup-migration', 'update-core', 'plugins', 'plugin-install', 'themes','customize', 'plugins-network', 'plugin-install-network', 'themes-network'])) return;
       wp_enqueue_script('backup-migration-script', $this->get_asset('js', 'backup-migration.min.js'), ['jquery'], BMI_VERSION, true);
       wp_localize_script('backup-migration-script', 'bmiVariables', [
         'nonce' => wp_create_nonce('backup-migration-ajax'),
         'stgLoading' => __('Loading, please wait...', 'backup-backup'),
         'stgStagingDefaultName' => __('staging', 'backup-backup'),
         'urlCopies' => __('URL copied successfully', 'backup-backup'),
+        'isBeforeUpdateEnabled' => dashboard\bmi_get_config('OTHER:TRIGGER:BEFORE:UPDATES') ? 'true' : 'false',
         'maxUploadSize' => $this->getMaxUploadSize()
       ]);
 
@@ -1010,8 +1020,8 @@
       // Global styles
       wp_enqueue_style('backup-migration-style-icon', $this->get_asset('css', 'bmi-plugin-icon.min.css'), [], BMI_VERSION);
 
-      // Only for BM Settings
-      if (get_current_screen()->id != 'toplevel_page_backup-migration') return;
+      // Only for BM Settings and Update Core page
+      if (!in_array(get_current_screen()->id, ['toplevel_page_backup-migration', 'update-core', 'plugins', 'plugin-install', 'themes','customize', 'plugins-network', 'plugin-install-network', 'themes-network'])) return;
 
       // Enqueue the style
       wp_enqueue_style('backup-migration-style', $this->get_asset('css', 'bmi-plugin.min.css'), [], BMI_VERSION);
@@ -1626,6 +1636,14 @@
         require_once BMI_INCLUDES . '/staging/controller.php';
         $staging = new Staging('..ajax..');
         $stagingSites = $staging->getStagingSites(true);
+        $stagingSitesPaths = [];
+        // Get all directory names of staging sites
+        foreach ($stagingSites as $index => $site) {
+
+          // Convert every directory to their location path
+          $stagingSitesPaths[] = '***ABSPATH***/' . $site['name'];
+
+        }
     
         $ignored_paths_default = [
           BMI_CONFIG_DIR,
@@ -1656,7 +1674,7 @@
           "***ABSPATH***/wp-config.php",
           "***ABSPATH***/wp-content/backup-migration-config.php",
         ];
-        $ignored_paths = array_merge($ignored_paths_default, $stagingSites);
+        $ignored_paths = array_merge($ignored_paths_default, $stagingSitesPaths);
         array_walk($ignored_paths, function(&$path){
           $path = self::fixSlashes(str_replace('***ABSPATH***', ABSPATH, $path));
         });
@@ -1683,5 +1701,29 @@
           }
         }
       }
+    }
+
+    public static function getRetryAfterIfAvailable($ch, $response)
+    {
+      $phpVersion = phpversion();
+      $curlVersion = curl_version();
+      // Available as of PHP 8.2.0 and cURL 7.66.0
+      if (version_compare($phpVersion, '8.2.0', '>=') && version_compare($curlVersion['version'], '7.66.0', '>=')) {
+        $retryAfter = curl_getinfo($ch, CURLINFO_RETRY_AFTER);
+        if ($retryAfter !== false) {
+          return $retryAfter;
+        }
+      }else {
+        $header_size = curl_getinfo($ch, CURLINFO_HEADER_SIZE);
+        $header = substr($response, 0, $header_size);
+        $headers = explode("\r\n", $header);
+        foreach ($headers as $h) {
+            if (preg_match('/^Retry-After:\s+(\d+)/i', $h, $matches)) {
+                return intval($matches[1]);
+            }
+        }    
+      }
+      return false;
+
     }
   }

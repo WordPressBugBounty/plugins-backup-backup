@@ -40,9 +40,9 @@ class BMI_Passwordless_Login {
   function __construct() {
 
     // Password less login module
-    add_action('init', [$this, 'refreshPermalink'], -15);
-    add_action('init', [$this, 'loginPageRedirectionWhileLogged'], -20);
-    add_action('init', [$this, 'passwordLessLoginModule'], -10);
+    add_action('wp_loaded', [$this, 'refreshPermalink'], -15);
+    add_action('wp_loaded', [$this, 'loginPageRedirectionWhileLogged'], -20);
+    add_action('wp_loaded', [$this, 'passwordLessLoginModule'], -10);
 
   }
 

@@ -65,6 +65,8 @@
   <!-- Error handling -->
   <?php require_once 'modules/email-errors.php'; ?>
   <?php require_once 'modules/quota-errors.php'; ?>
+  <?php has_action('bmi_premium_errors') ? do_action('bmi_premium_errors') : ''; ?>
+  <?php require_once 'modules/before-update-backup-errors.php'; ?>
 
   <!-- @@TAB@@ Create backups(s) -->
   <div class="bmi-tab-wrapper" id="create-backup-wrapper">
@@ -225,6 +227,7 @@
   <?php require_once 'modals/backup-success-modal.php'; ?>
   <?php require_once 'modals/prenotice-modal.php'; ?>
   <?php require_once 'modals/pre-restore-modal.php'; ?>
+  <?php require_once 'modals/restore-parts-modal.php'; ?>
   <?php require_once 'modals/error-modal.php'; ?>
   <?php require_once 'modals/restore-progress-modal.php'; ?>
   <?php require_once 'modals/restore-success-modal.php'; ?>

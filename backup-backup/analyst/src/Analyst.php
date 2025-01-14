@@ -77,7 +77,7 @@ class Analyst implements AnalystContract
 	 */
 	public function initialize()
 	{
-		add_action('init', function () {
+		add_action('wp_loaded', function () {
 			$this->collector->loadCurrentUser();
 		});
 	}

@@ -70,6 +70,7 @@ class BMI_Database_Exporter {
   public $max_query_size;
   public $table_prefix;
   public $init_start;
+  public $isPostRevisionsExcluded = false;
 
   /**
    * __construct - Initialization and logger resolver
@@ -119,6 +120,9 @@ class BMI_Database_Exporter {
     if ($batcher === false || $batcher === 0) {
       $this->logger->log("Memory usage after initialization: " . number_format(memory_get_usage() / 1024 / 1024, 2) . " MB", 'INFO');
     }
+
+    $isSmartExclusion =defined("BMI_BACKUP_PRO") && BMI_BACKUP_PRO && Dashboard\bmi_get_config('SMART:EXCLUSION:ENABLED') == 'true' ? true : false;
+    $this->isPostRevisionsExcluded = $isSmartExclusion &&(Dashboard\bmi_get_config('SMART:EXCLUSION:PREVISIONS') == 'true' ? true : false);
 
   }
 
@@ -249,6 +253,11 @@ class BMI_Database_Exporter {
         $query .= "(SELECT COUNT(*) FROM `$table_name`) AS `rows`";
         $query .= "FROM information_schema.TABLES ";
         $query .= "WHERE table_schema = %s AND table_name = %s";
+        
+        if ($this->isPostRevisionsExcluded && ($table_name == $this->wpdb->posts || $table_name == $this->wpdb->postmeta) && has_filter('bmip_smart_exclusion_post_revisions_count')) {
+          $query = apply_filters('bmip_smart_exclusion_post_revisions_count', $query, $table_name);
+        }
+
         $results = $this->wpdb->get_results($this->wpdb->prepare($query, DB_NAME, $table_name));
 
         if (!is_object($results[0])) {
@@ -427,6 +436,9 @@ class BMI_Database_Exporter {
         for (;$i < $rows;) {
 
           $query = $this->wpdb->prepare("SELECT * FROM `$table_name` LIMIT %d, $this->max_rows", $i);
+          if ($this->isPostRevisionsExcluded && ($table_name == $this->wpdb->posts || $table_name == $this->wpdb->postmeta) && has_filter('bmip_smart_exclusion_post_revisions')) {
+            $query = apply_filters('bmip_smart_exclusion_post_revisions', $query, $table_name, $i, $this->max_rows);
+          }
           $result = $this->wpdb->get_results($query);
 
           $valuesSize = $this->getArraySize($result, $currentBufferSize);
