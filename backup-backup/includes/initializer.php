@@ -74,6 +74,7 @@
 
             $_SERVER['HTTP_X_REQUESTED_WITH'] = 'xmlhttprequest';
             $_POST['f'] = 'download-backup';
+            $_POST['url'] = BMI_CLI_ARGUMENT;
 
             $this->ajax(true);
 

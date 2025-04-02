@@ -39,15 +39,15 @@ class BMI_Search_Replace_Engine {
 
   }
 
-  private function recursive_unserialize_replace($from = '', $to = '', $data = '', $serialised = false) {
+  private function recursive_unserialize_replace($from = '', $to = '', $data = '', $serialised = false, $visited = []) {
 
-  	try {
-
-      $wasObject = false;
-      if (is_object($data)) {
-        $data = (array) $data;
-        $wasObject = true;
+    if (is_array($data) || is_object($data)) {
+      if (in_array($data, $visited, true)) {
+        return $data;
       }
+      $visited[] = $data;
+    }
+  	try {
 
   		if (is_string($data) && is_serialized($data) && ($unserialized = @unserialize($data, ['allowed_classes' => ['stdClass']])) !== false) {
 
@@ -57,18 +57,28 @@ class BMI_Search_Replace_Engine {
 
   			$_tmp = [];
   			foreach ($data as $key => $value) {
-  				$_tmp[$key] = $this->recursive_unserialize_replace($from, $to, $value, false);
+  				$_tmp[$key] = $this->recursive_unserialize_replace($from, $to, $value, false, $visited);
   			}
 
-        if ($wasObject) {
-          $data = (object) $_tmp;
-        } else {
-          $data = $_tmp;
+        $data = $_tmp;
+        unset($_tmp);
+      } else if (is_object($data) && !is_a($data, '__PHP_Incomplete_Class')) {
+        $tmp = $data;
+        $props = get_object_vars($data);
+        foreach ($props as $key => $value) {
+          $tmp->$key = $this->recursive_unserialize_replace($from, $to, $value, false, $visited);
         }
-
-  			unset($_tmp);
-
-  		} else if (is_string($data)) $data = str_replace($from, $to, $data);
+        $data = $tmp;
+        unset($tmp);
+      } else if (is_string($data) && (null !== ($_tmp = json_decode($data, true))) && is_array($_tmp)) {
+        foreach ($_tmp as $key => $value) {
+          $_tmp[$key] = $this->recursive_unserialize_replace($from, $to, $value, false, $visited);
+        }
+        $data = json_encode($_tmp);
+        unset($_tmp);
+      } else if (is_string($data)) {
+        $data = str_replace($from, $to, $data);
+      }
 
   		if ($serialised) return serialize($data);
 

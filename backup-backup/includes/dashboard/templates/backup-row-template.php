@@ -13,6 +13,7 @@ $clouds["GDRIVE"] = [ "name" => "Google Drive", "icon" => "google-drive-mono.svg
 $clouds["ONEDRIVE"] = [ "name" => "One Drive", "icon" => "one-drive-mono.svg" ];
 $clouds["DROPBOX"] = [ "name" => "Dropbox", "icon" => "dropbox-mono.svg" ];
 $clouds["FTP"] = [ "name" => "FTP", "icon" => "ftp-mono.svg" ];
+$clouds["SFTP"] = [ "name" => "SFTP", "icon" => "sftp-mono.svg" ];
 
 foreach ($clouds as $cloudKey => $cloudDetail) {
   if (!defined('BMI_PRO_INC')) {

@@ -27,6 +27,7 @@
   use BMI\Plugin\Heart\BMI_Backup_Heart as Bypasser;
   use BMI\Plugin\Staging\BMI_Staging as Staging;
   use BMI\Plugin\Checker\Compatibility as Compatibility;
+  use BMI\Plugin\External\BMI_External_SFTP as SFTP;
 
   /**
    * Ajax Handler for BMI
@@ -1617,7 +1618,7 @@
       $migration = new MigrationProgress(true);
       $migration->start();
 
-      $tmp_name = 'backup_' . time() . '.zip';
+      $tmp_name = 'backup_' . time() . '.zip.part';
 
       // Missing URL parameter
       if (!isset($this->post['url'])) {
@@ -1923,6 +1924,14 @@
           if (!Dashboard\bmi_set_config('STORAGE::EXTERNAL::ONEDRIVE', $onedriveenabled)) {
             $errors++;
           }
+        }
+
+        if (isset($this->post['sftp'])) {
+          $sftpenabled = $this->post['sftp'];
+          if (!Dashboard\bmi_set_config('STORAGE::EXTERNAL::SFTP', $sftpenabled)) {
+            $errors++;
+          }
+    
         }
 
         if (isset($this->post['ftp'])) {
@@ -3094,6 +3103,8 @@
         case 'before-update-issues':
           delete_option('bmi_display_before_update_backup_issues');
           break;
+        case 'sftp-issues':
+          update_option('bmip_sftp_dismiss_issue', true);
         case 'gdrive-issues':
           delete_transient('bmip_gd_issue');
           break;
@@ -3155,7 +3166,7 @@
 
       }
 
-      $allowedFiles = ['wp-config.php', '.htaccess', '.litespeed', '.default.json', 'driveKeys.php', 'dropboxKeys.php', '.autologin.php', '.migrationFinished', 'onedriveKeys.php'];
+      $allowedFiles = ['wp-config.php', '.htaccess', '.litespeed', '.default.json', 'driveKeys.php', 'dropboxKeys.php', '.autologin.php', '.migrationFinished', 'onedriveKeys.php', 'sftpKeys.php'];
       foreach (glob(BMI_TMP . DIRECTORY_SEPARATOR . '.*') as $filename) {
 
         $basename = basename($filename);
@@ -3239,7 +3250,7 @@
 
       }
 
-      $allowedFiles = ['wp-config.php', '.htaccess', '.litespeed', '.default.json', 'driveKeys.php', 'dropboxKeys.php', '.autologin.php', '.migrationFinished', 'onedriveKeys.php'];
+      $allowedFiles = ['wp-config.php', '.htaccess', '.litespeed', '.default.json', 'driveKeys.php', 'dropboxKeys.php', '.autologin.php', '.migrationFinished', 'onedriveKeys.php', 'sftpKeys.php'];
       foreach (glob(BMI_TMP . DIRECTORY_SEPARATOR . '.*') as $filename) {
 
         $basename = basename($filename);
@@ -3559,7 +3570,7 @@
 
         $ext = pathinfo($dir . DIRECTORY_SEPARATOR . $name, PATHINFO_EXTENSION);
 
-        if ($ext === 'zip') {
+        if (in_array($ext, ['zip', 'tar', 'gz'])) {
           $backups[] = [
             'cdate' => filemtime($dir . DIRECTORY_SEPARATOR . $name),
             'name' => $name

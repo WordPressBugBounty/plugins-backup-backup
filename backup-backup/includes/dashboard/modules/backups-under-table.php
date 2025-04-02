@@ -57,7 +57,7 @@
             </div>
           </div>
         </div>
-        <input type="file" id="upid_input" accept=".zip" onchange="jQuery.fchunker_upload()">
+        <input type="file" id="upid_input" accept=".zip,.gz,.tar" onchange="jQuery.fchunker_upload()">
       </form>
     </label>
   </div>

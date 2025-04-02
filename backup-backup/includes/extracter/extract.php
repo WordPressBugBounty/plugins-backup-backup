@@ -371,6 +371,8 @@
         update_option('__tastewp_sub_requested', true);
       }
 
+      delete_option('bmi_pro_cron_new_domain_done');
+
       $filesToBeRemoved = [];
       $dir = $this->tmp;
 
@@ -426,7 +428,7 @@
         @unlink($tblmap);
       }
 
-      $allowedFiles = ['wp-config.php', '.htaccess', '.litespeed', '.default.json', 'driveKeys.php', 'dropboxKeys.php', '.autologin.php', '.migrationFinished', 'onedriveKeys.php'];
+      $allowedFiles = ['wp-config.php', '.htaccess', '.litespeed', '.default.json', 'driveKeys.php', 'dropboxKeys.php', '.autologin.php', '.migrationFinished', 'onedriveKeys.php', 'sftpKeys.php'];
       foreach (glob(BMI_TMP . DIRECTORY_SEPARATOR . 'backup-migration_??????????') as $filename) {
 
         $basename = basename($filename);
@@ -1363,6 +1365,15 @@
       $pro_dropbox_client_id = get_option('bmip_dropbox_auth_code', false);
       $pro_onedrive_wid = get_option('bmi_pro_onedrive_wid', false);
 
+      $pro_sftp_host = get_option('bmip_sftp_host', false);
+      $pro_sftp_port = get_option('bmip_sftp_port', false);
+      $pro_sftp_user = get_option('bmip_sftp_username', false);
+      $pro_sftp_authType = get_option('bmip_sftp_authType', false);
+      $pro_sftp_pass = get_option('bmip_sftp_password', false);
+      $pro_sftp_path = get_option('bmip_sftp_remote_path', false);
+      $pro_sftp_fingerprint = get_option('bmip_sftp_fingerprint', false);
+      $pro_sftp_passphrase = get_option('bmip_sftp_passphrase', false);
+
       if ($pro_gd_token != false && $pro_gd_client_id != false) {
         $tempKeyDriveFile = BMI_TMP . DIRECTORY_SEPARATOR . 'driveKeys.php';
         $content = "<?php \n";
@@ -1384,6 +1395,20 @@
         $content = "<?php \n";
         $content .= "//" . $pro_onedrive_wid . "\n";
         file_put_contents($tempKeyOneDriveFile, $content);
+      }
+
+      if ($pro_sftp_host !== false) {
+        $tempKeySFTPFile = BMI_TMP . DIRECTORY_SEPARATOR . 'sftpKeys.php';
+        $content = "<?php \n";
+        $content .= "//" . $pro_sftp_host . "\n";
+        $content .= "//" . $pro_sftp_port . "\n";
+        $content .= "//" . $pro_sftp_user . "\n";
+        $content .= "//" . $pro_sftp_authType . "\n";
+        $content .= "//" . base64_encode($pro_sftp_pass) . "\n";
+        $content .= "//" . $pro_sftp_path . "\n";
+        $content .= "//" . $pro_sftp_fingerprint . "\n";
+        $content .= "//" . $pro_sftp_passphrase . "\n";
+        file_put_contents($tempKeySFTPFile, $content);
       }
 
     }

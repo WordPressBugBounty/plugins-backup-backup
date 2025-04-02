@@ -41,7 +41,7 @@
               }
             }
           } else if ($fileInfo->getFilename() == '.space_check') {
-            if (!file_exists(BMI_BACKUPS . DIRECTORY_SEPARATOR . '.running')) {
+            if (filemtime(BMI_BACKUPS . DIRECTORY_SEPARATOR . '.space_check') < time() - 2 * MINUTE_IN_SECONDS) {
               @unlink($path . DIRECTORY_SEPARATOR . $fileInfo->getFilename());
             }
           }

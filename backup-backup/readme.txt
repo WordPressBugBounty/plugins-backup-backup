@@ -2,8 +2,8 @@
 Contributors: Migrate
 Tags: Migration, Backup, Staging, Migrate, Backups
 Requires at least: 4.6
-Tested up to: 6.7.1
-Stable tag: 1.4.7
+Tested up to: 6.7.2
+Stable tag: 1.4.8
 License: GPLv3
 Requires PHP: 5.6
 
@@ -28,7 +28,7 @@ Use a wide choice of configuration options:
 
 This plugin is all in one solution if you need to migrate your site to another host or just restore the local backup.
 
-Note: This (free) version is limited to backups of 2GB in size. For unlimited sizes, please have a look at the [Premium Plugin](https://backupbliss.com). The code of this free plugin is licensed under [GPLv3](https://www.gnu.org/licenses/gpl-3.0.en.html), however, we claim rights to other content. Please read the full [Terms of Use](https://backupbliss.com/terms) that touch other points as well and apply in entirety.
+Note: This (free) version is limited to backups of 4GB in size, due to native WordPress ZIP limitations.. For unlimited sizes and increased stability for larger sites, please have a look at the [Premium Plugin](https://backupbliss.com). The code of this free plugin is licensed under [GPLv3](https://www.gnu.org/licenses/gpl-3.0.en.html), however, we claim rights to other content. Please read the full [Terms of Use](https://backupbliss.com/terms) that touch other points as well and apply in entirety.
 
 If any questions come up, please ask us in the [Support Forum](https://wordpress.org/support/plugin/backup-backup) - we're always happy to help!
 
@@ -50,7 +50,7 @@ You can download backup or migrate your backup (use the plugin as a WordPress du
 
 - If your backup is *located on another device*: Go to the BackupBliss - Backup Migration Staging plugin screen, then to the Manage & Restore Backup(s) tab, and click on the “Upload backup files” button. After the upload, click on the Restore button next to the backup you would like to restore.
 
-- If your backup is *located on Google Drive*: Go to the BackupBliss - Backup Migration Staging plugin screen, then to the plugin section “Where shall the backup(s) be stored?”, turn ON the Google Drive option, and connect to your account. After that, the plugin will sync the available backup files in the plugin section “Manage & Restore Backups” from where you will be able to run Restore.
+- If your backup is *located on Google Drive, OneDrive, Dropbox, FTP or SFTP*: Go to the BackupBliss - Backup Migration Staging plugin screen, then to the plugin section “Where shall the backup(s) be stored?”, turn ON the respective external storage option, and connect to your account. After that, the plugin will sync the available backup files in the plugin section “Manage & Restore Backups” from where you will be able to run Restore.
 
 = How do I migrate or clone my site? =
 
@@ -60,11 +60,11 @@ Migrate (or clone) a WordPress site by creating a full backup on the site that y
 
 - To migrate the website **indirectly**: Go to the BackupBliss - Backup Migration Staging plugin screen, then to the Manage & Restore Backup(s) tab, and click on the “Upload backup files” button. After the upload, click on the Restore button next to the backup you would like to restore.
 
-- To migrate the website with *Google Drive*: Go to the BackupBliss - Backup Migration Staging plugin screen, then to the plugin section “Where shall the backup(s) be stored?”, turn ON the Google Drive option, and connect to your account. After that, the plugin will sync the available backup files in the plugin section “Manage & Restore Backups” from where you will be able to run Restore.
+- To migrate the website with *Google Drive, OneDrive, Dropbox, FTP or SFTP*: Go to the BackupBliss - Backup Migration Staging plugin screen, then to the plugin section “Where shall the backup(s) be stored?”, turn ON the respective external storage option, and connect to your account. After that, the plugin will sync the available backup files in the plugin section “Manage & Restore Backups” from where you will be able to run Restore.
 
 = Where can I find my backups? =
 
-BackupBliss - Backup Migration Staging allows you to download backups, migrate backups, or delete backups directly from the plugin screen Manage & Restore Backup(s). By default, the migrator plugin will store a backup to /wordpress/wp-content/backup-migration but you can change the backup location to anywhere you please.
+BackupBliss - Backup Migration Staging allows you to download backups, migrate backups, or delete backups directly from the plugin screen Manage & Restore Backup(s). By default, the migrator plugin will store backups locally on the server to /wordpress/wp-content/backup-migration but you can change the backup location to anywhere you please. If you have backups stored on the cloud - OneDrive, Dropbox, Google Drive, FTP or SFTP, you will need to connect the plugin with the respective storage account, so that the plugin can synchronize the data.
 
 = How to run automatic backups? =
 
@@ -86,14 +86,14 @@ You can easily set up a staging environment for your website with the BackupBlis
 
 2. To create a stage site on a free WordPress sandbox platform - [TasteWP](https://tastewp.com/), select the option “TasteWP (external server)”, then select a backup file that will be used, and click on the button “Create staging site!”.
 
-= Is cloud backup available? =
+= ⭐️ NEW! Is cloud backup available? =
 
-Backup to Google Drive is now available in the [BackupBliss - Backup Migration Staging Pro](https://sellcodes.com/oZxnXtc2)
-Upcoming storage options will include: FTP, Amazon S3, Rackspace, DreamObjects, OpenStack, Google Cloud, SFTP/SCP, Microsoft Azure, OneDrive, Backblaze, and more.
+Backup to Google Drive, OneDrive, FTP, SFTP and Dropbox are now available in the [BackupBliss - Backup Migration Staging Pro](https://sellcodes.com/oZxnXtc2)
+Upcoming storage options will include: Amazon S3, Rackspace, DreamObjects, OpenStack, Google Cloud, Microsoft Azure, Backblaze, and more.
 
-= ⭐️ NEW! How do I back up to Google Drive? =
+= ⭐️ NEW! How do I back up to Google Drive / OneDrive / Dropbox / FTP / SFTP? =
 
-In order to automatically upload your site backups to Google Drive, you will need a [Pro version](https://sellcodes.com/oZxnXtc2) of the plugin. Once installed and activated, navigate to the plugin section “Where shall the backup(s) be stored?”, and turn ON the Google Drive feature. Click on the button Connect, and select a Google account you want to connect to. Once it is connected, your backup files from the website will start to sync to your Google Drive. You can monitor the process in the plugin section “Manage & Restore Backups”
+In order to automatically upload your site backups to the Cloud, you will need a [Pro version](https://sellcodes.com/oZxnXtc2) of the plugin. Once installed and activated, navigate to the plugin section “Where shall the backup(s) be stored?”, and turn ON the respective external storage feature. Click on the button Connect, and select an account you want to connect to. Once it is connected, your backup files from the website will start to sync to your connected storage. You can monitor the process in the plugin section “Manage & Restore Backups”
 
 = How are you better than other backup/migration plugins?  =
 
@@ -163,6 +163,14 @@ Vietnamese: [Tạo sao lưu, khôi phục các bản sao lưu và di chuyển c�
 
 == Changelog ==
 
+= 1.4.8 =
+* Tested with WordPress 6.7.2
+* [FIX] Added functionality to support both uploading and downloading of .tar.gz and .tar backups.
+* [FIX] Updated space check logic to prevent false positive 'Not enough space' alerts.
+* [FIX] Prevent deletion of partially downloaded backup during Super-quick migration
+* [FIX] Super-quick migration using cli
+* [FIX] Fixed an issue where restoration process is stuck due to an infinite recursion in unserialize replacement
+
 = 1.4.7 =
 * Tested with WordPress 6.7.1
 * [FEATURE] Backup size limit has been bumped to 4GB (previously it was 2GB).
@@ -181,10 +189,9 @@ Vietnamese: [Tạo sao lưu, khôi phục các bản sao lưu và di chuyển c�
 * [ENHANCEMENT] Enhanced restore progress modal with dynamic titles and warnings based on the restore process state.
 * [ENHANCEMENT] Enhanced backup file handling and cleanup logic (after backup errors).
 
-
 = 1.4.6 =
 * Tested with WordPress 6.6
-* Minor performance improvements 
+* Minor performance improvements
 * Improvements for PHP 8 utilization
 
 = 1.4.5 =
@@ -216,22 +223,6 @@ Vietnamese: [Tạo sao lưu, khôi phục các bản sao lưu và di chuyển c�
 * [CHANGE] Backup list refresh will now perform cleanup and list cache regeneration
 * [CHANGE] PCLZip will now use larger block sizes to support larger single files
 * [FIX] Added additional checks for broken permission files/directoriers to exclude them without error
-* [FIX] Fixed our upload area to display current percentage of the progress instead of delayed
-* [FIX] Success window will not show up now after aborting the process and starting it again
-* [FIX] Improved file scanner to prevent errors during scanning of files out of open_basedir
-* [FIX] Resolves issues with plugin tabs while using plugins that could conflict with ours
-* [FIX] Addedd ability to self-regenerate config file when it got damaged due to errors
-* [FIX] Improved security of public URLs such as URL for migration, censored live logs
-* [FIX] Increased possibility to display error window when something unknown happened
-* [FIX] Reviewed proper responses from backup-process.php after moving it to WP scope
-* [FIX] Fixed doubled responses from backup-process.php during browser backup method
-* [FIX] Decreased possibility of false positive success window during PHP CLI
-* [FIX] Improved session detection for sites with improper session setup 
-* [FIX] Fixed JSON parser to not fail on empty responses
-
-= 1.4.3 =
-* [REMOVED] Backup middleware PHP file has been removed
-* [CHANGE] We lowered requirements for our upload area, now it requires max_upload_size minimum at 1 MB.
 * [... and more ...]
 
 = previous =
@@ -239,21 +230,11 @@ Old changelog has been removed due to WordPress limitation of 5000 characters.
 
 == Upgrade Notice ==
 
-= 1.4.7 =
-What's new in 1.4.7?
-* Tested with WordPress 6.7.1
-* [FEATURE] Backup size limit has been bumped to 4GB (previously it was 2GB).
-* [FIX] Fixed an issue with restore failing when it reaches DB restoring setup.
-* [FIX] Fixed a restoration issue with the same file being moved multiple times.
-* [FIX] Bug fix which prevented the CLI method from being used due to a lock file logic.
-* [FIX] Bug fix related to early loading of translation (https://core.trac.wordpress.org/changeset/59127).
-* [FIX] Fixed a security issue in the backup restore feature.
-* [ENHANCEMENT] Enhancements to compatibility notices and "not enough space" error handling.
-* [ENHANCEMENT] Enhanced Debug-It-Yourself notice when an issue occurs.
-* [ENHANCEMENT] Updated incompatible plugins list (which are known to interfere with the working of the plugin).
-* [ENHANCEMENT] Clear indication of space issues (if any) when backup/restore fails.
-* [ENHANCEMENT] Minor adjustments to cloud storage listing.
-* [ENHANCEMENT] Optimization of backups list fetching.
-* [ENHANCEMENT] Enhanced backup file path handling for core and content files.
-* [ENHANCEMENT] Enhanced restore progress modal with dynamic titles and warnings based on the restore process state.
-* [ENHANCEMENT] Enhanced backup file handling and cleanup logic (after backup errors).
+= 1.4.8 =
+What's new in 1.4.8?
+* Tested with WordPress 6.7.2
+* [FIX] Added functionality to support both uploading and downloading of .tar.gz and .tar backups.
+* [FIX] Updated space check logic to prevent false positive 'Not enough space' alerts.
+* [FIX] Prevent deletion of partially downloaded backup during Super-quick migration
+* [FIX] Super-quick migration using cli
+* [FIX] Fixed an issue where restoration process is stuck due to an infinite recursion in unserialize replacement

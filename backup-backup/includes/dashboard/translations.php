@@ -274,6 +274,9 @@
   <div id="ask-if-update-anyway">
     <?php _e('Would you like to proceed with the update without a backup? %sUpdate Anyway.%s', 'backup-backup') ?>
   </div>
+  <div id="bmi-save-connect-sftp">
+    <?php _e('Connected to SFTP server successfully.', 'backup-backup') ?>
+  </div>
 
 
 

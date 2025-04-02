@@ -58,7 +58,7 @@ if (!$file || !$name) {
 
 }
 
-$imgarr = array('zip');
+$imgarr = array('zip', 'tar', 'gz');
 if (!in_array(strtolower($ext), $imgarr)) {
 
   jsonMsg(0, 'Invalid file type');
