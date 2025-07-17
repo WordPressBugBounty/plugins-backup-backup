@@ -3,7 +3,7 @@ Contributors: Migrate
 Tags: Migration, Backup, Staging, Migrate, Backups
 Requires at least: 4.6
 Tested up to: 6.8.2
-Stable tag: 1.4.9
+Stable tag: 1.4.9.1
 License: GPLv3
 Requires PHP: 5.6
 

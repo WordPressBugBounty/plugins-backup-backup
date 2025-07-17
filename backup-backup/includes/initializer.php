@@ -148,10 +148,10 @@
           $review_banner = new \Inisev\Subs\Inisev_Review(BMI_ROOT_FILE, BMI_ROOT_DIR, 'backup-backup', 'Backup & Migration', 'http://bit.ly/3vdk45L', 'backup-migration');
         }
 
-        if (!(class_exists('\Inisev\Subs\New_BB_Banner') || class_exists('Inisev\Subs\New_BB_Banner') || class_exists('New_BB_Banner'))) {
-          require_once BMI_MODULES_DIR . 'new-bb-banner' . DIRECTORY_SEPARATOR . 'misc.php';
-        }
-        new \Inisev\Subs\New_BB_Banner(BMI_ROOT_FILE, BMI_ROOT_DIR, 'backup-backup', 'Backup & Migration', 'backup-migration');
+        // if (!(class_exists('\Inisev\Subs\New_BB_Banner') || class_exists('Inisev\Subs\New_BB_Banner') || class_exists('New_BB_Banner'))) {
+        //   require_once BMI_MODULES_DIR . 'new-bb-banner' . DIRECTORY_SEPARATOR . 'misc.php';
+        // }
+        // new \Inisev\Subs\New_BB_Banner(BMI_ROOT_FILE, BMI_ROOT_DIR, 'backup-backup', 'Backup & Migration', 'backup-migration');
 
 
         // GDrive banner
