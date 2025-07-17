@@ -9,19 +9,25 @@
 if (!defined('ABSPATH')) exit;
 
 $clouds = [];
+$clouds["BACKUPBLISS"] = [ "name" => "BackupBliss", "icon" => "backupbliss-mono.svg"];
 $clouds["GDRIVE"] = [ "name" => "Google Drive", "icon" => "google-drive-mono.svg" ];
-$clouds["ONEDRIVE"] = [ "name" => "One Drive", "icon" => "one-drive-mono.svg" ];
+$clouds["ONEDRIVE"] = [ "name" => "OneDrive", "icon" => "one-drive-mono.svg" ];
 $clouds["DROPBOX"] = [ "name" => "Dropbox", "icon" => "dropbox-mono.svg" ];
 $clouds["FTP"] = [ "name" => "FTP", "icon" => "ftp-mono.svg" ];
+$clouds["AWS"] = [ "name" => "Amazon S3", "icon" => "amazon-s3-mono.svg" ];
+$clouds["WASABI"] = [ "name" => "Wasabi", "icon" => "wasabi-s3-mono.svg" ];
 $clouds["SFTP"] = [ "name" => "SFTP", "icon" => "sftp-mono.svg" ];
 
+
 foreach ($clouds as $cloudKey => $cloudDetail) {
-  if (!defined('BMI_PRO_INC')) {
+  if (!defined('BMI_PRO_INC') && $cloudKey != "BACKUPBLISS") {
     $clouds[$cloudKey]["tooltip"] = __('%sNever lose a backup by also saving it on ' . $cloudDetail["name"] . '!%s%sUpgrade to %sPremium%s today%s%s%sWe made it really affordable!%s', 'backup-backup');
     $clouds[$cloudKey]["tooltip"] = sprintf($clouds[$cloudKey]["tooltip"], '<div class="bmi-center-text">', '<br>', '<a href="' . BMI_AUTHOR_URI . '" target="_blank">', '<span class="bmi-premium-bg-stars">', '</span>', '</a>', '<br>', '<b>', '</b>', '</div>');
   }
   $clouds[$cloudKey]["enabled"] = Dashboard\bmi_get_config('STORAGE::EXTERNAL::' . $cloudKey); //Make sure cloudNames you add has proper naming structure which matches the config name
 }
+
+$clouds["BACKUPBLISS"]["enabled"] = true; //BB Storage always enabled
 
 ?>
 
@@ -36,8 +42,8 @@ foreach ($clouds as $cloudKey => $cloudDetail) {
     <td class="br_name tooltip-html" tooltip="example.com" data-top="5">---</td>
     <td class="br_size">---</td>
     <td class="br_stroage center">
-      <div class="cf<?php echo (defined('BMI_PRO_INC')) ? ' br_wrapper_storage' : '' ?>">
-        <div<?php echo (defined('BMI_PRO_INC')) ? ' class="left"' : '' ?>>
+      <div class="cf br_wrapper_storage">
+        <div class="left">
 
           <svg class="list-storage-img strg-local tooltip" tooltip="<?php _e('Local Storage', 'backup-backup') ?>" data-top="5">
             <use xlink:href="<?php echo $this->get_asset('images', 'local-server-2.svg#img') ?>"></use>
@@ -55,28 +61,26 @@ foreach ($clouds as $cloudKey => $cloudDetail) {
 
       </div>
 
-      <?php if (defined('BMI_PRO_INC')): ?>
-        <div class="right">
+      <div class="right">
 
-          <!-- <svg class="list-storage-img strg-suc tooltip" tooltip="<?php _e('Backup is stored on: Cloud & Local Storage.', 'backup-backup') ?>" data-top="5">
-            <use xlink:href="<?php echo $this->get_asset('images', 'list-success.svg#img') ?>"></use>
-          </svg> -->
+        <!-- <svg class="list-storage-img strg-suc tooltip" tooltip="<?php _e('Backup is stored on: Cloud & Local Storage.', 'backup-backup') ?>" data-top="5">
+          <use xlink:href="<?php echo $this->get_asset('images', 'list-success.svg#img') ?>"></use>
+        </svg> -->
 
-          <svg class="list-storage-img strg-warn img-red tooltip" tooltip="<?php _e('There was an error during upload to: Cloud.', 'backup-backup') ?>" data-top="5" style="display: none;">
-            <use xlink:href="<?php echo $this->get_asset('images', 'list-warning.svg#img') ?>"></use>
-          </svg>
+        <svg class="list-storage-img strg-warn img-red tooltip" tooltip="<?php _e('There was an error during upload to: Cloud.', 'backup-backup') ?>" data-top="5" style="display: none;">
+          <use xlink:href="<?php echo $this->get_asset('images', 'list-warning.svg#img') ?>"></use>
+        </svg>
 
-          <svg class="list-storage-img strg-ong ongoing tooltip" tooltip="<?php _e('Upload to Cloud in progress:', 'backup-backup') ?>" data-top="5" style="display: none;">
-            <use xlink:href="<?php echo $this->get_asset('images', 'list-ongoing.svg#img') ?>"></use>
-          </svg>
+        <svg class="list-storage-img strg-ong ongoing tooltip" tooltip="<?php _e('Upload to Cloud in progress:', 'backup-backup') ?>" data-top="5" style="display: none;">
+          <use xlink:href="<?php echo $this->get_asset('images', 'list-ongoing.svg#img') ?>"></use>
+        </svg>
 
-          <svg class="list-storage-img strg-wait tooltip" tooltip="<?php _e('Backup is queued for upload.', 'backup-backup') ?>" data-top="5" style="display: none;">
-            <use xlink:href="<?php echo $this->get_asset('images', 'list-waiting.svg#img') ?>"></use>
-          </svg>
+        <svg class="list-storage-img strg-wait tooltip" tooltip="<?php _e('Backup is queued for upload.', 'backup-backup') ?>" data-top="5" style="display: none;">
+          <use xlink:href="<?php echo $this->get_asset('images', 'list-waiting.svg#img') ?>"></use>
+        </svg>
 
-        </div>
-        </div>
-      <?php endif; ?>
+      </div>
+      </div>
     </td>
     <td class="center">
       <div class="brow_lock">

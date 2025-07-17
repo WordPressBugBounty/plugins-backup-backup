@@ -39,7 +39,6 @@
 
   <!-- Translations for JS -->
   <?php require_once 'translations.php'; ?>
-
   <!-- Plugin Title -->
   <div class="heading f30 semibold">
     Backup Migration <small class="regular f20">by <a href="https://backupbliss.com" class="secondary" target="_blank">BackupBliss</a></small>
@@ -64,8 +63,10 @@
 
   <!-- Error handling -->
   <?php require_once 'modules/email-errors.php'; ?>
+  <?php require_once 'modules/security-plugins-warning.php'; ?>
   <?php require_once 'modules/quota-errors.php'; ?>
   <?php has_action('bmi_premium_errors') ? do_action('bmi_premium_errors') : ''; ?>
+  <?php has_action('bmi_external_errors') ? do_action('bmi_external_errors') : ''; ?>
   <?php require_once 'modules/before-update-backup-errors.php'; ?>
 
   <!-- @@TAB@@ Create backups(s) -->
@@ -113,7 +114,7 @@
     <!-- CONFIGURATION SECTION 3 -->
     <div class="collapser section-bmi shadow" group="configuration">
       <div class="header f20 pointer transition">
-        <span class="bold"><?php _e('How', 'backup-backup') ?></span> <?php _e('shall the backup(s) be stored?', 'backup-backup') ?>
+        <span class="bold"><?php _e('How', 'backup-backup') ?></span> <?php _e('should the backup(s) be stored?', 'backup-backup') ?>
       </div>
       <div class="content save-action" data-save="store-config">
 
@@ -246,6 +247,7 @@
   <?php require_once 'modals/after-logs-sent.php'; ?>
   <?php require_once 'modals/freeze-loading.php'; ?>
   <?php require_once 'modals/logs-modal.php'; ?>
+  <?php require_once 'modals/bb-disconnect-modal.php'; ?>
   <?php //require_once 'modals/logs-sharing-ask.php'; ?>
   <?php require_once 'modals/supportive-restore-success-cont.php'; ?>
   <?php require_once 'modals/supportive-restore-success-modal.php'; ?>

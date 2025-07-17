@@ -19,13 +19,13 @@
 
   <div class="lh30 mbll">
     <div class="fo-title semibold"><?php _e("File name", 'backup-backup'); ?></div>
-    <div class="f20"><?php _e("Your backup(s) will be given the following file name(s)", 'backup-backup'); ?></div>
+    <div class="f20"><?php _e("Your backup(s) will be given the following file name(s):", 'backup-backup'); ?></div>
   </div>
 
   <div class="mm mm-border">
     <div class="center f18">
       <div class="">
-        <input type="text" id="backup_filename" class="bmi-text-input" value="<?php echo sanitize_text_field(bmi_get_config('BACKUP:NAME')); ?>">
+        <input type="text" autocomplete="off" id="backup_filename" class="bmi-text-input" value="<?php echo sanitize_text_field(bmi_get_config('BACKUP:NAME')); ?>">
         <!-- <span class="oll mrr">.zip </span> -->
         <a href="#" id="show-format-tip" class="nodec secondary hoverable"><?php _e("Huh? Explain this please", 'backup-backup'); ?></a>
       </div>
@@ -127,7 +127,7 @@
 
           <td>
             <div class="f16 mw850 bol lh30">
-              <i><?php _e('“ZIP” is the standard choice (compression level 1). Use “Tar” (compression level 2) or Tar.gz (compression level 5) if you want to have more compression (i.e. smaller file sizes). However, this will also put more load on the backup creation.', 'backup-backup'); ?> <?php _e('It will have no effect if the server does not support particular extensions.', 'backup-backup'); ?></i>
+              <i><?php _e('"ZIP" is the standard choice (compression level 1). Use "Tar" (compression level 2) or "Tar.gz" (compression level 5) if you want greater compression (i.e., smaller file sizes). However, this will also put more load on the backup process.', 'backup-backup'); ?> <?php _e('It will have no effect if the server does not support particular extensions.', 'backup-backup'); ?></i>
             </div>
           </td>
 

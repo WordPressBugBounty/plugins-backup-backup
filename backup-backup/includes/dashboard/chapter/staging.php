@@ -30,7 +30,7 @@
     <div class="bmi-stg-sel-benefits">
       <ul>
         <li><?php _e('Keep all files on <b>your server</b>', 'backup-backup'); ?></li>
-        <li><?php _e('<b>Define the sub-path</b> for your staging site', 'backup-backup'); ?></li>
+        <li><?php _e('<b>Define the subpath</b> for your staging site', 'backup-backup'); ?></li>
         <li><?php _e('Use (all) your <b>current live files</b> for the copy', 'backup-backup'); ?></li>
         <li><?php _e('<b>Free</b> for any size & <b>no expiry</b>', 'backup-backup'); ?></li>
       </ul>
@@ -56,7 +56,7 @@
     </div>
     <div class="bmi-stg-creation-content">
       <div class="bmi-stg-creation-menu">
-        <span id="bmi-stg-homeurl"><?php echo home_url(); ?>/</span> <input type="text" id="bmi-stg-subname-input" placeholder="<?php _e('staging', 'backup-backup'); ?>">
+        <span id="bmi-stg-homeurl"><?php echo home_url(); ?>/</span> <input type="text" autocomplete="off" id="bmi-stg-subname-input" placeholder="<?php _e('staging', 'backup-backup'); ?>">
       </div>
     </div>
     <div class="bmi-stg-creation-button">
@@ -81,7 +81,7 @@
   </div>
   <div class="bmi-stg-creation-content">
     <div class="bmi-stg-creation-menu">
-      <input type="text" hidden id="bmi-stg-current-backup-selected" value="">
+      <input type="text" hidden id="bmi-stg-current-backup-selected" value="" autocomplete="off">
       <div class="bmi-stg-dropdown-area">
         <div class="bmi-stg-dropdown-area-selector">
           <div class="bmi-stg-option-name"><?php _e('Loading, please wait...', 'backup-backup'); ?></div>

@@ -15,10 +15,10 @@
     <div class="content-above">
 
       <div class="f16 medium text-heading">
-        <?php _e('Paste here the url you got after creating a backup:', 'backup-backup') ?>
+        <?php _e('Paste the URL you received after creating a backup:', 'backup-backup') ?>
       </div>
 
-      <input type="text" id="bm-d-url" placeholder="<?php _e('E.g.', 'backup-backup') ?> https://your-site.com/?backup=bmi_backup.zip&secret" class="light">
+      <input type="text" autocomplete="off" id="bm-d-url" placeholder="<?php _e('E.g.', 'backup-backup') ?> https://your-site.com/?backup=bmi_backup.zip&secret" class="light">
 
       <div class="center">
         <button type="button" id="quick-download-migration" class="f16 semibold with-icon centred">

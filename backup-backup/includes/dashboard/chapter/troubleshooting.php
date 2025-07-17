@@ -14,7 +14,7 @@
   // Tooltips
   $ctl = __("Your account on Wordpress.org (where you open a new support thread) is different to the one you login to your WordPress dashboard (where you are now). If you don’t have a WordPress.org account yet, please sign up at the top right on the Support Forum page, and then scroll down on that page . It only takes a minute :) Thank you!", 'backup-backup');
 
-  $bmiTroubleshootingLogShareInfo = __("You'll share: Website URL, %s1backup logs%s2, %s3restore logs%s2, %s4staging logs%s2, our plugin logs & configuration, basic data about your site.", 'backup-backup');
+  $bmiTroubleshootingLogShareInfo = __("You will share: Website URL, %s1backup logs%s2, %s3restore logs%s2, %s4staging logs%s2, our plugin logs and configuration, and basic data about your site. No confidential data, such as email, will be shared.", 'backup-backup');
   $bmiTroubleshootingLogShareInfo2 = __("No confidential data such as email gets shared.", 'backup-backup');
 
   $bmiTroubleshootingLogShareInfo = str_replace('%s1', '<a href="#" class="download-backup-log-url hoverable secondary" download="backup_logs.txt">', $bmiTroubleshootingLogShareInfo);
@@ -50,7 +50,7 @@
               </div>
             </div>
             <div class="f16">
-              <?php _e("Your first port of call. We'll try to respond quickly!", 'backup-backup'); ?>
+              <?php _e("This is your first port of call. We'll try to respond quickly!", 'backup-backup'); ?>
             </div>
           </div>
         </a>
@@ -118,10 +118,10 @@
 
     <div class="f16 mtll mbll bmi-troubleshooting-btn-section">
       <div class="bmi-troubleshooting-btn-text">
-        <?php _e("Send us debug information of your latest failed backup or restore, so that we can investigate.", 'backup-backup'); ?>
+        <?php _e("Send us the debug information of your latest failed backup or restore, so that we can investigate.", 'backup-backup'); ?>
       </div>
       <div class="bmi-inline">
-        <a href="#" class="btn bmi-send-troubleshooting-logs bmi-troubleshooting-btn mm30"><?php _e("Share debug infos with BackupBliss team", 'backup-backup'); ?></a>
+        <a href="#" class="btn bmi-send-troubleshooting-logs bmi-troubleshooting-btn mm30"><?php _e("Share debug info with the BackupBliss team.", 'backup-backup'); ?></a>
       </div>
       <div class="bmi-troubleshooting-info-logs">
         <?php echo $bmiTroubleshootingLogShareInfo; ?><br>
@@ -136,7 +136,7 @@
       <?php _e("Site information", 'backup-backup'); ?>
     </div>
     <div class="f16 mtll mbll">
-      <?php _e("Here is some information about your site, which may help to debug if there is an issue:", 'backup-backup'); ?>
+      <?php _e("Here is some information about your site, which may help debug if there is an issue:", 'backup-backup'); ?>
     </div>
   </div>
 
@@ -199,7 +199,7 @@
   </div>
 
   <div class="mm mtll f16">
-    <a href="#" class="nodec secondary hoverable" id="download-site-infos"><?php _e("Download your site infos", 'backup-backup'); ?></a> <?php _e("(e.g. for easy sharing with us, so that we can debug)", 'backup-backup'); ?>
+    <a href="#" class="nodec secondary hoverable" id="download-site-infos"><?php _e("Download your site info", 'backup-backup'); ?></a> <?php _e("(e.g., for easy sharing with us, so that we can debug)", 'backup-backup'); ?>
   </div>
 
   <div class="mm mtl semibold">
@@ -207,7 +207,7 @@
   </div>
 
   <div class="mm mtll f16 lh28">
-    <?php _e("All backup creation & restore processes are documented in log files which to debug issues.", 'backup-backup'); ?>
+    <?php _e("All backup creation and restore processes are documented in log files, which can be used to debug issues.", 'backup-backup'); ?>
     <a href="<?php echo get_site_url(); ?>/?backup-migration=PROGRESS_LOGS&progress-id=complete_logs.log&backup-id=current&t=<?php echo time(); ?> &sk=<?php echo bmi_get_config('REQUEST:SECRET'); ?>"
        download="troubleshooting-logs.txt" class="nodec hoverable secondary">
        <?php _e("Download logs.", 'backup-backup'); ?>
@@ -219,17 +219,17 @@
   </div>
 
   <div class="mm mtll f16 lh28">
-    <?php _e("If you are sure the backup process is not running but you can't run it: ", 'backup-backup'); ?>
+    <?php _e("If you are sure the backup process is not running but you can't stop it, ", 'backup-backup'); ?>
     <a href="#!" id="bmi-force-backup-to-stop" class="nodec hoverable secondary">
-       <?php _e("Force the process to stop.", 'backup-backup'); ?>
+       <?php _e("force the process to stop.", 'backup-backup'); ?>
     </a>
     <br>
-    <?php _e("If you are sure the restore process is not running but you can't run it: ", 'backup-backup'); ?>
+    <?php _e("If you are sure the restore process is not running but you can't stop it, ", 'backup-backup'); ?>
     <a href="#!" id="bmi-force-restore-to-stop" class="nodec hoverable secondary">
-       <?php _e("Force the restoration to stop.", 'backup-backup'); ?>
+       <?php _e("force the restoration to stop.", 'backup-backup'); ?>
     </a>
     <br>
-    <span><?php _e('* If the process is still running after killing, that means it probably still running (for real), wait a bit for it to fail then.', 'backup-backup'); ?></span>
+    <span><?php _e('*If the process is still running after being killed, it probably is still running (for real). Wait a bit for it to fail.', 'backup-backup'); ?></span>
   </div>
 
   <div class="mm mtl semibold">
@@ -237,11 +237,11 @@
   </div>
 
   <div class="mm mtll f16 lh28">
-    <?php _e("Some hostings blocks php_uname function which is required by pclzip module included in WordPress.", 'backup-backup'); ?><br>
+    <?php _e("Some hosting providers block the php_uname function, which is required by the pclzip module included in WordPress.", 'backup-backup'); ?><br>
     <?php _e("You can automatically replace the function with compatible code:", 'backup-backup'); ?>
-    <a href="#" class="nodec secondary hoverable" id="fix-uname-issues"><?php _e("Replace php_uname function in pclzip file", 'backup-backup'); ?></a><br>
-    <?php _e("You can also restore the changes with one click if something went wrong:", 'backup-backup'); ?>
-    <a href="#" class="nodec secondary hoverable" id="revert-uname-issues"><?php _e("Restore original pclzip file (will work after first replacement)", 'backup-backup'); ?></a>
+    <a href="#" class="nodec secondary hoverable" id="fix-uname-issues"><?php _e("replace the php_uname function in the pclzip file.", 'backup-backup'); ?></a><br>
+    <?php _e("You can also restore the changes with one click if something goes wrong:", 'backup-backup'); ?>
+    <a href="#" class="nodec secondary hoverable" id="revert-uname-issues"><?php _e("restore the original pclzip file (it will work after the first replacement).", 'backup-backup'); ?></a>
   </div>
 
   <div class="mm mtl semibold">
@@ -249,10 +249,10 @@
   </div>
 
   <div class="mm mtll f16 lh28">
-    <?php _e("If you're willing to know if your server is properly configured to send emails, you can test it here.", 'backup-backup'); ?><br>
-    <?php _e("Remember that even if you get success alert there still might be some issues.", 'backup-backup'); ?> <?php _e("Check if the email is visible in your mailbox / spam folder.", 'backup-backup'); ?><br>
-    <?php _e("Message will be sent to e-mail you provided in the ", 'backup-backup'); ?> <a href="#" class="collapser-openner nodec secondary hoverable" data-el="#other-options"><?php _e("other options", 'backup-backup'); ?></a>.<br>
-    <a href="#" id="bmi_send_test_mail" class="nodec hoverable secondary"><?php _e("Click here", 'backup-backup'); ?></a> <?php _e("to send the mail.", 'backup-backup'); ?><br>
+    <?php _e("If you want to know if your server is properly configured to send emails, you can test it here.", 'backup-backup'); ?><br>
+    <?php _e("Remember that even if you get a success alert, there may still be some issues.", 'backup-backup'); ?> <?php _e("Check if the email is visible in your mailbox / spam folder.", 'backup-backup'); ?><br>
+    <?php _e("The message will be sent to the email you provided in the ", 'backup-backup'); ?> <a href="#" class="collapser-openner nodec secondary hoverable" data-el="#other-options"><?php _e("other options", 'backup-backup'); ?></a>.<br>
+    <a href="#" id="bmi_send_test_mail" class="nodec hoverable secondary"><?php _e("Click here", 'backup-backup'); ?></a> <?php _e("to send the email.", 'backup-backup'); ?><br>
   </div>
 
   <div class="mm mtl mbll semibold">
@@ -260,11 +260,11 @@
   </div>
 
   <div class="mm mb f16">
-    <?php _e("Please", 'backup-backup'); ?> <a href="#" class="hoverable secondary bmi-modal-opener nodec" data-modal="reset-confirm-modal"><?php _e("click here", 'backup-backup'); ?></a> <?php _e("to reset plugin configuration.", 'backup-backup'); ?>
+    <?php _e("Please", 'backup-backup'); ?> <a href="#" class="hoverable secondary bmi-modal-opener nodec" data-modal="reset-confirm-modal"><?php _e("click here", 'backup-backup'); ?></a> <?php _e("to reset the plugin configuration.", 'backup-backup'); ?>
   </div>
 
   <div class="mm mb f18">
-    <?php _e("If you’re looking for other options not listed above, check out the", 'backup-backup'); ?> <a href="#" class="collapser-openner nodec secondary hoverable" data-el="#other-options"><?php _e("Other options", 'backup-backup'); ?></a> <?php _e("chapter as they might be there.", 'backup-backup'); ?>
+    <?php _e("If you're looking for other options not listed above, check out the", 'backup-backup'); ?> <a href="#" class="collapser-openner nodec secondary hoverable" data-el="#other-options"><?php _e("\"Other options\"", 'backup-backup'); ?></a> <?php _e("chapter as they might be there.", 'backup-backup'); ?>
   </div>
 
 </div>

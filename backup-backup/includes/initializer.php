@@ -19,6 +19,7 @@
   use BMI\Plugin\Heart\BMI_Backup_Heart as Bypasser;
   use BMI\Plugin\Zipper\BMI_Zipper as Zipper;
   use BMI\Plugin\Staging\BMI_Staging as Staging;
+  use BMI\Plugin\External\BMI_External_BackupBliss as BackupBliss;
 
   // Uninstallator
   if (!function_exists('bmi_uninstall_handler')) {
@@ -147,6 +148,12 @@
           $review_banner = new \Inisev\Subs\Inisev_Review(BMI_ROOT_FILE, BMI_ROOT_DIR, 'backup-backup', 'Backup & Migration', 'http://bit.ly/3vdk45L', 'backup-migration');
         }
 
+        if (!(class_exists('\Inisev\Subs\New_BB_Banner') || class_exists('Inisev\Subs\New_BB_Banner') || class_exists('New_BB_Banner'))) {
+          require_once BMI_MODULES_DIR . 'new-bb-banner' . DIRECTORY_SEPARATOR . 'misc.php';
+        }
+        new \Inisev\Subs\New_BB_Banner(BMI_ROOT_FILE, BMI_ROOT_DIR, 'backup-backup', 'Backup & Migration', 'backup-migration');
+
+
         // GDrive banner
         if (!is_dir(WP_PLUGIN_DIR . '/backup-backup-pro')) {
           if (!(class_exists('\Inisev\Subs\BMI_Banners_GDrive') || class_exists('Inisev\Subs\BMI_Banners_GDrive') || class_exists('BMI_Banners_GDrive'))) {
@@ -185,6 +192,21 @@
       // Styles & scripts
       add_action('admin_enqueue_scripts', [&$this, 'enqueue_styles']);
       add_action('admin_enqueue_scripts', [&$this, 'enqueue_scripts']);
+
+      // External storage errors
+      add_action('bmi_external_errors', function() {
+        require_once BMI_INCLUDES . '/notices/backupbliss.php';
+      });
+
+      $upload_issue_notice = $this->backupbliss_space_issues();
+
+      if ($upload_issue_notice) {
+        add_action("admin_notices", function() use ($upload_issue_notice) {
+          $global_warning = true;
+          $error_message = $upload_issue_notice;
+          include BMI_INCLUDES . '/dashboard/modals/bb-warning-notice.php';
+        });
+      }
 
     }
     
@@ -539,20 +561,15 @@
 
     public function include_offline() {
 
-      // Prevent if there is no offline action required (save resources)
-      if (get_option('bmip_last', false) !== '1') return;
-
-      if (defined('BMI_PRO_INC')) {
-
+      
         // Handle offline tasks
-        if (!class_exists('BMI_Pro_Offline')) {
-          if (file_exists(constant('BMI_PRO_INC') . 'offline.php')) {
-            require_once constant('BMI_PRO_INC') . 'offline.php';
-              new BMI_Pro_Offline();
+        if (!class_exists('BMI_Offline')) {
+          
+          if (file_exists(BMI_INCLUDES . '/offline.php')) {
+            require_once BMI_INCLUDES . '/offline.php';
+            new BMI_Offline();
           }
         }
-
-      }
 
     }
 
@@ -565,6 +582,16 @@
 
       // Require The HTML
       require_once BMI_INCLUDES . '/dashboard/settings.php';
+    }
+
+    public function backupbliss_space_issues() {
+      require_once BMI_INCLUDES . '/external/backupbliss.php';
+      $backupbliss = new BackupBliss();
+      $upload_issue_notice = false;
+      if ($backupbliss->canShowFailureWarnNotice()) {
+        $upload_issue_notice = $backupbliss->getNotice("upload_issue_space");
+      }
+      return $upload_issue_notice;
     }
 
     public function admin_init_hook() {
@@ -600,6 +627,35 @@
       }
     }
 
+    /**
+     * Retrieves a list of active security plugins detected on the site.
+     *
+     * This function checks the list of currently active plugins and identifies
+     * common security plugins by their slugs. It returns a key-value array 
+     * where keys are plugin slugs and values are their human-readable names.
+     *
+     * Supported plugins:
+     * - Wordfence
+     * - Sucuri Security
+     *
+     * @return array<string, string> Associative array of detected security plugins.
+     *                                Format: [ 'plugin_slug' => 'Plugin Name' ]
+     */
+    public static function get_active_security_plugins() {
+      $active_plugins = [];
+      $plugins = get_option('active_plugins', []);
+      if (is_array($plugins) && count($plugins) > 0) {
+        foreach ($plugins as $plugin) {
+          if (strpos($plugin, 'wordfence') !== false) {
+            $active_plugins['wordfence'] = 'Wordfence';
+          } elseif (strpos($plugin, 'security-ninja') !== false) {
+            $active_plugins['security-ninja'] = 'Security Ninja';
+          }
+        }
+      }
+      return $active_plugins;
+    }
+
     public static function email_error($msg) {
       Logger::log('Displaying some issues about email sending...');
       update_option('bmi_display_email_issues', $msg);
@@ -608,6 +664,11 @@
     public function backup_inproper_time($should_time) {
       $plan_file = BMI_TMP . DIRECTORY_SEPARATOR . '.plan';
       if (!file_exists($plan_file) || intval($should_time) < 1234567890) return;
+
+      $currentDate = date('Y-m-d');
+      if (get_option('bmi_last_email_notification', false) == $currentDate) {
+        return;
+      }
 
       Logger::log('Sending notification about backup being late');
       $email = Dashboard\bmi_get_config('OTHER:EMAIL') != false ? Dashboard\bmi_get_config('OTHER:EMAIL') : get_bloginfo('admin_email');
@@ -764,7 +825,7 @@
 
       // Auto External Removal
       $sortedMD5s = [];
-      $externalStorages = ['gdrive', 'dropbox', 'onedrive', 'FTP', 'sftp'];
+      $externalStorages = ['gdrive', 'dropbox', 'onedrive', 'FTP', 'sftp', 'aws', 'wasabi', 'backupbliss'];
       foreach ($externalStorages as $storage) {
         if (isset($availableBackups['external'][$storage])) {
           $storageList = $availableBackups['external'][$storage];
@@ -975,7 +1036,7 @@
       <?php }
 
       // Only for BM Settings
-      if (!in_array(get_current_screen()->id, ['toplevel_page_backup-migration', 'update-core', 'plugins', 'plugin-install', 'themes','customize', 'plugins-network', 'plugin-install-network', 'themes-network'])) return;
+      if (!in_array(get_current_screen()->id, ['toplevel_page_backup-migration', 'update-core', 'plugins', 'plugin-install', 'themes','customize', 'plugins-network', 'plugin-install-network', 'themes-network']) && $this->backupbliss_space_issues() === false) return;
       wp_enqueue_script('backup-migration-script', $this->get_asset('js', 'backup-migration.min.js'), ['jquery'], BMI_VERSION, true);
       wp_localize_script('backup-migration-script', 'bmiVariables', [
         'nonce' => wp_create_nonce('backup-migration-ajax'),
@@ -1021,8 +1082,8 @@
       // Global styles
       wp_enqueue_style('backup-migration-style-icon', $this->get_asset('css', 'bmi-plugin-icon.min.css'), [], BMI_VERSION);
 
-      // Only for BM Settings and Update Core page
-      if (!in_array(get_current_screen()->id, ['toplevel_page_backup-migration', 'update-core', 'plugins', 'plugin-install', 'themes','customize', 'plugins-network', 'plugin-install-network', 'themes-network'])) return;
+      // Only for BM Settings and Update Core page and if there's no backupbliss space issues do not include the stylesheet.
+      if (!in_array(get_current_screen()->id, ['toplevel_page_backup-migration', 'update-core', 'plugins', 'plugin-install', 'themes','customize', 'plugins-network', 'plugin-install-network', 'themes-network']) && $this->backupbliss_space_issues() === false) return;
 
       // Enqueue the style
       wp_enqueue_style('backup-migration-style', $this->get_asset('css', 'bmi-plugin.min.css'), [], BMI_VERSION);

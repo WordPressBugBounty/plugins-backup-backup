@@ -87,34 +87,69 @@ class BMI_Checker {
       $file = BMI_BACKUPS . '/' . '.space_check';
       try {
 
-        // 2 GB = (1024 * 1024 * 1024 * 2)
-        $total = $size;
+        $total = $currentTestSize = $size;
 
-        $fh = fopen($file, 'w');
-        $chunk = 1024;
-        while ($size > 0) {
-          fputs($fh, str_pad('', min($chunk, $size)));
-          $size -= $chunk;
+        $baseChunk = 65536;
+        $maxChunk = 1048576;
+        $currentChunk = $baseChunk;
+        $iterations = 0;
+        
+        
+        $fh = @fopen($file, 'wb');
+        if (!$fh) {
+          $this->logs(__('Cannot create test file for space checking.', 'backup-backup'), 'ERROR');
+          return false;
         }
+        
+        $bytesWritten = 0;
+        
+        while ($currentTestSize > 0) {
+          $iterations++;
+            
+          $writeSize = min($currentChunk, $currentTestSize);
+          
+          $written = @fwrite($fh, str_repeat('0', $writeSize));
+          
+          if ($written === false || $written < $writeSize) {
+            $this->logs(__('Write failed during space check - insufficient space detected.', 'backup-backup'), 'WARNING');
+            fclose($fh);
+            if (file_exists($file)) @unlink($file);
+            return false;
+          }
+          
+          $bytesWritten += $written;
+          $currentTestSize -= $written;
+          
+          if ($iterations % 10 == 0 && $currentChunk < $maxChunk) {
+            $currentChunk = min($currentChunk * 2, $maxChunk);
+          }
+          
+          if ($iterations % 10 == 0) {
+            @fflush($fh);
+          }
+        }
+        
         fclose($fh);
 
         $fs = filesize($file);
-              @unlink($file);
+        @unlink($file);
 
-        if ($fs > ($total - 100)) return true;
+        if ($fs > ($total - 1024)) return true;
         else return false;
 
       } catch (\Exception $e) {
 
         Logger::error($e);
-        if (file_exists($file)) unlink($file);
+        if (file_exists($file)) @unlink($file);
+        $this->logs(__('Exception during space check: ', 'backup-backup') . $e->getMessage(), 'ERROR');
 
         return false;
 
       } catch (\Throwable $e) {
 
         Logger::error($e);
-        if (file_exists($file)) unlink($file);
+        if (file_exists($file)) @unlink($file);
+        $this->logs(__('Error during space check: ', 'backup-backup') . $e->getMessage(), 'ERROR');
 
         return false;
 

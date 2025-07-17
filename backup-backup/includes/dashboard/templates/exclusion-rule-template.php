@@ -12,7 +12,7 @@
 
 <div class="mtll exclude-row exclusion_template">
   <span><?php _e("Exclude if string", 'backup-backup'); ?></span>
-  <input class="exclusion_txt" type="text">
+  <input class="exclusion_txt" type="text" autocomplete="off">
   <span class="orr"><?php _e("appears", 'backup-backup'); ?></span>
   <div class="exclusion_position inline">
     <select>

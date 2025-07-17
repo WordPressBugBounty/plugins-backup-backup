@@ -178,20 +178,25 @@
       (<?php _e("time now:", 'backup-backup'); ?> <span id="server-time-auto" data-time="<?php echo time(); ?>"></span>)
     </li>
     <li>
-      <?php _e("There needs to be", 'backup-backup'); ?>
+      <?php _e("For Automatic backups in the free plugin version, there needs to be", 'backup-backup'); ?>
       <b><?php _e("at least one visitor", 'backup-backup'); ?></b>
-      <?php _e("so that the backup process gets triggered", 'backup-backup'); ?>
+      <?php _e("so that the backup process gets triggered, as it relies on WordPress' native ", 'backup-backup'); ?>
+      <a href="https://developer.wordpress.org/plugins/cron/" target="_blank" class="secondary hoverable"><?php _e("WP-Cron", 'backup-backup'); ?></a>.
+      <?php _e("The ", 'backup-backup'); ?>
+      <a href="https://backupbliss.com/" target="_blank" class="secondary hoverable">
+      <?php _e("premium plugin", 'backup-backup'); ?></a>
+      <?php _e("uses BackupBliss server trigger, so Automatic backups are always on time.", 'backup-backup'); ?>
     </li>
     <li>
-      <?php _e("We suggest to", 'backup-backup'); ?>
-      <b><?php _e("only keep 2 or 3 backups", 'backup-backup'); ?></b>
-      <?php _e("otherwise you may run out of space.", 'backup-backup'); ?>
+      <?php _e("We suggest", 'backup-backup'); ?>
+      <b><?php _e("keeping only 2 or 3 backups", 'backup-backup'); ?></b>
+      <?php _e(", otherwise you may run out of space.", 'backup-backup'); ?>
     </li>
     <li>
       <b><?php _e("Locked backups will <u>not</u> be deleted", 'backup-backup'); ?></b>
       <?php _e("automatically. Those are indicated by a lock sign", 'backup-backup'); ?>
       <img src="<?php echo $this->get_asset('images', 'lock-min.svg'); ?>" alt="lock" class="inline" height="18px">.
-      <?php _e('Manually created backups (i.e. those after click on "Create backup now!") are permanently locked, while automatically created backups are by default unlocked.', 'backup-backup'); ?>
+      <?php _e('Manually created backups (i.e., those created by clicking on "Create backup now!") are permanently locked, while automatically created backups are by default unlocked.', 'backup-backup'); ?>
       <?php _e("You can change their lock status on the", 'backup-backup'); ?>
       <span class="secondary hoverable go-to-marbs"><?php _e("Manage & Restore Backup(s)", 'backup-backup'); ?></span>
       <?php _e("tab", 'backup-backup'); ?>.

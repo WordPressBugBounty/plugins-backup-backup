@@ -28,7 +28,7 @@
             <?php _e('Your backup is now accessible at:', 'backup-backup') ?>
           </div>
           <div class="cf success-copy-input">
-            <input type="text" id="text-input-copy" readonly class="left f18">
+            <input type="text" autocomplete="off" id="text-input-copy" readonly class="left f18">
             <a href="#" class="btn inline btn-with-img btn-img-low-pad btn-pad left bmi-copper" data-copy="text-input-copy">
               <div class="text">
                 <img src="<?php echo $this->get_asset('images', 'copy-icon.png'); ?>" alt="copy-img">

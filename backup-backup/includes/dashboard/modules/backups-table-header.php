@@ -19,7 +19,7 @@
   </th>
   <th>
     <div class="inline tooltip" tooltip="<?php _e('The name of your backup. To see the logic which default names your backups get, go to chapter &quot;How backups will be stored&quot;', 'backup-backup') ?>." data-top="5">
-      <?php _e('Filename', 'backup-backup') ?> <?php _e('– hover to see domain name', 'backup-backup') ?>
+      <?php _e('Filename', 'backup-backup') ?> <?php _e('– hover to see the domain name', 'backup-backup') ?>
     </div>
   </th>
   <th>

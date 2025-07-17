@@ -28,7 +28,7 @@
         <br /><br />
         <b><?php _e("New name:", 'backup-backup'); ?><br /></b>
         <div class="bmi-stg-rename-modal-input">
-          <input type="text" id="bmi-stg-rename-input" placeholder="staging">
+          <input type="text" autocomplete="off" id="bmi-stg-rename-input" placeholder="staging">
         </div>
       </div>
 

@@ -17,7 +17,8 @@
   }
 
   // Tooltips
-  $tooltip_files = __("Here are stored all plugin, theme, WordPress installation files, but also files from Media library and other folders and files located in your server’s site directory. Note that WordPress keeps records of files such as Media library in the Databases, so you should also backup Databases if you want WordPress to “see” e.g. recovered media files. Size here is the total size you can get.", 'backup-backup');
+  $tooltip_files = __("Here are stored all plugin, theme, and WordPress installation files, as well as files from the Media Library and other folders and files located in your server's site directory. Note that WordPress keeps records of files such as those in the Media Library in the database, so you should also back up the database if you want WordPress to “see” recovered media files. The size defined here is the total size of raw files.", 'backup-backup');
+  $tooltip_database = __("Databases in WordPress store the website's critical content and settings, including posts, pages, comments, users, configuration options, lists of (in)active plugins and themes, etc. Note that images and other media from posts and pages are not kept here.", 'backup-backup');
   $domain = site_url();
   $tooltip_exclude_file = __("Enter the paths to the files you want to exclude from your backup (one per line).", 'backup-backup');
   $tooltip_exclude_path = __("Enter the paths to the directories/folders you want to exclude from your backup (one per line).", 'backup-backup');
@@ -68,7 +69,7 @@
 <!-- Files -->
 <div class="mm mt lh30">
   <div class="mbl">
-    <?php _e("Here you can define what exactly will be included in the backup. If your site is very large it may make sense to only backup certain parts of it.", 'backup-backup'); ?>
+    <?php _e("Here you can define what exactly will be included in the backup. If your site is very large, it may make sense to back up only certain parts of it.", 'backup-backup'); ?>
   </div>
 
   <div class="">
@@ -234,7 +235,7 @@
       </label>
       <div class="rr mtll" id="file_filters_size">
 
-        <?php _e("Do not backup files which are larger than", 'backup-backup'); ?>
+        <?php _e("Do not back up files that are larger than", 'backup-backup'); ?>
         <input type="number" min="0" id="BFFSIN" class="mbfieldlimit" <?php bmi_try_value('BACKUP:FILES::FILTER:SIZE:IN'); ?>>
         MB
 
@@ -326,7 +327,7 @@
       <input id="database-group-backup"<?php bmi_cb_collapsible('database_group_cb'); ?> type="checkbox"<?php bmi_try_checked('BACKUP:DATABASE'); ?>>
       <span class="relative" id="bmi-scan-database">
         <b><?php _e("Databases", 'backup-backup'); ?>&nbsp;</b><span class="value">(<div class="spinner-loader"></div>)</span>
-        <span class="bmi-info-icon tooltip" tooltip="<?php echo $tooltip_files; ?>"></span>
+        <span class="bmi-info-icon tooltip" tooltip="<?php echo $tooltip_database; ?>"></span>
       </span>
     </label>
 
@@ -363,7 +364,7 @@
 
     <div class="cf">
       <div class="left inline-radio semibold">
-        <?php _e('Want to apply "smart" exclusions rules?', 'backup-backup'); ?>
+        <?php _e('Want to apply "smart" exclusion rules?', 'backup-backup'); ?>
       </div>
 
       <div class="left d-flex mr60 ia-center">
@@ -386,7 +387,7 @@
   </div>
 
   <div class="mm lh30 mbll">
-    <?php _e('With the "Files" and "Databases" options above you can already define what to include or exclude in your backup. However, you may want to exclude elements in your backups where you are not sure in which file or table they reside. For example, you may want to exclude all spam comments in your backups. This is what the "smart" exclusion rules are for. This is also a good way to clean your site of things you do not want.', 'backup-backup'); ?>
+    <?php _e('With the "Files" and "Databases" options above you can already define what to include or exclude in your backup. However, you may want to exclude elements in your backups where you are not sure which file or table they reside in. For example, you may want to exclude all spam comments in your backups. This is what the "smart" exclusion rules are for. This is also a good way to clean your site of things you do not want.', 'backup-backup'); ?>
   </div>
 
   <div class="mm mtl mbl lh40 bg-second f20 overlayed" id="smart-exclusion-wrapper">

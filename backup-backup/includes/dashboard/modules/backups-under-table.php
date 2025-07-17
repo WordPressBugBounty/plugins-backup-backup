@@ -47,7 +47,7 @@
         <div class="f18 muted-text mtll">
           <?php _e("Drag & drop your backup file here", 'backup-backup'); ?>
         </div>
-        <div class="cf mtl center block inline">
+        <div class="cf mtl center inline">
           <div class="left ortext">
             <?php _e("...or", 'backup-backup'); ?>&nbsp;&nbsp;
           </div>

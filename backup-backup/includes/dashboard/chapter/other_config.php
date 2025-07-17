@@ -19,12 +19,12 @@
   $deinstalled_info = __('This will be triggered on plugin removal via WordPress plugins tab', 'backup-backup');
   $experimental_info = __('It will change some fundamental logics of the plugin', 'backup-backup');
   $experimental_info_1 = __('Use this option if you have full access to your server and you know how to make basic configuration of the server. Wrong configuration may give you hick-ups without error due to e.g. web server server timeout (for small sites below 300 MB this is the best option).', 'backup-backup');
-  $experimental_info_2 = __('Use this option before the third one, it should work fine on SSD/NVMe hostings even for huge backups - but still may timeout if you are running on slow drive high I/O.', 'backup-backup');
+  $experimental_info_2 = __('Use this option before the third one. It should work fine on SSD/NVMe hosting, even for large backups — but it may still time out if you are running on a slow drive with high I/O.', 'backup-backup');
   $experimental_info_3 = __('This option will require you to not close the backup window since it will use your connection to keep the backup in parts, it will disable automatic backups. Use this only if all of the above does not work. Recommended for huge sites +100k files / 5+ GB.', 'backup-backup');
   $db_query_info = __('Lower value means slower process but more stable restore, higher value means quicker backup and restore but it may be unstable (depends on database server performance). Default value: 300.', 'backup-backup');
   $sqlsplitting = __('This will split the SQL files (before migration or restore) into parts, which should make the process more stable and also allows to track the progress more precisely.', 'backup-backup');
   $deprecatedsinglefile = __('It will force to use V1 engine (first export function of this plugin), it is usually much quicker but search & replace may not work well for recursively santisized data - but may be recommended for not complex sites.', 'backup-backup');
-  $cleanupbeforerestore = __('Advanced details: It will remove all plugins (excluding backup migration) and themes before performing migration. These files during migration will be kept in directory wp-content/backup-migration/clean-ups. If you want to keep them after migration you can use wp-config.php constant BMI_KEEP_CLEANUPS set to TRUE.', 'backup-backup');
+  $cleanupbeforerestore = __('Advanced details: This will remove all plugins (excluding Backup Migration) and themes before performing the migration. During migration, these files will be kept in the directory wp-content/backup-migration/clean-ups. If you want to keep them after migration, you can use the wp-config.php constant BMI_KEEP_CLEANUPS set to TRUE.', 'backup-backup');
   $disabledspacechecking = __('This option will disable validation of free space on your server i.e. if there is enough space to make the backup. Use it only when you are 100% sure that you have enough space, otherwise backup process may fail with fatal error. In corner cases, if there will not be enough space it may make your site slow or even limit functionality.', 'backup-backup');
   $dbbatching = __('This option will enable batching for database table export (backup). It will affect only non-default methods of the backup. It will significantly slow down the backup process, but it will make it much more stable.', 'backup-backup');
   
@@ -71,7 +71,7 @@
                 $ee = get_bloginfo('admin_email');
               }
             ?>
-            <input type="text" id="email-for-notices" class="bmi-text-input small" value="<?php echo $ee; ?>" autocomplete="off" readonly onfocus="this.removeAttribute('readonly');" />
+            <input type="text" id="email-for-notices" autocomplete="off" class="bmi-text-input small" value="<?php echo $ee; ?>" readonly onfocus="this.removeAttribute('readonly');" />
           </div>
           <div class="f16">
             <?php _e('This is where the log files will be sent to. You can enter several email addresses, separated by comma.', 'backup-backup'); ?>
@@ -86,10 +86,10 @@
         </div>
         <div class="left">
           <div class="">
-            <input type="text" id="email-title-for-notices" class="bmi-text-input small" value="<?php echo sanitize_text_field(bmi_get_config('OTHER:EMAIL:TITLE')); ?>" />
+            <input type="text" id="email-title-for-notices" autocomplete="off" class="bmi-text-input small" value="<?php echo sanitize_text_field(bmi_get_config('OTHER:EMAIL:TITLE')); ?>" />
           </div>
           <div class="f16">
-            <?php _e('This will show up as sender of the emails', 'backup-backup'); ?>
+            <?php _e('This will show up as the sender of the emails.', 'backup-backup'); ?>
           </div>
         </div>
       </div>
@@ -108,7 +108,7 @@
                 <td>
                   <label class="premium-<?php bmi_pro_features($pros, true, __('Receive an email notification when a backup is successfully created', 'backup-backup')); ?>">
                     <input type="checkbox" <?php echo ($pros) ? "" : ' class="not-allowed" disabled' ?> id="backup-success-notify" <?php echo ($pros) ? bmi_try_checked('OTHER:BACKUP:SUCCEED:NOTIS') : '';  ?>>
-                    <span <?php echo ($pros) ? "" : 'class="not-allowed"' ?>><?php _e("Backups was created successfully", 'backup-backup'); ?></span>
+                    <span <?php echo ($pros) ? "" : 'class="not-allowed"' ?>><?php _e("Backup was created successfully", 'backup-backup'); ?></span>
                     <span class="premium premium-img premium-ntt"></span>
                   </label>
                 </td>
@@ -141,9 +141,9 @@
                   <label for="scheduled-issues">
                     <input type="checkbox" id="scheduled-issues"<?php bmi_try_checked('OTHER:EMAIL:NOTIS'); ?>>
                     <span>
-                      <?php _e("There are (new) issues with scheduling (creating automatic backups)", 'backup-backup'); ?><br>
+                      <?php _e("There are (new) issues with scheduling (automatic backup creation)", 'backup-backup'); ?><br>
                       <span class="f14">
-                        <?php _e("(Make sure that your hosting does not block mail functions, otherwise you have to configure SMTP mail.)", 'backup-backup'); ?>
+                        <?php _e("(Make sure your hosting provider does not block mail functions. Otherwise, you will need to configure SMTP mail.)", 'backup-backup'); ?>
                       </span>
                     </span>
                   </label>
@@ -210,7 +210,7 @@
         </div>
 
         <div class="f16 mtll">
-          <?php _e("If you want to also receive the backup file as attachment of the email (for backup notifications), please set this in chapter Where will backups be stored?.", 'backup-backup'); ?>
+          <?php _e("If you want to also receive the backup file as attachment of the email (for backup notifications), please set this in the chapter \"Where will backups be stored?\".", 'backup-backup'); ?>
         </div>
       </div>
     
@@ -282,7 +282,7 @@
                 <div class="">
                   <div class="cf">
                     <div class="left mr20">
-                      <input type="text" class="bmi-text-input small" id="trigger-input1" />
+                      <input type="text" class="bmi-text-input small" id="trigger-input1" autocomplete="off"/>
                     </div>
                     <div class="left">
                       <a href="#" class="btn inline btn-with-img btn-img-low-pad btn-pad left bmi-copper othersec mm30" data-copy="trigger-input1">
@@ -294,20 +294,20 @@
                     </div>
                   </div>
                   <div class="f16 mtlll">
-                    <?php _e("Copy & paste this url into a browser and press enter to trigger the backup creation.", 'backup-backup'); ?><br>
-                    <?php _e("Make sure you keep this url a secret. For safety reasons this only works once per hour & you’ll get emailed when it used.", 'backup-backup'); ?>
+                    <?php _e("Copy and paste this URL into a browser and press Enter to trigger the backup creation.", 'backup-backup'); ?><br>
+                    <?php _e("Make sure you keep this URL a secret. For safety reasons, this only works once per hour, and you'll receive an email when it is used.", 'backup-backup'); ?>
                   </div>
                   <div class="mtll cf">
                     <div class="left lh60 mr20"><?php _e("Key:", 'backup-backup'); ?></div>
                     <div class="left mr20">
-                      <input type="text" class="bmi-text-input small" />
+                      <input type="text" class="bmi-text-input small" autocomplete="off"/>
                     </div>
                     <div class="left">
                       <a href="#" class="btn mm30 othersec"><?php _e("Save", 'backup-backup'); ?></a>
                     </div>
                   </div>
                   <div class="f16 mtlll">
-                    <?php _e("Change the key (which is part of above url) if you suspect an unauthorized person got access to it.", 'backup-backup'); ?>
+                    <?php _e("Change the key (which is part of the URL above) if you suspect an unauthorized person has gained access to it.", 'backup-backup'); ?>
                   </div>
                 </div>
               </td>
@@ -356,7 +356,7 @@
         <label for="normal-timeout" class="container-radio">
           <input type="radio" name="experimental_features" id="normal-timeout"<?php bmi_try_checked('OTHER:USE:TIMEOUT:NORMAL'); ?> />
           <span class="f18">
-            <?php _e("Method 1 - Do not change the default plugin functions - it may require to adjust your server for stable backup", 'backup-backup'); ?>
+            <?php _e("Method 1 - Do not change the default plugin functions - it may require adjusting your server for stable backup.", 'backup-backup'); ?>
             &nbsp;<span class="bmi-info-icon tooltip" tooltip="<?php echo $experimental_info_1; ?>"></span>
           </span>
           <span class="checkmark-radio" style="margin-top: 2px;"></span>
@@ -366,7 +366,7 @@
         <label for="experimental-timeout" class="container-radio">
           <input type="radio" name="experimental_features" id="experimental-timeout"<?php bmi_try_checked('OTHER:EXPERIMENT:TIMEOUT'); ?> <?php echo ($is_curl_work) ? "" : 'disabled'; ?> />
           <span class="f18">
-            <?php _e("Method 2 - Bypass web server timeout directive - backup process may be slower", 'backup-backup'); ?>
+            <?php _e("Method 2 - Bypass the web server timeout directive - the backup process may be slower.", 'backup-backup'); ?>
             &nbsp;<span class="bmi-info-icon tooltip" tooltip="<?php echo $experimental_info_2; ?>"></span>
           </span>
           <span class="checkmark-radio" style="margin-top: 2px;"></span>
@@ -381,7 +381,7 @@
         <label for="experimental-hard-timeout" class="container-radio">
           <input type="radio" name="experimental_features" id="experimental-hard-timeout"<?php bmi_try_checked('OTHER:EXPERIMENT:TIMEOUT:HARD'); ?> />
           <span class="f18">
-            <?php _e("Method 3 - Bypass web server limits - it will disable automatic backup and possibility to run it in the background", 'backup-backup'); ?>
+            <?php _e("Method 3 - Bypass the web server limits - it will disable automatic backup and the possibility of running it in the background.", 'backup-backup'); ?>
             &nbsp;<span class="bmi-info-icon tooltip" tooltip="<?php echo $experimental_info_3; ?>"></span>
           </span>
           <span class="checkmark-radio" style="margin-top: 2px;"></span>
@@ -407,11 +407,11 @@
           <div class="left">
             <div class="">
               <?php $cli_path = sanitize_text_field(bmi_get_config('OTHER:CLI:PATH')); ?>
-              <input type="text" id="cli-manual-path" class="bmi-text-input small" value="<?php echo $cli_path; ?>" placeholder="<?php _e("Automatic", 'backup-backup'); ?>" />
+              <input type="text" id="cli-manual-path" class="bmi-text-input small" value="<?php echo $cli_path; ?>" placeholder="<?php _e("Automatic", 'backup-backup'); ?>" autocomplete="off" />
             </div>
             <div class="f16">
               <?php _e('This field has no effect if PHP CLI is not available on the server or it is disabled due to settings.', 'backup-backup'); ?><br>
-              <?php _e('Please leave it empty if you do not know what you are doing, unless our support told you what it does.', 'backup-backup'); ?>
+              <?php _e('Please leave it empty if you do not know what you are doing, unless our support has told you what it does.', 'backup-backup'); ?>
             </div>
           </div>
         </div>
@@ -419,7 +419,7 @@
         <div class="lh40">
           <label for="cli-disable-others">
             <input type="checkbox" id="cli-disable-others"<?php bmi_try_checked('OTHER:CLI:DISABLE'); ?> />
-            <span><?php _e("Disable PHP CLI Checking, try to use alternate methods.", 'backup-backup'); ?></span>
+            <span><?php _e("Disable PHP CLI checking; try using alternate methods.", 'backup-backup'); ?></span>
           </label>
         </div>
       </div>
@@ -443,7 +443,7 @@
       <div class="lh40">
         <label for="download-technique">
           <input type="checkbox" id="download-technique"<?php bmi_try_checked('OTHER:DOWNLOAD:DIRECT'); ?> />
-          <span><?php _e("Use direct downloading - that will remove .htaccess protection right before download (can solve download issues).", 'backup-backup'); ?></span>
+          <span><?php _e("Use direct downloading - it will remove .htaccess protection right before the download (it can solve download issues).", 'backup-backup'); ?></span>
         </label>
       </div>
       
@@ -472,7 +472,7 @@
     
     <div class="mbll">
       <span class="relative">
-        <?php _e("Adjust queries amount per batch for your ", 'backup-backup'); ?> <b><?php _e("database", 'backup-backup'); ?></b>
+        <?php _e("Adjust the amount of queries per batch for your ", 'backup-backup'); ?> <b><?php _e("database", 'backup-backup'); ?></b>
         <span class="bmi-info-icon tooltip" tooltip="<?php echo $db_query_info; ?>"></span>
       </span><br>
     </div>
@@ -505,12 +505,12 @@
 
       <div class="lh40 cf">
         <div class="left mw250 lh65">
-          <?php _e("File limit for extraction batching (set \"auto\" for automatic choice): ", 'backup-backup'); ?>&nbsp;
+          <?php _e("File limit for extraction batching (set to \"auto\" for automatic choice): ", 'backup-backup'); ?>&nbsp;
         </div>
         <div class="left">
           <?php $fel_max_amount = sanitize_text_field(bmi_get_config('OTHER:FILE:EXTRACT:MAX')); ?>
           <label for="file_limit_extraction_max">
-            <input type="text" id="file_limit_extraction_max" class="bmi-text-input small" value="<?php echo $fel_max_amount; ?>" placeholder="auto" min="50" max="20000" />
+            <input type="text"  autocomplete="off" id="file_limit_extraction_max" class="bmi-text-input small" value="<?php echo $fel_max_amount; ?>" placeholder="auto" min="50" max="20000" />
           </label>
         </div>
       </div>
@@ -518,7 +518,7 @@
       <div class="lh40">
         <label for="bmi-restore-splitting">
           <input type="checkbox" id="bmi-restore-splitting"<?php bmi_try_checked('OTHER:RESTORE:SPLITTING'); ?> />
-          <span class="relative"><?php _e("Enable SQL-Splitting for migration process.", 'backup-backup'); ?> <span class="bmi-info-icon tooltip" tooltip="<?php echo $sqlsplitting; ?>"></span></span>
+          <span class="relative"><?php _e("Enable SQL splitting for the migration process.", 'backup-backup'); ?> <span class="bmi-info-icon tooltip" tooltip="<?php echo $sqlsplitting; ?>"></span></span>
         </label>
       </div>
 
@@ -567,7 +567,7 @@
         <label for="bmi-do-not-check-free-space-backup">
           <input type="checkbox" id="bmi-do-not-check-free-space-backup"<?php bmi_try_checked('OTHER:BACKUP:SPACE:CHECKING'); ?> />
           <span class="relative">
-            <?php _e("Disable space checking during backup process - please read additional info.", 'backup-backup'); ?>
+            <?php _e("Disable space checking during backup and restore process - please read additional info.", 'backup-backup'); ?>
             <span class="bmi-info-icon tooltip" tooltip="<?php echo $disabledspacechecking; ?>"></span>
           </span>
         </label>
@@ -587,7 +587,7 @@
     
     <div class="mbll">
       <span class="relative">
-        <?php _e("When this plugins is", 'backup-backup'); ?> <b><?php _e("de-installed:", 'backup-backup'); ?></b>
+        <?php _e("When this plugins is", 'backup-backup'); ?> <b><?php _e("uninstalled:", 'backup-backup'); ?></b>
         &nbsp;<span class="bmi-info-icon tooltip" tooltip="<?php echo $deinstalled_info; ?>"></span>
       </span><br>
     </div>
@@ -596,7 +596,7 @@
       <div class="lh40">
         <label for="uninstalling-configs">
           <input type="checkbox" id="uninstalling-configs"<?php bmi_try_checked('OTHER:UNINSTALL:CONFIGS'); ?> />
-          <span><?php _e("Delete all plugins settings (this means if you install it again, you have to configure it again)", 'backup-backup'); ?></span>
+          <span><?php _e("Delete all plugin settings (this means that if you install it again, you will have to configure it again).", 'backup-backup'); ?></span>
         </label>
       </div>
       <div class="lh40">
@@ -624,7 +624,7 @@
     <div class="lh40">
       <label for="hide-promotional-bmi-banners">
         <input type="checkbox"<?php echo ($pros) ? "" : ' class="not-allowed" disabled' ?> id="hide-promotional-bmi-banners"<?php bmi_try_checked('OTHER:PROMOTIONAL:DISPLAY'); ?> />
-        <span class="relative<?php echo ($pros) ? "" : ' not-allowed' ?>"><?php _e("Hide promotional banners and carrousel.", 'backup-backup'); ?>
+        <span class="relative<?php echo ($pros) ? "" : ' not-allowed' ?>"><?php _e("Hide promotional banners and carousel.", 'backup-backup'); ?>
           <span class="inline premium-wrapper<?php echo (!$pros) ? "" : ' is-pro' ?>" tooltip="<?php echo esc_attr( $bmiHidePromos ); ?>">
             <span class="premium premium-img premium-ntt"></span>
           </span>

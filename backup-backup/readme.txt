@@ -2,8 +2,8 @@
 Contributors: Migrate
 Tags: Migration, Backup, Staging, Migrate, Backups
 Requires at least: 4.6
-Tested up to: 6.7.2
-Stable tag: 1.4.8
+Tested up to: 6.8.2
+Stable tag: 1.4.9
 License: GPLv3
 Requires PHP: 5.6
 
@@ -50,7 +50,7 @@ You can download backup or migrate your backup (use the plugin as a WordPress du
 
 - If your backup is *located on another device*: Go to the BackupBliss - Backup Migration Staging plugin screen, then to the Manage & Restore Backup(s) tab, and click on the “Upload backup files” button. After the upload, click on the Restore button next to the backup you would like to restore.
 
-- If your backup is *located on Google Drive, OneDrive, Dropbox, FTP or SFTP*: Go to the BackupBliss - Backup Migration Staging plugin screen, then to the plugin section “Where shall the backup(s) be stored?”, turn ON the respective external storage option, and connect to your account. After that, the plugin will sync the available backup files in the plugin section “Manage & Restore Backups” from where you will be able to run Restore.
+- If your backup is *located on Google Drive, OneDrive, Dropbox, BackupBliss Storage, FTP or SFTP*: Go to the BackupBliss - Backup Migration Staging plugin screen, then to the plugin section “Where shall the backup(s) be stored?”, turn ON the respective external storage option, and connect to your account. After that, the plugin will sync the available backup files in the plugin section “Manage & Restore Backups” from where you will be able to run Restore.
 
 = How do I migrate or clone my site? =
 
@@ -60,11 +60,11 @@ Migrate (or clone) a WordPress site by creating a full backup on the site that y
 
 - To migrate the website **indirectly**: Go to the BackupBliss - Backup Migration Staging plugin screen, then to the Manage & Restore Backup(s) tab, and click on the “Upload backup files” button. After the upload, click on the Restore button next to the backup you would like to restore.
 
-- To migrate the website with *Google Drive, OneDrive, Dropbox, FTP or SFTP*: Go to the BackupBliss - Backup Migration Staging plugin screen, then to the plugin section “Where shall the backup(s) be stored?”, turn ON the respective external storage option, and connect to your account. After that, the plugin will sync the available backup files in the plugin section “Manage & Restore Backups” from where you will be able to run Restore.
+- To migrate the website with *Google Drive, OneDrive, Dropbox, BackupBliss Storage, FTP or SFTP*: Go to the BackupBliss - Backup Migration Staging plugin screen, then to the plugin section “Where shall the backup(s) be stored?”, turn ON the respective external storage option, and connect to your account. After that, the plugin will sync the available backup files in the plugin section “Manage & Restore Backups” from where you will be able to run Restore.
 
 = Where can I find my backups? =
 
-BackupBliss - Backup Migration Staging allows you to download backups, migrate backups, or delete backups directly from the plugin screen Manage & Restore Backup(s). By default, the migrator plugin will store backups locally on the server to /wordpress/wp-content/backup-migration but you can change the backup location to anywhere you please. If you have backups stored on the cloud - OneDrive, Dropbox, Google Drive, FTP or SFTP, you will need to connect the plugin with the respective storage account, so that the plugin can synchronize the data.
+BackupBliss - Backup Migration Staging allows you to download backups, migrate backups, or delete backups directly from the plugin screen Manage & Restore Backup(s). By default, the migrator plugin will store backups locally on the server to /wordpress/wp-content/backup-migration but you can change the backup location to anywhere you please. If you have backups stored on the cloud - OneDrive, Dropbox, Google Drive, BackupBliss Storage, FTP or SFTP, you will need to connect the plugin with the respective storage account, so that the plugin can synchronize the data.
 
 = How to run automatic backups? =
 
@@ -88,10 +88,10 @@ You can easily set up a staging environment for your website with the BackupBlis
 
 = ⭐️ NEW! Is cloud backup available? =
 
-Backup to Google Drive, OneDrive, FTP, SFTP and Dropbox are now available in the [BackupBliss - Backup Migration Staging Pro](https://sellcodes.com/oZxnXtc2)
-Upcoming storage options will include: Amazon S3, Rackspace, DreamObjects, OpenStack, Google Cloud, Microsoft Azure, Backblaze, and more.
+Backup to Google Drive, OneDrive, FTP, BackupBliss Storage, SFTP and Dropbox are now available in the [BackupBliss - Backup Migration Staging Pro](https://sellcodes.com/oZxnXtc2)
+Upcoming storage options will include: Rackspace, DreamObjects, OpenStack, Google Cloud, Microsoft Azure, Backblaze, and more.
 
-= ⭐️ NEW! How do I back up to Google Drive / OneDrive / Dropbox / FTP / SFTP? =
+= ⭐️ NEW! How do I back up to Google Drive / OneDrive / BackupBliss Storage / Dropbox / FTP / SFTP? =
 
 In order to automatically upload your site backups to the Cloud, you will need a [Pro version](https://sellcodes.com/oZxnXtc2) of the plugin. Once installed and activated, navigate to the plugin section “Where shall the backup(s) be stored?”, and turn ON the respective external storage feature. Click on the button Connect, and select an account you want to connect to. Once it is connected, your backup files from the website will start to sync to your connected storage. You can monitor the process in the plugin section “Manage & Restore Backups”
 
@@ -162,6 +162,22 @@ Vietnamese: [Tạo sao lưu, khôi phục các bản sao lưu và di chuyển c�
 5. The plugin should be shown below the settings menu.
 
 == Changelog ==
+= 1.4.9 =
+* Tested with WordPress 6.8.2
+* [FEATURE] Introducing BackupBliss Storage as new cloud storage option for FREE.
+* [FEATURE] Added security plugins warning module and logic
+* [MISC] Minor grammar and spelling corrections.
+* [ENHANCEMENT] Detailed explanation on Automatic Backups cron configuration.
+* [ENHANCEMENT] Improved free space checking logic during migration process
+* [ENHANCEMENT] Detailed space checking messages for backup and restore process
+* [FIX] Graphical glitches and issues in certain areas of the plugin.
+* [ENHANCEMENT] Directory path validation for local storage.
+* [FIX] Disable auto complete on certain fields to avoid unnecessary auto filling done by browser.
+* [FIX] Prevent duplicate email notifications for automatic backup delays
+* [ENHANCEMENT] makeNewLoginSession to validate user ID and manage login sessions
+* [ENHANCEMENT] Detailed logging for cron based backup creation
+* [FIX] Improved log handling for large files in global logs
+* Serveral other enhancements and bug fixes throughout the plugin
 
 = 1.4.8 =
 * Tested with WordPress 6.7.2
@@ -206,23 +222,6 @@ Vietnamese: [Tạo sao lưu, khôi phục các bản sao lưu và di chuyển c�
 * [NEW] Backups list will now load until it can process all backups (for sites with low max execution time)
 * [NEW] Added support for flexible ZipArchive which will be prioritized over PCLZip (works out of the box)
 * [NEW] Our plugin will now ignore search replace on large tables that are known to be huge log tables
-* [NEW] Added VERBOSE messages about previous size of the backup and time taken between batches
-* [NEW] Within the error window user can now download uncensored logs (administrator only)
-* [NEW] Proper backup cleanup, our plugin will now REMOVE damaged backups to save space
-* [NEW] Upgraded error window which allows users to debug the problem or get our help
-* [NEW] Added recommendations in terms of server configuration after process failure
-* [NEW] Proper backup cleanup, our plugin will now properly regenerate backups cache
-* [NEW] Added "force cache disabled" to our plugin requests to bypass cache plugins
-* [NEW] ZipArchive will work now for PHP CLI process as well as browser method
-* [NEW] Refactored way how we communicate with back-end within our plugin
-* [NEW] Added smart issue resolver to error window
-* [CHANGE] Alternative disk space checking will now be used more often for smaller backups
-* [CHANGE] Improved path cutter to make sure proper slashes are applied for Windows/Linux
-* [CHANGE] Added more constant exclusions for third party plugins temporary directories
-* [CHANGE] Native backup processes will go through same validation as browser method
-* [CHANGE] Backup list refresh will now perform cleanup and list cache regeneration
-* [CHANGE] PCLZip will now use larger block sizes to support larger single files
-* [FIX] Added additional checks for broken permission files/directoriers to exclude them without error
 * [... and more ...]
 
 = previous =
@@ -230,11 +229,20 @@ Old changelog has been removed due to WordPress limitation of 5000 characters.
 
 == Upgrade Notice ==
 
-= 1.4.8 =
-What's new in 1.4.8?
-* Tested with WordPress 6.7.2
-* [FIX] Added functionality to support both uploading and downloading of .tar.gz and .tar backups.
-* [FIX] Updated space check logic to prevent false positive 'Not enough space' alerts.
-* [FIX] Prevent deletion of partially downloaded backup during Super-quick migration
-* [FIX] Super-quick migration using cli
-* [FIX] Fixed an issue where restoration process is stuck due to an infinite recursion in unserialize replacement
+= 1.4.9 =
+What's new in 1.4.9?
+* Tested with WordPress 6.8.2
+* [FEATURE] Introducing BackupBliss Storage as new cloud storage option for FREE.
+* [FEATURE] Added security plugins warning module and logic
+* [MISC] Minor grammar and spelling corrections.
+* [ENHANCEMENT] Detailed explanation on Automatic Backups cron configuration.
+* [ENHANCEMENT] Improved free space checking logic during migration process
+* [ENHANCEMENT] Detailed space checking messages for backup and restore process
+* [FIX] Graphical glitches and issues in certain areas of the plugin.
+* [ENHANCEMENT] Directory path validation for local storage.
+* [FIX] Disable auto complete on certain fields to avoid unnecessary auto filling done by browser.
+* [FIX] Prevent duplicate email notifications for automatic backup delays
+* [ENHANCEMENT] makeNewLoginSession to validate user ID and manage login sessions
+* [ENHANCEMENT] Detailed logging for cron based backup creation
+* [FIX] Improved log handling for large files in global logs
+* Serveral other enhancements and bug fixes throughout the plugin

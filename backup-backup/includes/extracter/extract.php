@@ -427,8 +427,7 @@
       if (file_exists($tblmap)) {
         @unlink($tblmap);
       }
-
-      $allowedFiles = ['wp-config.php', '.htaccess', '.litespeed', '.default.json', 'driveKeys.php', 'dropboxKeys.php', '.autologin.php', '.migrationFinished', 'onedriveKeys.php', 'sftpKeys.php'];
+      $allowedFiles = ['wp-config.php', '.htaccess', '.litespeed', '.default.json', 'driveKeys.php', 'dropboxKeys.php', '.autologin.php', '.migrationFinished', 'onedriveKeys.php', 'awsKeys.php', 'wasabiKeys.php', 'backupblissKeys.php', 'sftpKeys.php'];
       foreach (glob(BMI_TMP . DIRECTORY_SEPARATOR . 'backup-migration_??????????') as $filename) {
 
         $basename = basename($filename);
@@ -1255,41 +1254,76 @@
     }
 
     public function makeNewLoginSession(&$manifest) {
+        global $wpdb;
 
-      wp_load_alloptions(true);
+        $prefix = sanitize_key($manifest->config->table_prefix);
+        // Ensure correct prefix is used before anything
+        $wpdb->set_prefix($manifest->config->table_prefix);
+        wp_load_alloptions(true);
+        $this->migration->log(__('Making new login session', 'backup-backup'), 'STEP');
 
-      $this->migration->log(__('Making new login session', 'backup-backup'), 'STEP');
+        $prefix = $wpdb->prefix;
+        $cap_key = $prefix . 'capabilities';
+        $uid = isset($manifest->uid) ? intval($manifest->uid) : 0;
 
-      if ($manifest->cron === true || $manifest->cron === 'true' || $manifest->uid === 0 || $manifest->uid === '0') {
-        $manifest->uid = 1;
-      }
+        // Check if provided UID is valid
+        $is_valid_uid = $uid > 0 && $wpdb->get_var(
+            $wpdb->prepare("SELECT ID FROM {$prefix}users WHERE ID = %d", $uid)
+        );
 
-      if (is_numeric($manifest->uid)) {
-        $existant = (bool) get_users(['include' => $manifest->uid, 'fields' => 'ID']);
-        if ($existant) {
-          $user = get_user_by('id', $manifest->uid);
-        } else {
-          $existant = (bool) get_users(['include' => 1, 'fields' => 'ID']);
-          if ($existant) {
-            $user = get_user_by('id', 1);
-          }
+        // If no UID, cron mode, or invalid UID, find an administrator manually
+        if (
+            !$is_valid_uid ||
+            $manifest->cron === true ||
+            $manifest->cron === 'true'
+        ) {
+            $sql = "
+                SELECT u.ID
+                FROM {$prefix}users u
+                INNER JOIN {$prefix}usermeta um ON u.ID = um.user_id
+                WHERE um.meta_key = %s
+                  AND um.meta_value LIKE %s
+                LIMIT 1
+            ";
+            $uid = $wpdb->get_var($wpdb->prepare($sql, $cap_key, '%administrator%'));
+
+            // Fallback to first user if no admin found
+            if (!$uid) {
+                $uid = $wpdb->get_var("SELECT ID FROM {$prefix}users LIMIT 1");
+            }
+
+            $uid = intval($uid);
         }
-      }
 
-      if (isset($user) && is_object($user) && property_exists($user, 'ID')) {
-        remove_all_actions('wp_login', -1000);
-        clean_user_cache(get_current_user_id());
-        clean_user_cache($user->ID);
-        wp_clear_auth_cookie();
-        wp_set_current_user($user->ID, $user->user_login);
-        wp_set_auth_cookie($user->ID, 1, is_ssl());
-        do_action('wp_login', $user->user_login, $user);
-        update_user_caches($user);
-      }
+        // Get user login info from correct (possibly changed) users table
+        $user = $wpdb->get_row(
+            $wpdb->prepare("SELECT ID, user_login FROM {$prefix}users WHERE ID = %d", $uid)
+        );
 
-      $this->migration->log(__('User should be logged in', 'backup-backup'), 'SUCCESS');
+        if ($user && isset($user->ID)) {
+            remove_all_actions('wp_login', -1000);
 
+            clean_user_cache(get_current_user_id());
+            clean_user_cache($user->ID);
+
+            wp_clear_auth_cookie();
+            wp_set_current_user($user->ID, $user->user_login);
+            wp_set_auth_cookie($user->ID, true, is_ssl());
+
+            // Manually trigger wp_login with minimal object
+            $fake_user = (object) [
+                'ID'         => $user->ID,
+                'user_login' => $user->user_login,
+            ];
+            do_action('wp_login', $user->user_login, $fake_user);
+
+            $manifest->uid = $user->ID;
+            $this->migration->log(__('User should be logged in', 'backup-backup'), 'SUCCESS');
+        } else {
+            $this->migration->log(__('User login failed. Could not find user.', 'backup-backup'), 'ERROR');
+        }
     }
+
 
     public function setOrUpdateXhria() {
 
@@ -1364,6 +1398,21 @@
       $dropboxId = get_option('bmip_dropbox', false);
       $pro_dropbox_client_id = get_option('bmip_dropbox_auth_code', false);
       $pro_onedrive_wid = get_option('bmi_pro_onedrive_wid', false);
+      $aws_access_key = get_option('bmip_aws_access_key', false);
+      $aws_secret_key = get_option('bmip_aws_secret_key', false);
+      $aws_bucket = get_option('bmip_aws_bucket', false);
+      $aws_storage_class = get_option('bmip_aws_storage_class', false);
+      $aws_path = get_option('bmip_aws_path', false);
+      $aws_region = get_option('bmip_aws_region', false);
+      $aws_sse = get_option('bmip_aws_sse', false);
+      $wasabi_access_key = get_option('bmip_wasabi_access_key', false);
+      $wasabi_secret_key = get_option('bmip_wasabi_secret_key', false);
+      $wasabi_bucket = get_option('bmip_wasabi_bucket', false);
+      $wasabi_storage_class = get_option('bmip_wasabi_storage_class', false);
+      $wasabi_path = get_option('bmip_wasabi_path', false);
+      $wasabi_region = get_option('bmip_wasabi_region', false);
+      $wasabi_sse = get_option('bmip_wasabi_sse', false);
+      $backupbliss_key = get_option('bmi_pro_backupbliss_key', false);
 
       $pro_sftp_host = get_option('bmip_sftp_host', false);
       $pro_sftp_port = get_option('bmip_sftp_port', false);
@@ -1395,6 +1444,39 @@
         $content = "<?php \n";
         $content .= "//" . $pro_onedrive_wid . "\n";
         file_put_contents($tempKeyOneDriveFile, $content);
+      }
+
+      if (get_transient('bmip_aws_connection_status')){
+        $tempKeyAWSFile = BMI_TMP . DIRECTORY_SEPARATOR . 'awsKeys.php';
+        $content = "<?php \n";
+        $content .= "//" . $aws_access_key . "\n";
+        $content .= "//" . $aws_secret_key . "\n";
+        $content .= "//" . $aws_bucket . "\n";
+        $content .= "//" . $aws_storage_class . "\n";
+        $content .= "//" . $aws_path . "\n";
+        $content .= "//" . $aws_region . "\n";
+        $content .= "//" . $aws_sse . "\n";
+        file_put_contents($tempKeyAWSFile, $content);
+      }
+
+      if (get_transient('bmip_wasabi_connection_status')){
+        $tempKeyWasabiFile = BMI_TMP . DIRECTORY_SEPARATOR . 'wasabiKeys.php';
+        $content = "<?php \n";
+        $content .= "//" . $wasabi_access_key . "\n";
+        $content .= "//" . $wasabi_secret_key . "\n";
+        $content .= "//" . $wasabi_bucket . "\n";
+        $content .= "//" . $wasabi_storage_class . "\n";
+        $content .= "//" . $wasabi_path . "\n";
+        $content .= "//" . $wasabi_region . "\n";
+        $content .= "//" . $wasabi_sse . "\n";
+        file_put_contents($tempKeyWasabiFile, $content);
+      }
+
+      if ($backupbliss_key !== false) {
+        $tempKeyBackupBlissFile = BMI_TMP . DIRECTORY_SEPARATOR . 'backupblissKeys.php';
+        $content = "<?php \n";
+        $content .= "//" . $backupbliss_key . "\n";
+        file_put_contents($tempKeyBackupBlissFile, $content);
       }
 
       if ($pro_sftp_host !== false) {

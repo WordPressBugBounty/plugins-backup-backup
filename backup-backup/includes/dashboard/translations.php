@@ -200,6 +200,9 @@
   <div id="bmi-backup-downloaded">
     <?php _e('Backup downloaded successfully.', 'backup-backup') ?>
   </div>
+  <div id="bmi-save-connect-s3-success">
+    <?php _e('We have successfully connected to your S3 bucket.', 'backup-backup') ?>
+  </div>
   <div id="bmi-download-progress-modal-title">
     <?php _e('Downloading backup file', 'backup-backup') ?>
   </div>
@@ -286,5 +289,5 @@
   <div id="BMI_REV"><?php echo BMI_REV; ?></div>
   <div id="BMI_SECRET_KEY"><?php echo bmi_get_config('REQUEST:SECRET'); ?></div>
   <div id="BMI_ASSETS"><?php echo BMI_ASSETS; ?></div>
-  <div><input type="text" id="bmi-support-url-translation" value="<?php echo BMI_CHAT_SUPPORT_URL ?>" hidden></div>
+  <div><input type="text" id="bmi-support-url-translation" value="<?php echo BMI_CHAT_SUPPORT_URL ?>" hidden autocomplete="off"></div>
 </div>

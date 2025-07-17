@@ -232,15 +232,10 @@
       if ($scope == "local") {
         return [ 'local' => $manifests ];
       }
-
-      if (defined('BMI_BACKUP_PRO') && defined('BMI_PRO_INC')) {
-        $proPath = BMI_PRO_INC . 'external/controller.php';
-        if (file_exists($proPath)) {
-          require_once $proPath;
-          $externalStorage = new ExternalStorage();
-          $external = $externalStorage->getExternalBackups();
-        }
-      }
+      
+      require_once BMI_INCLUDES . '/external/controller.php';
+      $externalStorage = new ExternalStorage();
+      $external = $externalStorage->getExternalBackups();
       
       $this->removeOldCache();
 

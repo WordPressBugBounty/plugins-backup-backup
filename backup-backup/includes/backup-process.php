@@ -1309,9 +1309,12 @@
     }
 
     public function actionsAfterProcess($success = false) {
-      
-      Logger::log("Backup file created successfully via backup-process.php");
-      BMP::handle_after_cron();
+      if ($success == true) {
+        Logger::log("Backup file created successfully via backup-process.php");
+        BMP::handle_after_cron();
+      } else {
+        Logger::log("Backup file creation failed via backup-process.php");
+      }
       
       if (has_action('bmi_premium_after_process') || (defined('BACKUP_TRIGGERED_BY_URL') && BACKUP_TRIGGERED_BY_URL === true)){
         do_action('bmi_premium_after_process', $success, 'backup', defined('BACKUP_TRIGGERED_BY_URL') && BACKUP_TRIGGERED_BY_URL === true);

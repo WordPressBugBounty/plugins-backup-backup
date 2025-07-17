@@ -22,11 +22,13 @@
   use BMI\Plugin\Zipper\BMI_Zipper as Zipper;
   use BMI\Plugin\PHPCLI\Checker as PHPCLICheck;
   use BMI\Plugin\External\BMI_External_Storage as ExternalStorage;
+  use BMI\Plugin\External\BMI_External_Storage_Premium as ExternalStoragePremium;
   use BMI\Plugin\Staging\BMI_Staging_TasteWP as StagingTasteWP;
   use BMI\Plugin\Staging\BMI_StagingLocal as StagingLocal;
   use BMI\Plugin\Heart\BMI_Backup_Heart as Bypasser;
   use BMI\Plugin\Staging\BMI_Staging as Staging;
   use BMI\Plugin\Checker\Compatibility as Compatibility;
+  use BMI\Plugin\External\BMI_External_BackupBliss as BackupBliss;
   use BMI\Plugin\External\BMI_External_SFTP as SFTP;
 
   /**
@@ -45,6 +47,9 @@
     public $total_excluded_size_for_backup = 0;
 
     public function __construct($initializedWithCLI = false) {
+
+      // Initialize CRON if wasn't done earlier
+      $this->shareDomainForAutoCron();
 
       // Return if it's not post
       if (empty($_POST)) {
@@ -174,15 +179,308 @@
         BMP::res($this->checkDiskSpace());
       } elseif ($this->post['f'] == 'check-comptability') {
         BMP::res($this->checkCompatibility());
-      } elseif (has_action('bmi_premium_ajax')) {
-        do_action('bmi_premium_ajax', $this->post);
-      } elseif ($this->post['f'] == 'check-not-uploaded-backups') {
-        BMP::res(['status' => 'false']);
       } elseif ($this->post['f'] == 'clean-up-after-error'){
         BMP::res($this->cleanUpAfterError());
+      } elseif (substr($this->post['f'], 0, 3) === "bb-") {
+        require_once BMI_INCLUDES . '/external/backupbliss.php';
+        $backupBliss = new BackupBliss();
+        BMP::res($backupBliss->process(substr($this->post['f'], 3), $this->post));
+      } elseif ($this->post['f'] == 'check-not-uploaded-backups') {
+        do_action('bmi_ajax_offline', $this->post);
+      } elseif($this->post['f'] == 'download-cloud-backup') {
+        if (isset($this->post['storage']) && $this->post['storage'] == 'backupbliss')
+          BMP::res($this->downloadCloudBackup());
+        //Forward it to premium plugin for other cloud downloads
+        elseif (has_action('bmi_premium_ajax')) {
+          do_action('bmi_premium_ajax', $this->post);
+        }
+      }
+
+
+      //If none of the action matches it executes premium ajax if it exists
+      elseif (has_action('bmi_premium_ajax')) {
+        do_action('bmi_premium_ajax', $this->post);
       }
 
     }
+
+    /**
+   * shareDomainForAutoCron - Allows our API to keep scheduled backups on time
+   *
+   * @return json rtoken
+   */
+  private function shareDomainForAutoCron()
+  {
+
+    $cron_shared = get_option('bmi_cron_new_domain_done', false);
+    if ($cron_shared) return 0;
+
+    $baseurl = home_url();
+    if (substr($baseurl, 0, 4) != 'http') {
+      if (is_ssl()) $baseurl = 'https://' . home_url();
+      else $baseurl = 'http://' . home_url();
+    }
+
+    $url = 'https://authentication.backupbliss.com/v1/crons/connect';
+    $response = wp_remote_post($url, array(
+      'method' => 'POST',
+      'timeout' => 15,
+      'redirection' => 2,
+      'httpversion' => '1.0',
+      'blocking' => true,
+      'body' => array('site' => $baseurl)
+    ));
+
+    if (!is_wp_error($response)) {
+      $response = json_decode($response['body'], true);
+      if (isset($response['status']) && $response['status'] === 'success') {
+        update_option('bmi_cron_new_domain_done', true);
+      }
+
+      return 0;
+    }
+
+    return 0;
+  }
+
+  /**
+   * randomString - Generates "random" string
+   *
+   * @return string "random"
+   */
+  private function randomString($length = 64)
+  {
+
+    $chars = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    $str = "";
+
+    for ($i = 0; $i < $length; ++$i) {
+
+      $str .= $chars[mt_rand(0, strlen($chars) - 1)];
+    }
+
+    return $str;
+  }
+
+  /**
+   * downloadCloudBackup - Downloads Cloud Backup to Local Storage
+   *
+   * @return json status
+   */
+  private function downloadCloudBackup()
+  {
+
+    $secret = false;
+    if (isset($this->post['secret'])) $secret = $this->post['secret'];
+
+    $lock = BMI_BACKUPS . '/.migration_lock';
+    if (file_exists($lock) && (time() - filemtime($lock)) < 1) {
+      $lockContent = file_get_contents($lock);
+      if ($lockContent !== $secret) {
+        return ['status' => 'msg', 'why' => __('Download process is currently running, please wait till it complete.', 'backup-backup'), 'level' => 'warning'];
+      }
+    }
+
+    require_once BMI_INCLUDES . '/progress/migration.php';
+
+    $step = intval($this->post['step']);
+    $storage = $this->post['storage'];
+    $startRestoreProcess = isset($this->post['startRestoreProcess']) ? $this->post['startRestoreProcess'] : 'true';
+
+    $clearFile = ($step === 0) ? false : true;
+    $migration = new MigrationProgress($clearFile);
+    $migration->start();
+
+    if ($storage == 'backupbliss') {
+
+      require_once BMI_INCLUDES . '/external/backupbliss.php';
+      $backupbliss = new BackupBliss();
+
+      $backupDetails = false;
+      $fileId = $this->post['fileId'];
+
+      if ($step === 0 || (!isset($this->post['size']) || $this->post['size'] == false || !is_numeric($this->post['size']))) {
+
+        $migration->log((__('Backup & Migration version: ', 'backup-backup') . BMI_VERSION));
+        $migration->log(__('Creating lock file', 'backup-backup'));
+        $secret = $this->randomString();
+        file_put_contents($lock, $secret);
+
+        $migration->log('Download intialized', 'INFO');
+        $migration->log('Getting backup details from BackupBliss...', 'STEP');
+        $backupDetails = $backupbliss->getFileDetailByName($fileId);
+
+        if (!$backupDetails) {
+
+          $migration->log("Couldn't fetch backup details from cloud.", 'ERROR');
+          $migration->log(__('Unlocking migration', 'backup-backup'), 'INFO');
+          if (file_exists($lock)) @unlink($lock);
+
+          $migration->log('#002', 'END-CODE');
+          $migration->end();
+
+          return ['status' => 'error'];
+        }
+
+        $size = intval($backupDetails['size']);
+        $originalFilename = $backupDetails['name'];
+
+        $migration->log('Backup details received!', 'SUCCESS');
+        $migration->log('Backup original name: ' . $originalFilename, 'INFO');
+        $migration->log('Starting download process...', 'STEP');
+
+        $availableMemory = BMP::getAvailableMemoryInBytes();
+        $bytesPerRequest = intval($availableMemory / 4);
+
+        $migration->log('Single batch will use up to: ' . $bytesPerRequest . ' bytes (~' . intval($bytesPerRequest / 1024 / 1024 / 2) . ' MBs)', 'INFO');
+
+        $fileIterator = 2;
+        $originalFilenameInfo = pathinfo($originalFilename);
+        $extension = $originalFilenameInfo['extension'];
+        $originalFilename = $originalFilenameInfo['filename'];
+        if ($originalFilenameInfo['extension'] == 'gz') {
+          $originalFilename = pathinfo($originalFilename, PATHINFO_FILENAME);
+          $extension = 'tar.gz';
+        }
+        
+        $backupDestinationPath = BMI_BACKUPS . DIRECTORY_SEPARATOR . $originalFilename . '.' . $extension;
+        $finalName = $originalFilename . '.' . $extension;
+
+        while (file_exists($backupDestinationPath)) {
+          $backupDestinationPath = BMI_BACKUPS . DIRECTORY_SEPARATOR . $originalFilename . '-' . $fileIterator . '.' . $extension;
+          $finalName = $originalFilename . '-' . $fileIterator . '.' . $extension;
+          $fileIterator++;
+        }
+
+        $originalFilename = $finalName;
+
+        $backupDestinationPath .= '.crdownload';
+
+      } else {
+
+        $size = intval($this->post['size']);
+        $originalFilename = $this->post['filename'];
+        $backupDestinationPath = $this->post['writepath'];
+        $bytesPerRequest = intval($this->post['chunksize']);
+      }
+
+      $md5 = $this->post['md5'];
+
+      $totalBatches = ceil($size / (256 * 1024 * 4 * intval($bytesPerRequest / 1024 / 1024 / 2)));
+
+      if ($totalBatches <= $step) {
+
+        $migration->log('Download process finished!', 'SUCCESS');
+        $migration->log('Verifying MD5 checksum of downloaded file...', 'STEP');
+
+        rename($backupDestinationPath, str_replace('.crdownload', '', $backupDestinationPath));
+        $backupDestinationPath = str_replace('.crdownload', '', $backupDestinationPath);
+  
+
+        $local_md5 = hash_file('md5', $backupDestinationPath);
+        if (file_exists($backupDestinationPath) && $local_md5 == $md5) {
+
+          $migration->log('Downloaded MD5: ' . $local_md5, 'INFO');
+          $migration->log('Expected MD5: ' . $md5, 'INFO');
+          $migration->log('File MD5 checksum is correct!', 'SUCCESS');
+        } else {
+
+          $migration->log('File MD5 checksum is NOT correct!', 'ERROR');
+          $migration->log('Downloaded MD5: ' . $local_md5, 'ERROR');
+          $migration->log('Expected MD5: ' . $md5, 'ERROR');
+          $migration->log('Downloaded file path: ' . $backupDestinationPath, 'ERROR');
+          $migration->log('File exist?: ' . (file_exists($backupDestinationPath) ? "Yes" : "No?"), 'ERROR');
+          $migration->log('For security reasons, I will remove the file and stop the process...', 'ERROR');
+          $migration->log(__('Unlocking migration', 'backup-backup'), 'INFO');
+          if (file_exists($lock)) @unlink($lock);
+
+          $migration->log('#002', 'END-CODE');
+          $migration->end();
+
+          if (file_exists($backupDestinationPath)) @unlink($backupDestinationPath);
+          return ['status' => 'error'];
+        }
+
+        $migration->log(__('Unlocking migration', 'backup-backup'), 'INFO');
+        if (file_exists($lock)) @unlink($lock);
+        if ($startRestoreProcess == 'true') {
+          $migration->log('Requesting restoration process...', 'STEP');
+
+          $migration->log('#205', 'END-CODE');
+        } else {
+          $migration->log('Download process finished!', 'SUCCESS');
+          $migration->log('#206', 'END-CODE');
+        }
+        $migration->progress(100);
+        $migration->end();
+
+        return ['status' => 'success', 'finished' => 'true', 'filename' => $originalFilename];
+      } else {
+
+        $chunkSize = 256 * 1024 * 4 * intval($bytesPerRequest / 1024 / 1024 / 2);
+        $startRange = ($step * $chunkSize);
+        if ($step !== 0) $startRange = $startRange + 1;
+        $endRange = (($step + 1) * $chunkSize);
+        if ($endRange > $size) $endRange = $size;
+        $percentage = intval(($endRange / $size) * 100);
+
+        $data = $backupbliss->getFile($fileId, $startRange, $endRange);
+
+        if (!$data["file_detail"] || !$data["file_data"]) {
+
+          $migration->log("Couldn't fetch backup file from cloud.", 'ERROR');
+          $migration->log('For security reasons, I will remove the file (if exist) and stop the process...', 'ERROR');
+          $migration->log(__('Unlocking migration', 'backup-backup'), 'INFO');
+          if (file_exists($lock)) @unlink($lock);
+
+          $migration->log('#002', 'END-CODE');
+          $migration->end();
+
+          if (file_exists($backupDestinationPath)) @unlink($backupDestinationPath);
+          return ['status' => 'error'];
+        }
+
+        if ((is_dir(dirname($backupDestinationPath)) && file_exists($backupDestinationPath)) || $step === 0) {
+
+          $backupFile = fopen($backupDestinationPath, 'ab');
+          fwrite($backupFile, $data['file_data']);
+          fclose($backupFile);
+        } else {
+
+          $migration->log('File is not writable or directory does not exist.', 'ERROR');
+          $migration->log('File: ' . basename($backupDestinationPath), 'ERROR');
+          $migration->log('Dirname: ' . dirname($backupDestinationPath), 'ERROR');
+          $migration->log('For security reasons, I will remove the file and stop the process...', 'ERROR');
+          $migration->log(__('Unlocking migration', 'backup-backup'), 'INFO');
+          if (file_exists($lock)) @unlink($lock);
+
+          $migration->log('#002', 'END-CODE');
+          $migration->end();
+
+          if (file_exists($backupDestinationPath)) @unlink($backupDestinationPath);
+          return ['status' => 'error'];
+        }
+
+        $migration->log('Download progress (' . ($step + 1) .  '/' . $totalBatches . '): ' . $endRange . '/' . $size . ' (' . $percentage . '%)', 'INFO');
+        $migration->progress($percentage);
+        $migration->end();
+
+        return [
+          'status' => 'success',
+          'size' => $size,
+          'md5' => $md5,
+          'finished' => 'false',
+          'originalFilename' => $originalFilename,
+          'writepath' => $backupDestinationPath,
+          'chunksize' => $bytesPerRequest,
+          'secret' => $secret
+        ];
+      }
+    }
+
+    if (file_exists($lock)) @unlink($lock);
+    return ['status' => 'error'];
+  }
 
     public function siteURL() {
       $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' || $_SERVER['SERVER_PORT'] == 443) ? "https://" : "http://";
@@ -934,7 +1232,7 @@
 
           // Return error
           if (file_exists($triggerLock)) @unlink($triggerLock);
-          if ($cron == true) return ['status' => 'success'];
+          if ($cron == true) return ['status' => 'msg', 'why' => __('There is not enough space for backup, please free up ' . $bytes / 1024 / 1024 . ' MB of space.', 'backup-backup')];
           else return ['status' => 'error'];
         } else {
           $zip_progress->log(__("Confirmed, there is more than enough space, checked: ", 'backup-backup') . ($bytes) . __(" bytes", 'backup-backup'), 'success');
@@ -1378,52 +1676,60 @@
         $manifest = $zipper->getZipFileContent($zippath, 'bmi_backup_manifest.json');
         $migration->log(__('Free space checking...', 'backup-backup'), 'STEP');
         $migration->log(__('Checking if there is enough amount of free space', 'backup-backup'), 'INFO');
-        if ($manifest) {
-          if (isset($manifest->bytes) && $manifest->bytes) {
-            $bytes = intval($manifest->bytes * 1.4);
-            update_option('bmi_required_space', $bytes);
-            if (file_exists(BMI_TMP . DIRECTORY_SEPARATOR . 'restore_parts.json')) {
-              $restoreParts = json_decode(file_get_contents(BMI_TMP . DIRECTORY_SEPARATOR . 'restore_parts.json'));
-              if (isset($restoreParts->size) && $restoreParts->size && $restoreParts->backupName == $this->post['file']) {
-                $bytes = intval($restoreParts->size * 1.4);
+
+        $isSpaceCheckDisabled = Dashboard\bmi_get_config('OTHER:BACKUP:SPACE:CHECKING');
+
+        if ($isSpaceCheckDisabled) {
+          $migration->log(__("Free space checking is disabled by user in settings...", 'backup-backup'), 'warn');
+          $migration->log(__("Restore will continue, trusting there is enough space...", 'backup-backup'), 'warn');
+        } else {
+          if ($manifest) {
+            if (isset($manifest->bytes) && $manifest->bytes) {
+              $bytes = intval($manifest->bytes * 1.4);
+              update_option('bmi_required_space', $bytes);
+              if (file_exists(BMI_TMP . DIRECTORY_SEPARATOR . 'restore_parts.json')) {
+                $restoreParts = json_decode(file_get_contents(BMI_TMP . DIRECTORY_SEPARATOR . 'restore_parts.json'));
+                if (isset($restoreParts->size) && $restoreParts->size && $restoreParts->backupName == $this->post['file']) {
+                  $bytes = intval($restoreParts->size * 1.4);
+                }
+              }
+              if (!$checker->check_free_space($bytes)) {
+                $migration->log(__('Cannot start migration process', 'backup-backup'), 'ERROR');
+                $migration->log(__('Error: There is not enough space on the server, checked: ' . ($bytes) . ' bytes.', 'backup-backup'), 'ERROR');
+                $migration->log("not_enough_space", 'verbose');
+                $migration->log(__('Aborting...', 'backup-backup'), 'ERROR');
+                $migration->log(__('Unlocking migration', 'backup-backup'), 'INFO');
+
+                if (file_exists($lock)) @unlink($lock);
+                $migration->log('#004', 'END-CODE');
+                $migration->end();
+
+                if ($isCLIRunning == true) touch($lock_cli_end);
+                $this->actionsAfterProcess(false, 'migration');
+
+                return ['status' => 'error'];
+              } else {
+                $migration->log(__('Confirmed, there is enough space on the device, checked: ' . ($bytes) . ' bytes.', 'backup-backup'), 'SUCCESS');
               }
             }
-            if (!$checker->check_free_space($bytes)) {
-              $migration->log(__('Cannot start migration process', 'backup-backup'), 'ERROR');
-              $migration->log(__('Error: There is not enough space on the server, checked: ' . ($bytes) . ' bytes.', 'backup-backup'), 'ERROR');
-              $migration->log("not_enough_space", 'verbose');
-              $migration->log(__('Aborting...', 'backup-backup'), 'ERROR');
-              $migration->log(__('Unlocking migration', 'backup-backup'), 'INFO');
+          } else {
+            $migration->log(__('Cannot start migration process', 'backup-backup'), 'ERROR');
+            $migration->log(__('Error: File may not exist, check file name and if it still exist', 'backup-backup'), 'ERROR');
+            $migration->log(__('Error: Could not find manifest in backup, file may be broken', 'backup-backup'), 'ERROR');
+            $migration->log(__('Error: Btw. because of this I also cannot check free space', 'backup-backup'), 'ERROR');
+            $migration->log(__('Used path: ', 'backup-backup') . $zippath, 'ERROR');
+            $migration->log(__('Aborting...', 'backup-backup'), 'ERROR');
+            $migration->log(__('Unlocking migration', 'backup-backup'), 'INFO');
 
-              if (file_exists($lock)) @unlink($lock);
-              $migration->log('#004', 'END-CODE');
-              $migration->end();
+            if (file_exists($lock)) @unlink($lock);
+            $migration->log('#003', 'END-CODE');
+            $migration->end();
 
-              if ($isCLIRunning == true) touch($lock_cli_end);
-              $this->actionsAfterProcess(false, 'migration');
+            if ($isCLIRunning == true) touch($lock_cli_end);
+            $this->actionsAfterProcess(false, 'migration');
 
-              return ['status' => 'error'];
-            } else {
-              $migration->log(__('Confirmed, there is enough space on the device, checked: ' . ($bytes) . ' bytes.', 'backup-backup'), 'SUCCESS');
-            }
+            return ['status' => 'error'];
           }
-        } else {
-          $migration->log(__('Cannot start migration process', 'backup-backup'), 'ERROR');
-          $migration->log(__('Error: File may not exist, check file name and if it still exist', 'backup-backup'), 'ERROR');
-          $migration->log(__('Error: Could not find manifest in backup, file may be broken', 'backup-backup'), 'ERROR');
-          $migration->log(__('Error: Btw. because of this I also cannot check free space', 'backup-backup'), 'ERROR');
-          $migration->log(__('Used path: ', 'backup-backup') . $zippath, 'ERROR');
-          $migration->log(__('Aborting...', 'backup-backup'), 'ERROR');
-          $migration->log(__('Unlocking migration', 'backup-backup'), 'INFO');
-
-          if (file_exists($lock)) @unlink($lock);
-          $migration->log('#003', 'END-CODE');
-          $migration->end();
-
-          if ($isCLIRunning == true) touch($lock_cli_end);
-          $this->actionsAfterProcess(false, 'migration');
-
-          return ['status' => 'error'];
         }
 
       }
@@ -1808,11 +2114,15 @@
       }
 
       if ($deleteCloud) {
+        //Initialize externall storages for backup deletion action to be initiated
+        require_once BMI_INCLUDES . '/external/controller.php';
+        new ExternalStorage();
+
         if (defined('BMI_BACKUP_PRO') && defined('BMI_PRO_INC')) {
           $proPath = BMI_PRO_INC . 'external/controller.php';
           if (file_exists($proPath)) {
             require_once $proPath;
-            $externalStorage = new ExternalStorage();
+            new ExternalStoragePremium();
           }
         }
       }
@@ -1882,12 +2192,15 @@
       $created = false;
 
       if (!preg_match("/^[a-zA-Z0-9\_\-\/\.]+$/", $dir_path)) {
-       // return ['status' => 'msg', 'why' => __('Entered directory/path name does not match allowed characters (Local Storage).', 'backup-backup'), 'level' => 'warning'];
+       return ['status' => 'msg', 'why' => __('Entered directory/path name does not match allowed characters (Local Storage).', 'backup-backup'), 'level' => 'warning'];
       }
 
+      if (!is_string($dir_path) || $dir_path === '' || 
+        !(preg_match('/^[A-Z]:[\/\\\\]/i', $dir_path) || strpos($dir_path, '/') === 0)) {
+        return ['status' => 'msg', 'why' => __('Please enter full path to the directory (Local Storage).', 'backup-backup'), 'level' => 'warning'];
+      }
       if (!file_exists($dir_path)) {
-        $created = true;
-        @mkdir($dir_path, 0755, true);
+        $created = @mkdir($dir_path, 0755, true);
       }
 
       if (defined('BMI_BACKUP_PRO') && BMI_BACKUP_PRO === 1) {
@@ -1916,6 +2229,13 @@
             if (!Dashboard\bmi_set_config('STORAGE::EXTERNAL::GDRIVE::DIRNAME', $gdrivedirname)) {
               $errors++;
             }
+          }
+        }
+
+        if (isset($this->post['backupbliss'])) {
+          $backupblissenabled = $this->post['backupbliss'];
+          if (!Dashboard\bmi_set_config('STORAGE::EXTERNAL::backupbliss', $backupblissenabled)) {
+            $errors++;
           }
         }
 
@@ -1978,6 +2298,19 @@
           delete_option('bmi_pro_ftp_password');
         }
 
+        if (isset($this->post['aws'])) {
+          $s3enabled = $this->post['aws'];
+          if (!Dashboard\bmi_set_config('STORAGE::EXTERNAL::AWS', $s3enabled)) {
+            $errors++;
+          }
+        }
+
+        if (isset($this->post['wasabi'])) {
+          $wasabienabled = $this->post['wasabi'];
+          if (!Dashboard\bmi_set_config('STORAGE::EXTERNAL::WASABI', $wasabienabled)) {
+            $errors++;
+          }
+        }
 
         if (isset($this->post['dropbox'])) {
           $dropboxenabled = $this->post['dropbox'];
@@ -3096,6 +3429,12 @@
 
     public function dismissErrorNotice() {
       $optionId = isset($this->post['option_id']) ? $this->post['option_id'] : '';
+      if (in_array($optionId, ['backupbliss-issues', 'backupbliss-dismiss-upload-issue']))
+      {
+        require_once BMI_INCLUDES . '/external/backupbliss.php';
+        $backupbliss = new BackupBliss();
+      }
+
       switch ($optionId) {
         case 'email-issues': 
           delete_option('bmi_display_email_issues');
@@ -3103,11 +3442,31 @@
         case 'before-update-issues':
           delete_option('bmi_display_before_update_backup_issues');
           break;
+        case 'aws-issues':
+          update_option('bmip_aws_dismiss_issue', true);
+          break;
+        case 'wasabi-issues':
+          update_option('bmip_wasabi_dismiss_issue', true);
+          break;
         case 'sftp-issues':
           update_option('bmip_sftp_dismiss_issue', true);
+          break;
         case 'gdrive-issues':
           delete_transient('bmip_gd_issue');
           break;
+        case 'backupbliss-issues':
+          $backupbliss->removeNotice("invalid_key");
+          $backupbliss->removeNotice("invalid_permission");
+          if ($backupbliss->getNotice("storage_warn"))
+            $backupbliss->hideNotice("storage_warn", 60 * 60);
+          if ($backupbliss->getNotice("upload_issue"))
+            $backupbliss->hideNotice("upload_issue", 60); //Hide only for a minute
+          break;
+        case 'backupbliss-dismiss-upload-issue':
+          $backupbliss->hideFailureWarnNotice(14 * 24 * 60 * 60); //14 days
+          break;
+        case 'security-plugin-warning':
+          update_option('bmi_security_warning_dismiss', true);
         default:
             break;
       }
@@ -3166,7 +3525,7 @@
 
       }
 
-      $allowedFiles = ['wp-config.php', '.htaccess', '.litespeed', '.default.json', 'driveKeys.php', 'dropboxKeys.php', '.autologin.php', '.migrationFinished', 'onedriveKeys.php', 'sftpKeys.php'];
+      $allowedFiles = ['wp-config.php', '.htaccess', '.litespeed', '.default.json', 'driveKeys.php', 'dropboxKeys.php', '.autologin.php', '.migrationFinished', 'onedriveKeys.php', 'awsKeys.php', 'wasabiKeys.php', 'backupblissKeys.php', 'sftpKeys.php'];
       foreach (glob(BMI_TMP . DIRECTORY_SEPARATOR . '.*') as $filename) {
 
         $basename = basename($filename);
@@ -3250,7 +3609,7 @@
 
       }
 
-      $allowedFiles = ['wp-config.php', '.htaccess', '.litespeed', '.default.json', 'driveKeys.php', 'dropboxKeys.php', '.autologin.php', '.migrationFinished', 'onedriveKeys.php', 'sftpKeys.php'];
+      $allowedFiles = ['wp-config.php', '.htaccess', '.litespeed', '.default.json', 'driveKeys.php', 'dropboxKeys.php', '.autologin.php', '.migrationFinished', 'onedriveKeys.php','awsKeys.php', 'wasabiKeys.php', 'backupblissKeys.php', 'sftpKeys.php'];
       foreach (glob(BMI_TMP . DIRECTORY_SEPARATOR . '.*') as $filename) {
 
         $basename = basename($filename);
@@ -3366,9 +3725,16 @@
         if ((filesize($completeLogsPath) / 1024 / 1024) <= 4) {
           $pluginGlobalLogs = file_get_contents($completeLogsPath);
         } else {
-          @unlink($completeLogsPath);
-          @touch($completeLogsPath);
-          $pluginGlobalLogs = 'file_too_large';
+          $fp = fopen($completeLogsPath, 'rb');
+          if ($fp) {
+              $seekPos = max(0, $fileSize - (4 * 1024 * 1024));
+              fseek($fp, $seekPos, SEEK_SET);
+              $pluginGlobalLogs = fread($fp, 4 * 1024 * 1024);
+              fclose($fp);
+              file_put_contents($completeLogsPath, $pluginGlobalLogs); // Save the last 4MB
+          } else {
+              $pluginGlobalLogs = 'could_not_open_file';
+          }
         }
       }
 
@@ -3500,16 +3866,17 @@
       if ($success) {
 
         file_put_contents($afterMigrationLock, '');
+        Logger::log("Process (" . $triggeredBy . ") finished successfully via ajax.php");
 
       } else {
 
+        Logger::log("Process (" . $triggeredBy . ") finished with errors via ajax.php");
         if (file_exists($afterMigrationLock)) @unlink($afterMigrationLock);
 
       }
 
       if (file_exists(BMI_TMP . DIRECTORY_SEPARATOR . 'restore_parts.json')) @unlink(BMI_TMP . DIRECTORY_SEPARATOR . 'restore_parts.json');
 
-      Logger::log("Process (" . $triggeredBy . ") finished successfully via ajax.php");
       
       if (has_action('bmi_premium_after_process') || (defined('BACKUP_TRIGGERED_BY_URL') && BACKUP_TRIGGERED_BY_URL === true)){
         do_action('bmi_premium_after_process', $success, $triggeredBy, defined('BACKUP_TRIGGERED_BY_URL') && BACKUP_TRIGGERED_BY_URL === true);
