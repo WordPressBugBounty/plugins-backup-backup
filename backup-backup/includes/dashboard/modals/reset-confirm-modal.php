@@ -15,21 +15,21 @@
 
       <div class="flex flexcenter">
         <div class="mr20">
-          <img class="inline" src="<?php echo $this->get_asset('images', 'warning-red.png'); ?>" alt="error">
+          <img class="inline" src="<?php echo esc_url( $this->get_asset('images', 'warning-red.png') ); ?>" alt="error">
         </div>
         <div class="semibold f18 center lh30">
-          <?php _e("Do you really want to reset the configuration?", 'backup-backup'); ?><br>
-          <?php _e("This action cannot be undone!", 'backup-backup'); ?>
+          <?php esc_html_e("Do you really want to reset the configuration?", 'backup-backup'); ?><br>
+          <?php esc_html_e("This action cannot be undone!", 'backup-backup'); ?>
         </div>
       </div>
 
       <div class="center mtl">
         <div class="cf inline">
           <div class="left inline mr50">
-            <a href="#" class="btn bold mm red" id="configuration-reset-absolute"><?php _e("Yes, reset", 'backup-backup'); ?></a>
+            <a href="#" class="btn bold mm red" id="configuration-reset-absolute"><?php esc_html_e("Yes, reset", 'backup-backup'); ?></a>
           </div>
           <div class="left inline">
-            <a href="#" class="btn bold mm grey nodec bmi-modal-closer"><?php _e("No, cancel", 'backup-backup'); ?></a>
+            <a href="#" class="btn bold mm grey nodec bmi-modal-closer"><?php esc_html_e("No, cancel", 'backup-backup'); ?></a>
           </div>
         </div>
       </div>

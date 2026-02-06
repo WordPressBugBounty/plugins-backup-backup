@@ -29,6 +29,10 @@
       add_action('wp_ajax_bmip_keepalive', [&$this, 'initializeOfflineAjax']);
       add_action('wp_ajax_nopriv_bmip_keepalive', [&$this, 'initializeOfflineAjax']);
 
+      // Handle Auth Handshake For M2M Connection (Ping server)
+      add_action('wp_ajax_nopriv_bmip_auth_handshake', [&$this, 'bmip_handle_handshake_request']);
+      add_action('wp_ajax_bmip_auth_handshake', [&$this, 'bmip_handle_handshake_request']);
+
       if (is_user_logged_in() && current_user_can('administrator')) {
         add_action('wp_ajax_backup_migration', [&$this, 'initializeOfflineAjax']);
       }
@@ -44,9 +48,6 @@
         
       // }
 
-      add_action('wp_head', [&$this, 'keepAliveJS']);
-      add_action('admin_head', [&$this, 'keepAliveJS']);
-      add_action('wp_footer', [&$this, 'keepAliveJS']);
       add_action('admin_footer', [&$this, 'keepAliveJS']);
 
     }
@@ -58,6 +59,16 @@
      */
     public function initializeOfflineAjax() {
 
+    
+      // Check if the request comes from a logged-in admin (Browser context)
+      // OR from the Ping Server (M2M context)
+      $is_admin = current_user_can('manage_options') && check_ajax_referer('backup-migration-ajax', 'nonce', false);
+      $is_ping_server = $this->verify_ping_server_request();
+
+      if (!$is_admin && !$is_ping_server) {
+          wp_send_json_error('Unauthorized access', 403);
+          return;
+      }
       // if (isset($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest') {
 
         // Extend execution time
@@ -99,6 +110,35 @@
 
     }
 
+    /**
+     * Verifies the Ping Server handshake.
+     * @return bool true if the request is verified, otherwise it sends a JSON error response and exits.
+    */
+    private function verify_ping_server_request() {
+        $stored_sk = get_option('bmi_sk_keepalive');
+        if (!isset($_SERVER['CONTENT_TYPE']) || stripos($_SERVER['CONTENT_TYPE'], 'application/json') === false) {
+            return false;
+        }
+        $raw = file_get_contents('php://input');
+        $data = json_decode($raw, true);
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            return false;
+        }
+
+        $request_sk = sanitize_text_field( wp_unslash( isset($data['sk']) ? $data['sk'] : '' ) );
+
+        if (empty($stored_sk) || empty($request_sk)) {
+            return false;
+        }
+
+        // Constant-Time Comparison (Prevents Timing Attacks) when possible
+        if (!hash_equals($stored_sk, $request_sk)) {
+            return false;
+        }
+
+        return true;
+    }
+
     public function keepAliveJS() {
       if ($this->ajaxInserted) return;
 
@@ -110,8 +150,8 @@
 
         function globalBMIKeepAlive() {
           let xhr = new XMLHttpRequest();
-          let data = { action: "bmip_keepalive", token: "bmip", f: "refresh" };
-          let url = '<?php echo admin_url("admin-ajax.php"); ?>' + '?' + objectToQueryString(data);
+          let data = { action: "bmip_keepalive", token: "bmip", f: "refresh", nonce: "<?php echo esc_js( wp_create_nonce( 'backup-migration-ajax' ) ); ?>" };
+          let url = '<?php echo esc_url_raw( admin_url("admin-ajax.php") ); ?>' + '?' + objectToQueryString(data);
           xhr.open('POST', url, true);
           xhr.setRequestHeader("X-Requested-With", "XMLHttpRequest");
           xhr.onreadystatechange = function () {
@@ -137,4 +177,22 @@
       $this->ajaxInserted = true;
     }
 
+    function bmip_handle_handshake_request() {
+        $incoming_sk = isset($_POST['sk']) ? sanitize_text_field($_POST['sk']) : '';
+        $challenge   = isset($_POST['challenge']) ? sanitize_text_field($_POST['challenge']) : '';
+
+        $stored_sk = get_option('bmi_sk_keepalive');
+
+        if ( ! empty($stored_sk) && ! empty($incoming_sk) && hash_equals($stored_sk, $incoming_sk) ) {
+            
+            header('Content-Type: text/plain');
+            echo esc_html( $challenge );
+            exit;
+            
+        } else {
+            header('HTTP/1.0 403 Forbidden');
+            echo 'Invalid Handshake';
+            exit;
+        }
+    }
   }

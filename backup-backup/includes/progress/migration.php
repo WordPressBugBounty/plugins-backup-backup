@@ -68,7 +68,7 @@
         }
         fwrite($this->file, $log_string);
         if (defined('BMI_USING_CLI_FUNCTIONALITY') && BMI_USING_CLI_FUNCTIONALITY === true) {
-          echo $log_string;
+          echo esc_html( $log_string );
         }
       }
 

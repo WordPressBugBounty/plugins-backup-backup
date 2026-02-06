@@ -742,8 +742,8 @@
         global $wpdb;
 
         $loginslug = false;
-        $sql = $wpdb->prepare("SELECT option_value FROM " . $this->dbFoundPrefix . "options WHERE option_name = 'bwpl_slug';");
-        $results = $wpdb->get_results($sql);
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Identifier is safely escaped via escapeSQLIDentifier()
+        $results = $wpdb->get_results("SELECT option_value FROM " . BMP::escapeSQLIDentifier($this->dbFoundPrefix . "options") . " WHERE option_name = 'bwpl_slug';");
 
         if (sizeof($results) > 0) $loginslug = $results[0]->option_value;
 
@@ -1267,8 +1267,9 @@
         $uid = isset($manifest->uid) ? intval($manifest->uid) : 0;
 
         // Check if provided UID is valid
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Identifier is safely escaped via escapeSQLIDentifier()
         $is_valid_uid = $uid > 0 && $wpdb->get_var(
-            $wpdb->prepare("SELECT ID FROM {$prefix}users WHERE ID = %d", $uid)
+            $wpdb->prepare("SELECT ID FROM " . BMP::escapeSQLIDentifier($prefix . "users") . " WHERE ID = %d", $uid)
         );
 
         // If no UID, cron mode, or invalid UID, find an administrator manually
@@ -1277,27 +1278,29 @@
             $manifest->cron === true ||
             $manifest->cron === 'true'
         ) {
-            $sql = "
+            // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Identifier is safely escaped via escapeSQLIDentifier()
+            $uid = $wpdb->get_var($wpdb->prepare("
                 SELECT u.ID
-                FROM {$prefix}users u
-                INNER JOIN {$prefix}usermeta um ON u.ID = um.user_id
+                FROM " . BMP::escapeSQLIDentifier($prefix . "users") . " u
+                INNER JOIN " . BMP::escapeSQLIDentifier($prefix . "usermeta") . " um ON u.ID = um.user_id
                 WHERE um.meta_key = %s
                   AND um.meta_value LIKE %s
                 LIMIT 1
-            ";
-            $uid = $wpdb->get_var($wpdb->prepare($sql, $cap_key, '%administrator%'));
+            ", $cap_key, '%administrator%'));
 
             // Fallback to first user if no admin found
             if (!$uid) {
-                $uid = $wpdb->get_var("SELECT ID FROM {$prefix}users LIMIT 1");
+                // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Identifier is safely escaped via escapeSQLIDentifier()
+                $uid = $wpdb->get_var("SELECT ID FROM " . BMP::escapeSQLIDentifier($prefix . "users") . " LIMIT 1");
             }
 
             $uid = intval($uid);
         }
 
         // Get user login info from correct (possibly changed) users table
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Identifier is safely escaped via escapeSQLIDentifier()
         $user = $wpdb->get_row(
-            $wpdb->prepare("SELECT ID, user_login FROM {$prefix}users WHERE ID = %d", $uid)
+            $wpdb->prepare("SELECT ID, user_login FROM " . BMP::escapeSQLIDentifier($prefix . "users") . " WHERE ID = %d", $uid)
         );
 
         if ($user && isset($user->ID)) {
@@ -1392,107 +1395,47 @@
     }
 
     public function backupLocalOptions() {
+      global $wpdb;
+      $bmi_config_options = $wpdb->get_results( "SELECT option_name, option_value FROM $wpdb->options WHERE option_name LIKE '%bmi_%' OR option_name LIKE '%bmip_%' OR option_name LIKE '%bmi_pro_%'" );
+      $tempConfigFile = BMI_TMP . DIRECTORY_SEPARATOR . 'bmi_local_options.json';
+      $options = [];
+      foreach ( $bmi_config_options as $option ) {
+        $options[ $option->option_name ] = maybe_unserialize( $option->option_value );
+      }
+      $content = json_encode( $options );
+      file_put_contents($tempConfigFile, $content);
 
-      $pro_gd_token = get_option('bmi_pro_gd_token', false);
-      $pro_gd_client_id = get_option('bmi_pro_gd_client_id', false);
-      $dropboxId = get_option('bmip_dropbox', false);
-      $pro_dropbox_client_id = get_option('bmip_dropbox_auth_code', false);
-      $pro_onedrive_wid = get_option('bmi_pro_onedrive_wid', false);
-      $aws_access_key = get_option('bmip_aws_access_key', false);
-      $aws_secret_key = get_option('bmip_aws_secret_key', false);
-      $aws_bucket = get_option('bmip_aws_bucket', false);
-      $aws_storage_class = get_option('bmip_aws_storage_class', false);
-      $aws_path = get_option('bmip_aws_path', false);
-      $aws_region = get_option('bmip_aws_region', false);
-      $aws_sse = get_option('bmip_aws_sse', false);
-      $wasabi_access_key = get_option('bmip_wasabi_access_key', false);
-      $wasabi_secret_key = get_option('bmip_wasabi_secret_key', false);
-      $wasabi_bucket = get_option('bmip_wasabi_bucket', false);
-      $wasabi_storage_class = get_option('bmip_wasabi_storage_class', false);
-      $wasabi_path = get_option('bmip_wasabi_path', false);
-      $wasabi_region = get_option('bmip_wasabi_region', false);
-      $wasabi_sse = get_option('bmip_wasabi_sse', false);
-      $backupbliss_key = get_option('bmi_pro_backupbliss_key', false);
+    }
 
-      $pro_sftp_host = get_option('bmip_sftp_host', false);
-      $pro_sftp_port = get_option('bmip_sftp_port', false);
-      $pro_sftp_user = get_option('bmip_sftp_username', false);
-      $pro_sftp_authType = get_option('bmip_sftp_authType', false);
-      $pro_sftp_pass = get_option('bmip_sftp_password', false);
-      $pro_sftp_path = get_option('bmip_sftp_remote_path', false);
-      $pro_sftp_fingerprint = get_option('bmip_sftp_fingerprint', false);
-      $pro_sftp_passphrase = get_option('bmip_sftp_passphrase', false);
-
-      if ($pro_gd_token != false && $pro_gd_client_id != false) {
-        $tempKeyDriveFile = BMI_TMP . DIRECTORY_SEPARATOR . 'driveKeys.php';
-        $content = "<?php \n";
-        $content .= "//" . $pro_gd_token . "\n";
-        $content .= "//" . $pro_gd_client_id . "\n";
-        file_put_contents($tempKeyDriveFile, $content);
+    public function restoreLocalPluginConfiguration() {      
+      $tempConfigFile = BMI_TMP . DIRECTORY_SEPARATOR . 'bmi_local_options.json';
+      
+      if (!file_exists($tempConfigFile) || !is_readable($tempConfigFile)) {
+        return;
       }
 
-      if ($dropboxId != false && $pro_dropbox_client_id != false) {
-        $tempKeyDropboxFile = BMI_TMP . DIRECTORY_SEPARATOR . 'dropboxKeys.php';
-        $content = "<?php \n";
-        $content .= "//" . $dropboxId . "\n";
-        $content .= "//" . $pro_dropbox_client_id . "\n";
-        file_put_contents($tempKeyDropboxFile, $content);
+      $json_data = file_get_contents($tempConfigFile);
+      $options = json_decode($json_data, true);
+      wp_cache_flush();
+      wp_load_alloptions(true);
+
+      global $wpdb;
+      $bmi_config_options = $wpdb->get_results( "SELECT option_name FROM $wpdb->options WHERE option_name LIKE '%bmi_%' OR option_name LIKE '%bmip_%' OR option_name LIKE '%bmi_pro_%'" );
+      foreach ( $bmi_config_options as $option ) {
+        delete_option( $option->option_name );
       }
 
-      if ($pro_onedrive_wid !== false) {
-        $tempKeyOneDriveFile = BMI_TMP . DIRECTORY_SEPARATOR . 'onedriveKeys.php';
-        $content = "<?php \n";
-        $content .= "//" . $pro_onedrive_wid . "\n";
-        file_put_contents($tempKeyOneDriveFile, $content);
+      if (is_array($options)) {
+        foreach ($options as $name => $value) {
+          update_option($name, $value);
+          
+        }
       }
 
-      if (get_transient('bmip_aws_connection_status')){
-        $tempKeyAWSFile = BMI_TMP . DIRECTORY_SEPARATOR . 'awsKeys.php';
-        $content = "<?php \n";
-        $content .= "//" . $aws_access_key . "\n";
-        $content .= "//" . $aws_secret_key . "\n";
-        $content .= "//" . $aws_bucket . "\n";
-        $content .= "//" . $aws_storage_class . "\n";
-        $content .= "//" . $aws_path . "\n";
-        $content .= "//" . $aws_region . "\n";
-        $content .= "//" . $aws_sse . "\n";
-        file_put_contents($tempKeyAWSFile, $content);
-      }
-
-      if (get_transient('bmip_wasabi_connection_status')){
-        $tempKeyWasabiFile = BMI_TMP . DIRECTORY_SEPARATOR . 'wasabiKeys.php';
-        $content = "<?php \n";
-        $content .= "//" . $wasabi_access_key . "\n";
-        $content .= "//" . $wasabi_secret_key . "\n";
-        $content .= "//" . $wasabi_bucket . "\n";
-        $content .= "//" . $wasabi_storage_class . "\n";
-        $content .= "//" . $wasabi_path . "\n";
-        $content .= "//" . $wasabi_region . "\n";
-        $content .= "//" . $wasabi_sse . "\n";
-        file_put_contents($tempKeyWasabiFile, $content);
-      }
-
-      if ($backupbliss_key !== false) {
-        $tempKeyBackupBlissFile = BMI_TMP . DIRECTORY_SEPARATOR . 'backupblissKeys.php';
-        $content = "<?php \n";
-        $content .= "//" . $backupbliss_key . "\n";
-        file_put_contents($tempKeyBackupBlissFile, $content);
-      }
-
-      if ($pro_sftp_host !== false) {
-        $tempKeySFTPFile = BMI_TMP . DIRECTORY_SEPARATOR . 'sftpKeys.php';
-        $content = "<?php \n";
-        $content .= "//" . $pro_sftp_host . "\n";
-        $content .= "//" . $pro_sftp_port . "\n";
-        $content .= "//" . $pro_sftp_user . "\n";
-        $content .= "//" . $pro_sftp_authType . "\n";
-        $content .= "//" . base64_encode($pro_sftp_pass) . "\n";
-        $content .= "//" . $pro_sftp_path . "\n";
-        $content .= "//" . $pro_sftp_fingerprint . "\n";
-        $content .= "//" . $pro_sftp_passphrase . "\n";
-        file_put_contents($tempKeySFTPFile, $content);
-      }
-
+      wp_cache_flush();
+      wp_load_alloptions(true);
+      
+      unlink($tempConfigFile);
     }
 
     private function makeRestoreSecret() {
@@ -2147,6 +2090,9 @@
 
           // Final flush of rewrite rules
           flush_rewrite_rules();
+          
+          // Remove backup migration temporary options
+          $this->restoreLocalPluginConfiguration();
 
           // Dedicated fix for block-wp-login plugin
           $this->fixWPLogin($manifest);

@@ -7,7 +7,6 @@
   let current_plugin = new_bb_banner.current_plugin;
   let is_bmi_exists = new_bb_banner.is_bmi_exists;
 
-  console.log('is_backup_pro_exists', is_backup_pro_exists);
   if (is_backup_pro_exists) {
     $('#bmi-banner__card-premium-external-storage').show();
     $('#bmi-banner__card-free-external-storage').hide();
@@ -15,7 +14,7 @@
     $('#bmi-banner__card-premium-storage').show();
     $('#bmi-banner__card-free-storage').hide();
 
-    $('#bmi-banner__card-4gb-upgraded').hide();
+    $('#bmi-banner__card-affordable-premium').hide();
 
   } else {
     $('#bmi-banner__card-premium-external-storage').hide();
@@ -24,7 +23,7 @@
     $('#bmi-banner__card-premium-storage').hide();
     $('#bmi-banner__card-free-storage').show();
 
-    $('#bmi-banner__card-4gb-upgraded').show();
+    $('#bmi-banner__card-affordable-premium').show();
   }
 
   function banner_hide() {

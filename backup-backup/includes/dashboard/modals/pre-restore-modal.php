@@ -24,7 +24,7 @@
 
         <div class="prenotice red top">
           <div class="text bold">
-            <?php _e('All existing folders, files & databases on this site will be overwritten and destroyed for good. *', 'backup-backup') ?> 
+            <?php esc_html_e('All existing folders, files & databases on this site will be overwritten and destroyed for good. *', 'backup-backup') ?> 
           </div>
         </div>
 
@@ -33,32 +33,32 @@
       <div class="mm60 center f20 mbl">
         <label for="restore-ok">
           <input type="checkbox" id="restore-ok" />
-          <span><?php _e('Yes, I understand that. I am sound in mind.', 'backup-backup') ?></span>
+          <span><?php esc_html_e('Yes, I understand that. I am sound in mind.', 'backup-backup') ?></span>
         </label>
       </div>
 
       <div class="mm60 center mbl">
         <a href="#" class="btn max280" id="restore-start-sure">
           <div class="text">
-            <div class="f20 bold"><?php _e('Start restoring!', 'backup-backup') ?></div>
+            <div class="f20 bold"><?php esc_html_e('Start restoring!', 'backup-backup') ?></div>
           </div>
         </a>
       </div>
 
       <div class="mm60 center mbl f18">
-        <div class="center block inline premium-<?php bmi_pro_features($pros, true, __("Recover only what you need from your backup", 'backup-backup')); ?>">
-          <div class="premium premium-img restore-parts">
-            <?php _e('Only want to restore parts of the backup?', 'backup-backup') ?>
+        <div class="center inline premium-<?php bmi_pro_features($pros, true, __("Recover only what you<br>need from your backup", 'backup-backup')); ?>">
+          <div class="premium premium-img restore-parts under">
+            <?php esc_html_e('Only want to restore parts of the backup?', 'backup-backup') ?>
           </div>
         </div>
       </div>
 
       <div class="mm60 f18 center mbll">
-        <a href="#" class="bmi-modal-closer text-muted" data-close="pre-restore-modal"><?php _e('Close window & do not restore', 'backup-backup') ?></a>
+        <a href="#" class="bmi-modal-closer text-muted" data-close="pre-restore-modal"><?php esc_html_e('Close window & do not restore', 'backup-backup') ?></a>
       </div>
 
       <div class="mm60 center mb">
-        <?php _e('* Only those folders, files & database will be replaced which also exist in the backup file.', 'backup-backup') ?>
+        <?php esc_html_e('* Only those folders, files & database will be replaced which also exist in the backup file.', 'backup-backup') ?>
       </div>
 
     </div>

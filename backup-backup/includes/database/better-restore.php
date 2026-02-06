@@ -116,7 +116,7 @@ class BMI_Database_Importer {
       // The only notice we could get here is Instance does not exist, ignore it.
       if ($errno === '8' || $errno === 8 || $errno === E_NOTICE) {
         if ($errfile == __FILE__) {
-          throw new \ErrorException($errstr, 0, $errno, $errfile, $errline);
+          throw new \ErrorException(esc_html($errstr), 0, (int)$errno, esc_html($errfile), (int)$errline);
           return;
         }
       }
@@ -513,7 +513,7 @@ class BMI_Database_Importer {
   public function throwThisLine($e) {
 
     // $this->logIterationError($e);
-    throw new \ErrorException($e->getMessage(), 0, $e->getCode(), $e->getFile(), $e->getLine());
+    throw new \ErrorException(esc_html($e->getMessage()), 0, (int)$e->getCode(), esc_html($e->getFile()), (int)$e->getLine());
 
   }
 
@@ -715,7 +715,9 @@ class BMI_Database_Importer {
   private function run_query(&$query, $isAlter = false) {
 
     $this->xi++;
+    // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Query is from trusted backup SQL file, not user input
     if ($this->owndb === true) $this->db->query($query);
+    // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Query is from trusted backup SQL file, not user input
     else $this->wpdb->query($query);
 
     if ($this->xi % 5 == 0) {

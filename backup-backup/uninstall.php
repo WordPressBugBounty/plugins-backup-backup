@@ -53,7 +53,7 @@
     global $wpdb;
 
 
-    $free_options = $wpdb->get_results( "SELECT option_name FROM $wpdb->options WHERE option_name LIKE 'bmi_%'" );
+    $free_options = $wpdb->get_results( "SELECT option_name FROM $wpdb->options WHERE option_name LIKE '%bmi_%' OR option_name LIKE '%bmip_%' OR option_name LIKE '%bmi_pro_%'" );
 
     foreach( $free_options as $option ) {
         delete_option( $option->option_name );

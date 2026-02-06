@@ -30,14 +30,14 @@
   <div class="error-header">
     <div class="cf">
       <div class="left">
-        <?php _e('Security Restrictions May Affect Backup or Download', 'backup-backup'); ?>
+        <?php esc_html_e('Security Restrictions May Affect Backup or Download', 'backup-backup'); ?>
       </div>
       <div class="right hoverable">
-        <span class="bmi-error-toggle" data-expand="<?php _e('Expand', 'backup-backup'); ?>" data-collapse="<?php _e('Collapse', 'backup-backup'); ?>">
-          <?php _e('Expand', 'backup-backup'); ?>
+        <span class="bmi-error-toggle" data-expand="<?php esc_attr_e('Expand', 'backup-backup'); ?>" data-collapse="<?php esc_attr_e('Collapse', 'backup-backup'); ?>">
+          <?php esc_html_e('Expand', 'backup-backup'); ?>
         </span> |
         <span id="bmi-error-dismiss">
-          <?php _e('Dismiss', 'backup-backup'); ?>
+          <?php esc_html_e('Dismiss', 'backup-backup'); ?>
         </span>
       </div>
     </div>
@@ -48,7 +48,7 @@
         __('We noticed you\'re using %s. Security plugins can sometimes block backup creation or backup download process, depending on how strict their settings are. In such cases, you can either whitelist Backup Migration plugin, ease up on restrictions or just temporarily disable security plugins, until backups/migrations are performed.', 'backup-backup'),
         $pluginsList
       );
-      _e($errorBody, 'backup-backup');
+      echo wp_kses_post( $errorBody );
     ?>
   </div>
 </div>

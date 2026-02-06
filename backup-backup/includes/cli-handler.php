@@ -1,5 +1,6 @@
 <?php
 
+
   // Namespace
   namespace BMI\Plugin;
 

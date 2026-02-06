@@ -14,20 +14,20 @@
   <div class="error-header">
     <div class="cf">
       <div class="left">
-        <?php _e('We have some error regarding most recent backup upload process.', 'backup-backup'); ?>
+        <?php esc_html_e('We have some error regarding most recent backup upload process.', 'backup-backup'); ?>
       </div>
       <div class="right hoverable">
-        <span class="bmi-error-toggle" data-expand="<?php _e('Expand', 'backup-backup'); ?>" data-collapse="<?php _e('Collapse', 'backup-backup'); ?>">
-          <?php _e('Expand', 'backup-backup'); ?>
+        <span class="bmi-error-toggle" data-expand="<?php esc_attr_e('Expand', 'backup-backup'); ?>" data-collapse="<?php esc_attr_e('Collapse', 'backup-backup'); ?>">
+          <?php esc_html_e('Expand', 'backup-backup'); ?>
         </span> |
         <span id="bmip-quota-issues-dismiss">
-          <?php _e('Dismiss', 'backup-backup'); ?>
+          <?php esc_html_e('Dismiss', 'backup-backup'); ?>
         </span>
       </div>
     </div>
   </div>
   <div class="error-body">
-    <?php echo get_transient('bmip_display_quota_issues'); ?>
+    <?php echo wp_kses_post(get_transient('bmip_display_quota_issues')); ?>
   </div>
 </div>
 

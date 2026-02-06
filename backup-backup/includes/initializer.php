@@ -36,7 +36,7 @@
 
       // Determine which BMI version is used
       add_action('wp_head', function () {
-        echo '<meta name="bmi-version" content="' . BMI_VERSION . '" />';
+        echo '<meta name="bmi-version" content="' . esc_attr(BMI_VERSION) . '" />';
       });
 
       if (!file_exists(BMI_BACKUPS)) @mkdir(BMI_BACKUPS, 0755, true);
@@ -148,10 +148,10 @@
           $review_banner = new \Inisev\Subs\Inisev_Review(BMI_ROOT_FILE, BMI_ROOT_DIR, 'backup-backup', 'Backup & Migration', 'http://bit.ly/3vdk45L', 'backup-migration');
         }
 
-        // if (!(class_exists('\Inisev\Subs\New_BB_Banner') || class_exists('Inisev\Subs\New_BB_Banner') || class_exists('New_BB_Banner'))) {
-        //   require_once BMI_MODULES_DIR . 'new-bb-banner' . DIRECTORY_SEPARATOR . 'misc.php';
-        // }
-        // new \Inisev\Subs\New_BB_Banner(BMI_ROOT_FILE, BMI_ROOT_DIR, 'backup-backup', 'Backup & Migration', 'backup-migration');
+        if (!(class_exists('\Inisev\Subs\New_BB_Banner') || class_exists('Inisev\Subs\New_BB_Banner') || class_exists('New_BB_Banner'))) {
+          require_once BMI_MODULES_DIR . 'new-bb-banner' . DIRECTORY_SEPARATOR . 'misc.php';
+          new \Inisev\Subs\New_BB_Banner(BMI_ROOT_FILE, BMI_ROOT_DIR, 'backup-backup', 'Backup & Migration', 'backup-migration');
+        }
 
 
         // GDrive banner
@@ -184,6 +184,9 @@
       // Settings action
       add_filter('plugin_action_links_' . plugin_basename(BMI_ROOT_FILE), [&$this, 'settings_action']);
 
+      // Whitelist configuration files for Security Ninja
+      add_filter('securityninja_whitelist', [&$this, 'securityninja_whitelist_config_files']);
+
       // Ignore below actions if those true
       if (function_exists('wp_doing_ajax') && wp_doing_ajax()) {
         return;
@@ -195,6 +198,19 @@
 
       // External storage errors
       add_action('bmi_external_errors', function() {
+
+        if (file_exists(BMI_INCLUDES . 'notices/dropbox-issues-notice.php'))
+          require_once BMI_INCLUDES . 'notices/dropbox-issues-notice.php';
+
+        if (file_exists(BMI_INCLUDES . '/notices/aws-issues.php'))
+          require_once BMI_INCLUDES . '/notices/aws-issues.php';
+
+        if (file_exists(BMI_INCLUDES . '/notices/google-drive-issues.php'))
+          require_once BMI_INCLUDES . '/notices/google-drive-issues.php';
+
+        if (file_exists(BMI_INCLUDES . '/notices/wasabi-issues.php'))
+          require_once BMI_INCLUDES . '/notices/wasabi-issues.php';
+        
         require_once BMI_INCLUDES . '/notices/backupbliss.php';
       });
 
@@ -204,7 +220,12 @@
         add_action("admin_notices", function() use ($upload_issue_notice) {
           $global_warning = true;
           $error_message = $upload_issue_notice;
-          include BMI_INCLUDES . '/dashboard/modals/bb-warning-notice.php';
+          require_once BMI_INCLUDES . '/external/backupbliss.php';
+          $backupbliss = new BackupBliss();
+          if (!$backupbliss->hasRequiredSpaceBeenFreed()){
+            include BMI_INCLUDES . '/dashboard/modals/bb-warning-notice.php';
+          }
+
         });
       }
 
@@ -225,7 +246,7 @@
         esc_attr($class), 
         sprintf(
           esc_html($message), 
-          '<i>' . $environment . '</i>', 
+          '<i>' . esc_html($environment) . '</i>', 
           '<a href="https://tastewp.com" target="_blank">TasteWP</a>'
         )
       );
@@ -268,6 +289,40 @@
       if (!is_admin()) return;
 
       $current_patch = get_option('bmi_hotfixes', array());
+
+      if (!in_array('BMI_D17_M1_26', $current_patch)) {
+        $baseurl = home_url();
+        if (substr($baseurl, 0, 4) != 'http') {
+          if (is_ssl()) $baseurl = 'https://' . home_url();
+          else $baseurl = 'http://' . home_url();
+        }
+
+        $sk = get_option('bmi_sk_keepalive');
+        // Generate if missing (First time patch is applied)
+        if (empty($sk)) {
+            $sk = wp_generate_password(32, false);
+            update_option('bmi_sk_keepalive', $sk);
+        }
+
+        $url = 'https://authentication.backupbliss.com/v2/crons/connect';
+        $response = wp_remote_post($url, array(
+          'method' => 'POST',
+          'timeout' => 15,
+          'redirection' => 2,
+          'httpversion' => '1.0',
+          'blocking' => true,
+          'body' => array('site' => $baseurl, 'sk' => $sk)
+        ));
+
+        $current_patch[] = 'BMI_D17_M1_26';
+      }
+
+      if (!in_array('BMI_D13_M12_01', $current_patch)) {
+        Dashboard\bmi_set_config('OTHER::NEW_SEARCH_REPLACE_ENGINE', true);
+        Dashboard\bmi_set_config('OTHER:DB:SEARCHREPLACE:MAX', 5000);
+        $current_patch[] = 'BMI_D13_M12_01';
+      }
+
       if (!in_array('BMI_D20_M07_01', $current_patch)) {
 
         $current_directory = Dashboard\bmi_get_config('STORAGE::LOCAL::PATH');
@@ -559,6 +614,44 @@
       return $links;
     }
 
+    /**
+     * Whitelist configuration files for Security Ninja plugin.
+     *
+     * This filter callback prevents Security Ninja from deleting or flagging
+     * Backup Migration configuration files as suspicious. These files are
+     * essential for the plugin's operation and should be preserved.
+     *
+     * @param array $whitelist Existing whitelist array from Security Ninja
+     * @return array Modified whitelist array with our configuration files added
+     */
+    public function securityninja_whitelist_config_files($whitelist = array()) {
+      if (!is_array($whitelist)) {
+        $whitelist = array();
+      }
+
+      // Add all configuration files to the whitelist
+      $config_files = array(
+        BMI_CONFIG_DEFAULT,
+        BMI_STATIC_PHP_CONFIG,
+        BMI_INCLUDES . DIRECTORY_SEPARATOR . 'htaccess' . DIRECTORY_SEPARATOR . '*'
+      );
+
+      // Add config directory if defined
+      if (defined('BMI_CONFIG_DIR') && BMI_CONFIG_DIR) {
+        $config_files[] = BMI_CONFIG_DIR . DIRECTORY_SEPARATOR . '*';
+      }
+
+      // Add config path if defined
+      if (defined('BMI_CONFIG_PATH') && BMI_CONFIG_PATH) {
+        $config_files[] = BMI_CONFIG_PATH;
+      }
+
+      // Merge with existing whitelist and remove duplicates
+      $whitelist = array_unique(array_merge($whitelist, $config_files));
+
+      return $whitelist;
+    }
+
     public function include_offline() {
 
       
@@ -608,8 +701,8 @@
         ?>
         <div class="notice notice-warning">
           <p>
-            <?php _e('There was an error during automated backup, please', 'backup-backup'); ?>
-            <?php echo '<a href="' . admin_url('/admin.php?page=backup-migration') . '">' . __('check that.', 'backup-backup') . '</a>'; ?>
+            <?php esc_html_e('There was an error during automated backup, please', 'backup-backup'); ?>
+            <?php echo '<a href="' . esc_url(admin_url('/admin.php?page=backup-migration')) . '">' . esc_html(__('check that.', 'backup-backup')) . '</a>'; ?>
           </p>
         </div>
         <?php
@@ -703,7 +796,6 @@
         $plan = intval(@file_get_contents(BMI_TMP . DIRECTORY_SEPARATOR . '.plan'));
         if ($last_time < $plan && ((time() - $plan) > 7200)) {
           if ($last_status !== '0') {
-            $this->backup_inproper_time($plan);
             if (!wp_next_scheduled('bmi_do_backup_right_now')) {
               wp_schedule_single_event(time(), 'bmi_do_backup_right_now');
             }
@@ -746,7 +838,11 @@
           $message .= "\nError: " . $e;
         }
 
-        self::send_notification_mail($email, $subject, $message);
+        if (!self::send_notification_mail($email, $subject, $message, true)) {
+          $issue = __("Couldn't send mail to you, please check server configuration.", 'backup-backup') . '<br>';
+          $issue .= '<b>' . __("Message you missed because of this: ", 'backup-backup') . '</b>' . $message;
+          self::email_error($issue);
+        }
       }
 
       if (file_exists(BMI_BACKUPS . '/.cron')) {
@@ -826,12 +922,13 @@
       // Auto External Removal
       $sortedMD5s = [];
       $externalStorages = ['gdrive', 'dropbox', 'onedrive', 'FTP', 'sftp', 'aws', 'wasabi', 'backupbliss'];
+      $currentDomain = sanitize_text_field(parse_url(home_url(), PHP_URL_HOST));
       foreach ($externalStorages as $storage) {
         if (isset($availableBackups['external'][$storage])) {
           $storageList = $availableBackups['external'][$storage];
           foreach ($storageList as $md5 => $data) {
-            if ($storageList[$md5][6] == true && $storageList[$md5][5] == 'unlocked') {
-              $sortedMD5s[] = [$storageList[$md5][1], $md5];
+            if ($storageList[$md5][6] == true && $storageList[$md5][5] == 'unlocked' && $storageList[$md5][9] === $currentDomain) {
+              $sortedMD5s[] = [$storageList[$md5][1], $md5, $storageList[$md5][0]];
             }
           }
         }
@@ -845,7 +942,8 @@
       $sortedMD5s = array_slice($sortedMD5s, 0, -(intval(Dashboard\bmi_get_config('CRON:KEEP'))));
       foreach ($sortedMD5s as $index => $data) {
         $md5 = $data[1];
-
+        $name = $data[2];
+        Logger::log(__("Removing external backup due to keep rules: ", 'backup-backup') . $name);
         do_action('bmi_premium_remove_backup_file', $md5);
         do_action('bmi_premium_remove_backup_json_file', $md5 . '.json');
       }
@@ -876,7 +974,7 @@
         $file->seek($i);
         $line = $this->escapeSensitive($file->current(), $current_directory, $scanned_directory);
 
-        echo $line;
+        echo esc_html($line);
         unset($line);
 
       }
@@ -1026,7 +1124,7 @@
       // Global
       if (in_array(get_current_screen()->id, ['toplevel_page_backup-migration', 'plugins'])) { ?>
       <script type="text/javascript">
-        let stars = '<?php echo plugin_dir_url(BMI_ROOT_FILE); ?>' + 'admin/images/stars.gif';
+        let stars = <?php echo json_encode(plugin_dir_url(BMI_ROOT_FILE)); ?> + 'admin/images/stars.gif';
         let css_star = "background:url('" + stars + "')";
         document.addEventListener("DOMContentLoaded", function(event) {
           jQuery('[data-slug="backup-migration-pro"]').find('strong').html('<span>Backup Migration <b style="color: orange; ' + css_star + '">Pro</b></span>');
@@ -1130,7 +1228,7 @@
       }
       $allowed = ['BMI_BACKUP', 'BMI_BACKUP_LOGS', 'PROGRESS_LOGS', 'AFTER_RESTORE', 'CURL_BACKUP'];
       $get_bmi = !empty($_GET['backup-migration']) ? sanitize_text_field($_GET['backup-migration']) : false;
-      $get_bid = !empty($_GET['backup-id']) ? sanitize_text_field($_GET['backup-id']) : false;
+      $get_bid = !empty($_GET['bmi-id']) ? sanitize_text_field($_GET['bmi-id']) : false;
       $get_pid = !empty($_GET['progress-id']) ? sanitize_text_field($_GET['progress-id']) : false;
       $get_is_uncensored = !empty($_GET['uncensored']) ? sanitize_text_field($_GET['uncensored']) : false;
       $crons_enabled = !empty($_GET['crons']) ? sanitize_text_field($_GET['crons']) : false;
@@ -1164,7 +1262,7 @@
 
               if ($timeIsProper && $aIP === $ip && trim($aIZ) === $get_pid) {
                 $query = new \WP_User_Query(['role' => 'Administrator', 'count_total' => false, 'fields' => 'all']);
-                $sqlres = $wpdb->get_results($query->request);
+                $sqlres = $query->get_results();
 
                 if (sizeof($sqlres) > 0 && isset($sqlres[0]->ID) && isset($sqlres[0]->user_login)) {
 
@@ -1204,9 +1302,29 @@
                 $outsideDir = true;
               }
               
-              if ($outsideDir || strpos(strtolower(mime_content_type($file)), 'zip') === false) {
+              $isZip = false;
+              if (function_exists('mime_content_type')) {
+                $isZip = strpos(strtolower(mime_content_type($file)), 'zip') !== false;
+              } elseif (function_exists('wp_check_filetype')) {
+                $filetype = wp_check_filetype($file);
+                if ($filetype && isset($filetype['ext']) && in_array(strtolower($filetype['ext']), ['zip', 'tar', 'gz', 'tar.gz'])) {
+                  $isZip = true;
+                }
+              } else {
+                // fallback to extension check
+                $lower = strtolower($file);
+                if (
+                    substr($lower, -4) === '.zip' ||
+                    substr($lower, -4) === '.tar' ||
+                    substr($lower, -7) === '.tar.gz'
+                ) {
+                    $isArchive = true;
+                }
+              }
+
+              if ($outsideDir || !$isZip) {
                 header('HTTP/1.0 423 Locked');
-                _e("Incorrect usage of the query request.", 'backup-backup');
+                esc_html_e( "Incorrect usage of the query request.", 'backup-backup' );
                 exit;
               }
 
@@ -1266,7 +1384,7 @@
               if (ob_get_contents()) ob_end_clean();
               header('HTTP/1.0 423 Locked');
               if (ob_get_level()) ob_end_clean();
-              echo __("Backup download is restricted (allowed for admins only).", 'backup-backup');
+              esc_html_e( "Backup download is restricted (allowed for admins only).", 'backup-backup' );
               exit;
             }
           } else if ($type == 'BMI_BACKUP_LOGS') {
@@ -1300,7 +1418,7 @@
                 for ($i = 0; $i < sizeof($logs); ++$i) {
 
                   $line = $logs[$i];
-                  echo $this->escapeSensitive($line, $current_directory, $scanned_directory) . "\n";
+                  echo esc_html($this->escapeSensitive($line, $current_directory, $scanned_directory)) . "\n";
 
                 }
 
@@ -1308,7 +1426,7 @@
               } else {
                 if (ob_get_level()) ob_end_clean();
                 header('HTTP/1.0 404 Not found');
-                echo __("There was an error during getting logs, this file is not right log file.", 'backup-backup');
+                esc_html_e("There was an error during getting logs, this file is not right log file.", 'backup-backup');
                 exit;
               }
             }
@@ -1358,8 +1476,8 @@
                 } else {
                   if (file_exists($progress) && !(time() - filemtime($progress)) < (60 * 1)) {
                     if (ob_get_level()) ob_end_clean();
-                    echo __("Due to security reasons access to this file is disabled at this moment.", 'backup-backup') . "\n";
-                    echo __("Human readable: file expired.", 'backup-backup');
+                    echo esc_html(__("Due to security reasons access to this file is disabled at this moment.", 'backup-backup')) . "\n";
+                    echo esc_html(__("Human readable: file expired.", 'backup-backup'));
                     exit;
                   } else {
                     if (ob_get_level()) ob_end_clean();
@@ -1380,8 +1498,8 @@
                 } else {
                   if (file_exists($progress) && !(time() - filemtime($progress)) < (60 * 1)) {
                     if (ob_get_level()) ob_end_clean();
-                    echo __("Due to security reasons access to this file is disabled at this moment.", 'backup-backup') . "\n";
-                    echo __("Human readable: file expired.", 'backup-backup');
+                    echo esc_html(__("Due to security reasons access to this file is disabled at this moment.", 'backup-backup')) . "\n";
+                    echo esc_html(__("Human readable: file expired.", 'backup-backup'));
                     exit;
                   } else {
                     if (ob_get_level()) ob_end_clean();
@@ -1401,8 +1519,8 @@
                 } else {
                   if (file_exists($progress) && !(time() - filemtime($progress)) < (60 * 1)) {
                     if (ob_get_level()) ob_end_clean();
-                    echo __("Due to security reasons access to this file is disabled at this moment.", 'backup-backup') . "\n";
-                    echo __("Human readable: file expired.", 'backup-backup');
+                    echo esc_html(__("Due to security reasons access to this file is disabled at this moment.", 'backup-backup')) . "\n";
+                    echo esc_html(__("Human readable: file expired.", 'backup-backup'));
                     exit;
                   } else {
                     if (ob_get_level()) ob_end_clean();
@@ -1424,15 +1542,15 @@
                   if ($get_pid == 'latest.log') $file = dirname(BMI_BACKUPS) . DIRECTORY_SEPARATOR . 'backups' . DIRECTORY_SEPARATOR . 'latest_progress.log';
                   if ($get_pid == 'latest_migration.log') $file = dirname(BMI_BACKUPS) . DIRECTORY_SEPARATOR . 'backups' . DIRECTORY_SEPARATOR . 'latest_migration_progress.log';
                   if ($get_pid == 'latest_staging.log') $file = BMI_STAGING . DIRECTORY_SEPARATOR . 'latest_staging_progress.log';
-                  echo __("[DOWNLOAD GENERATED] File downloaded on (server time): ", 'backup-backup') . date('Y-m-d H:i:s') . "\n";
-                  echo __("[DOWNLOAD GENERATED] Last update (seconds): ", 'backup-backup') . (time() - filemtime($file)) . __(" seconds ago ", 'backup-backup') . "\n";
-                  echo __("[DOWNLOAD GENERATED] Last update (date): ", 'backup-backup') . date('Y-m-d H:i:s', filemtime($file)) . " \n";
+                  echo esc_html(__("[DOWNLOAD GENERATED] File downloaded on (server time): ", 'backup-backup')) . esc_html(date('Y-m-d H:i:s')) . "\n";
+                  echo esc_html(__("[DOWNLOAD GENERATED] Last update (seconds): ", 'backup-backup')) . esc_html(time() - filemtime($file)) . esc_html(__(" seconds ago ", 'backup-backup')) . "\n";
+                  echo esc_html(__("[DOWNLOAD GENERATED] Last update (date): ", 'backup-backup')) . esc_html(date('Y-m-d H:i:s', filemtime($file))) . " \n";
                   exit;
                 } else {
                   if (file_exists($file) && !(time() - filemtime($file)) < (60 * 1)) {
                     if (ob_get_level()) ob_end_clean();
-                    echo __("Due to security reasons access to this file is disabled at this moment.", 'backup-backup') . "\n";
-                    echo __("Human readable: file expired.", 'backup-backup');
+                    echo esc_html(__("Due to security reasons access to this file is disabled at this moment.", 'backup-backup')) . "\n";
+                    echo esc_html(__("Human readable: file expired.", 'backup-backup'));
                     exit;
                   } else {
                     if (ob_get_level()) ob_end_clean();
@@ -1787,5 +1905,52 @@
       }
       return false;
 
+    }
+
+    public static function bmiNeedsUpdate($forPro = false) {
+      if ($forPro) {
+        if (!defined('BMI_BACKUP_PRO') || BMI_BACKUP_PRO != 1 ) {
+          return false;
+        }
+        $plugin_file = plugin_basename(BMI_PRO_ROOT_FILE);
+      } else {
+        $plugin_file = plugin_basename(BMI_ROOT_FILE);
+      }
+      
+      $update_cache = get_site_transient('update_plugins');
+      
+      if (!is_object($update_cache)) {
+      $update_cache = new \stdClass();
+      }
+      
+      // Check if there's an update available in the cache
+      if (!empty($update_cache->response) && !empty($update_cache->response[$plugin_file])) {
+      return true;
+      }
+      
+      // If no update in cache, check if our version is older than the checked version
+      if (!empty($update_cache->checked) && !empty($update_cache->checked[$plugin_file])) {
+      if (version_compare(BMI_VERSION, $update_cache->checked[$plugin_file], '<')) {
+        return true;
+      }
+      }
+      
+      return false;
+    }
+
+    public static function escapeSQLIDentifier($identifier) {
+        global $wpdb;
+        
+        // Use native %i if WordPress 6.2+ is available
+        if (version_compare($GLOBALS['wp_version'], '6.2', '>=')) {
+            return $wpdb->prepare('%i', $identifier);
+        }
+        
+        // Fallback for older WordPress versions
+        $identifier = trim($identifier, '`');
+        if (!preg_match('/^[a-zA-Z0-9_]+$/', $identifier)) {
+            throw new \InvalidArgumentException("Invalid SQL identifier: " . esc_html($identifier));
+        }
+        return '`' . str_replace('`', '``', $identifier) . '`';
     }
   }

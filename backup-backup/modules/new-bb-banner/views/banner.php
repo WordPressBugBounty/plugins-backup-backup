@@ -21,7 +21,7 @@
 
 <div class="bmi-banner" id="new-bb-banner">
     <!-- Close (X) button -->
-    <img src="<?php echo $this->_asset('imgs/bg.svg'); ?>" alt="Left background" class="bmi-banner__left-bg" />
+    <img src="<?php echo esc_url($this->_asset('imgs/bg.svg')); ?>" alt="Left background" class="bmi-banner__left-bg" />
     <a href="#" class="bmi-banner__close" target="_blank">×</a>
 
     <div class="bmi-banner__header">
@@ -35,7 +35,7 @@
       <!-- Card 1 -->
       <div class="bmi-banner__card" id="bmi-banner__card-free-external-storage" style="display: none;">
         <div class="bmi-banner__card-header">
-          <img src="<?php echo $this->_asset('imgs/cloud-options.svg'); ?>" alt="Cloud storage icons" />
+          <img src="<?php echo esc_url($this->_asset('imgs/cloud-options.svg')); ?>" alt="Cloud storage icons" />
            <span>
             More <div class="bmi-banner__free-underlined"><span>free</span></div> external storage options
            </span>
@@ -48,7 +48,7 @@
 
       <div class="bmi-banner__card bmi-banner__premium-card" id="bmi-banner__card-premium-external-storage" style="display: none;">
         <div class="bmi-banner__img-wrapper">
-          <img src="<?php echo $this->_asset('imgs/premium-cloud-options.svg'); ?>" alt="Cloud storage icons" />
+          <img src="<?php echo esc_url($this->_asset('imgs/premium-cloud-options.svg')); ?>" alt="Cloud storage icons" />
         </div>
         <div class="bmi-banner__card-content">
           <div class="bmi-banner__card-header">
@@ -68,20 +68,20 @@
       <!-- Card 2 -->
       <div class="bmi-banner__card" id="bmi-banner__card-free-storage" style="display: none;">
         <div class="bmi-banner__card-header">
-          <img src="<?php echo $this->_asset('imgs/500mb-free.svg'); ?>" alt="500 MB free icon" />
-          <span>500 MB of <br><div class="bmi-banner__free-underlined"><span>free</span></div> storage</span>
+          <img src="<?php echo esc_url($this->_asset('imgs/1gb-free.svg')); ?>" alt="1 GB free icon" />
+          <span>1 GB of <br><div class="bmi-banner__free-underlined"><span>free</span></div> storage</span>
         </div>
         <span class="bmi-banner__card-text">
           We added our <b>own storage option,</b> giving you 
-          500 MB of free space (and 
-           <a href="<?php echo $backupblissPricing; ?>" target="_blank" class="bmi-links">very affordable</a>
-           plans for more)! <a href="<?php echo $bbStorage; ?>" target="_blank" class="bmi-links">Learn more</a>
+          1 GB of free space (and 
+           <a href="<?php echo esc_url($backupblissPricing); ?>" target="_blank" class="bmi-links">very affordable</a>
+           plans for more)! <a href="<?php echo esc_url($bbStorage); ?>" target="_blank" class="bmi-links">Learn more</a>
         </span>
       </div>
 
       <div class="bmi-banner__card bmi-banner__premium-card" id="bmi-banner__card-premium-storage" style="display: none;">
         <div class="bmi-banner__img-wrapper">
-          <img src="<?php echo $this->_asset('imgs/5gb-free.svg'); ?>" alt="5 GB premium icon" />
+          <img src="<?php echo esc_url($this->_asset('imgs/5gb-free.svg')); ?>" alt="5 GB premium icon" />
         </div>
         <div class="bmi-banner__card-content">
           <div class="bmi-banner__card-header">
@@ -92,34 +92,47 @@
           <div class="bmi-banner__card-text">
             <span>
               We added our <b>own storage option,</b> giving you 5 GB of free space as premium user!
-              <a href="<?php echo $bbStorage; ?>" target="_blank" class="bmi-links">Check it out</a>
+              <a href="<?php echo esc_url($bbStorage); ?>" target="_blank" class="bmi-links">Check it out</a>
             </span>
           </div>
         </div>
       </div>
 
 
-        
+      <!-- Card 4 -->
+      <div class="bmi-banner__card" id="bmi-banner__card-affordable-premium" style="display: none;">
+        <div class="bmi-banner__card-header">
+          <img src="<?php echo esc_url($this->_asset('imgs/affordable.svg')); ?>" alt="Affordable features icon" />
+          <span>The most affordable on the market</span>
+        </div>
+        <span class="bmi-banner__card-text">
+          <!-- Our premium plugin offers unbeatable value for the price. Compare for yourself -->
+          <!-- “Compare for yourself” is a link to https://backupbliss.com/pricing  -->
+          Our premium plugin offers <b>unbeatable value for the price.</b>
+          <a href="<?php echo esc_url($backupblissPricing); ?>" target="_blank" class="bmi-links">Compare for yourself</a>
+        </span>
+      </div>
+
 
 
 
       <!-- Card 3 -->
       <div class="bmi-banner__card" id="bmi-banner__card-4gb-upgraded" style="display: none;">
         <div class="bmi-banner__card-header">
-          <img src="<?php echo $this->_asset('imgs/4gb-upgraded.svg'); ?>" alt="4 GB double backup size" />
+          <img src="<?php echo esc_url($this->_asset('imgs/4gb-upgraded.svg')); ?>" alt="4 GB double backup size" />
           <span>Double <br> backup size</span>
         </div>
         <span class="bmi-banner__card-text">
           We doubled the supported backup size in the free 
           plugin <b>from 2 GB to 4 GB!</b> (Unlimited in 
-          <a href="<?php echo $bmiPremium; ?>" target="_blank" class="bmi-links">premium</a>)
+          <a href="<?php echo esc_url($bmiPremium); ?>" target="_blank" class="bmi-links">premium</a>)
         </span>
       </div>
     </div>
 
     <div class="bmi-banner__footer">
       <div class="bmi-banner__footer-text">
-        <img src="<?php echo $this->_asset('imgs/bmi-logo.svg'); ?>" alt="BackupBliss logo" />
+        <img src="<?php echo esc_url($this->_asset('imgs/bmi-logo.svg')); ?>" alt="BackupBliss logo" />
         <span>
           BackupBliss is now the <b>no-brainer solution</b> for backups, 
           migrations and creating staging sites

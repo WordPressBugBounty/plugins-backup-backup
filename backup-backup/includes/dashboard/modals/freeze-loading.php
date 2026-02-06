@@ -17,7 +17,7 @@
       <div class="bmi-modal-content">
 
         <div class="bmi-modal-freeze-loader"></div><br>
-        <b class="f24"><?php _e('Loading...', 'backup-backup'); ?></b>
+        <b class="f24"><?php esc_html_e('Loading...', 'backup-backup'); ?></b>
 
       </div>
     </div>

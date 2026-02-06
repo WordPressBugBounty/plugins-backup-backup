@@ -14,6 +14,7 @@ use BMI\Plugin\BMI_Logger AS Logger;
 use BMI\Plugin\Backup_Migration_Plugin as BMP;
 use BMI\Plugin\Progress\BMI_ZipProgress AS Progress;
 use BMI\Plugin\Database\BMI_Search_Replace_Engine as BMISearchReplace;
+use BMI\Plugin\Dashboard as Dashboard;
 
 // Exit on direct access
 if (!defined('ABSPATH')) exit;
@@ -172,7 +173,8 @@ class BMI_Even_Better_Database_Restore {
     $seek = &$this->seek['last_seek'];
     if ($seek == 0) {
       $seek = 5;
-      $wpdb->query("DROP TABLE IF EXISTS `" . $tableName . "`;");
+      // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Identifier is safely escaped via escapeSQLIDentifier()
+      $wpdb->query("DROP TABLE IF EXISTS " . BMP::escapeSQLIDentifier($tableName) . ";");
 
       $str = __("Started restoration of %table_name% %total_tables% table", 'backup-backup');
       $str = str_replace('%table_name%', $realTableName, $str);
@@ -201,6 +203,7 @@ class BMI_Even_Better_Database_Restore {
       }
     }
 
+    // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Query is from trusted backup SQL file, not user input
     $wpdb->query($sql);
     unset($sql);
     $wpdb->query('COMMIT;');
@@ -302,11 +305,11 @@ class BMI_Even_Better_Database_Restore {
     $wpdb->suppress_errors();
     foreach ($tables as $oldTable => $newTable) {
 
-      $sql = "DROP TABLE IF EXISTS `" . $newTable . "`;";
-      $wpdb->query($sql);
+      // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Identifier is safely escaped via escapeSQLIDentifier()
+      $wpdb->query("DROP TABLE IF EXISTS " . BMP::escapeSQLIDentifier($newTable) . ";");
 
-      $sql = "ALTER TABLE `" . $oldTable . "` RENAME TO `" . $newTable . "`;";
-      $wpdb->query($sql);
+      // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Identifier is safely escaped via escapeSQLIDentifier()
+      $wpdb->query("ALTER TABLE " . BMP::escapeSQLIDentifier($oldTable) . " RENAME TO " . BMP::escapeSQLIDentifier($newTable) . ";");
 
       $str = __('Table %old% renamed to %new%', 'backup-backup');
       $str = str_replace('%old%', $oldTable, $str);
@@ -802,7 +805,11 @@ class BMI_Even_Better_Database_Restore {
   public function searchReplace($step = 0, $tableIndex = 0, $currentPage = 0, $totalPages = 0, $fieldAdjustments = 0, $newPrefix = 'wp_') {
 
     $this->logger->progress(90);
-    return $this->performReplace($step, $tableIndex, $currentPage, $totalPages, $fieldAdjustments, $newPrefix);
+    $searchReplaceEngine = Dashboard\bmi_get_config('OTHER::NEW_SEARCH_REPLACE_ENGINE');
+    if ($searchReplaceEngine == false) {
+      return $this->performReplace($step, $tableIndex, $currentPage, $totalPages, $fieldAdjustments, $newPrefix);
+    }
+    return $this->performReplaceV2($step, $tableIndex, $currentPage, $totalPages, $fieldAdjustments, $newPrefix);
 
   }
 
@@ -838,10 +845,11 @@ class BMI_Even_Better_Database_Restore {
 
     if ($options_table != false && in_array($options_table, $tables)) {
 
-      $sql = "DELETE FROM " . $options_table . " WHERE option_name LIKE ('%\_transient\_%')";
-      $wpdb->query($sql);
+      // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Identifier is safely escaped via escapeSQLIDentifier()
+      $wpdb->query($wpdb->prepare("DELETE FROM " . BMP::escapeSQLIDentifier($options_table) . " WHERE option_name LIKE %s", '%\_transient\_%'));
 
-      $active_plugins = $wpdb->get_results('SELECT option_value FROM `' . $options_table . '` WHERE option_name = "active_plugins"');
+      // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Identifier is safely escaped via escapeSQLIDentifier()
+      $active_plugins = $wpdb->get_results($wpdb->prepare("SELECT option_value FROM " . BMP::escapeSQLIDentifier($options_table) . " WHERE option_name = %s", 'active_plugins'));
       $active_plugins = $active_plugins[0]->option_value;
 
       $this->seek['active_plugins'] = $active_plugins;
@@ -855,11 +863,11 @@ class BMI_Even_Better_Database_Restore {
       $ssl = is_ssl() == true ? 'https://' : 'http://';
       $currentDomain = $ssl . $this->parseDomain($homeURL, false);
 
-      $sql = 'UPDATE ' . $options_table . ' SET option_value = %s WHERE option_name = "siteurl"';
-      $wpdb->query($wpdb->prepare($sql, $currentDomain));
+      // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Identifier is safely escaped via escapeSQLIDentifier()
+      $wpdb->query($wpdb->prepare("UPDATE " . BMP::escapeSQLIDentifier($options_table) . " SET option_value = %s WHERE option_name = %s", $currentDomain, 'siteurl'));
 
-      $sql = 'UPDATE ' . $options_table . ' SET option_value = %s WHERE option_name = "home"';
-      $wpdb->query($wpdb->prepare($sql, $currentDomain));
+      // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Identifier is safely escaped via escapeSQLIDentifier()
+      $wpdb->query($wpdb->prepare("UPDATE " . BMP::escapeSQLIDentifier($options_table) . " SET option_value = %s WHERE option_name = %s", $currentDomain, 'home'));
 
     }
 
@@ -940,5 +948,25 @@ class BMI_Even_Better_Database_Restore {
     }
 
   }
+
+  private function performReplaceV2($step = 0, $tableIndex = 0, $currentPage = 0, $totalPages = 0, $fieldAdjustments = 0, $newPrefix = "wp_")
+  {
+
+    require_once BMI_INCLUDES . DIRECTORY_SEPARATOR . 'database' . DIRECTORY_SEPARATOR . 'search-replace-processor.php';
+    require_once BMI_INCLUDES . DIRECTORY_SEPARATOR . 'database' . DIRECTORY_SEPARATOR . 'search-replace-v2.php';
+
+    // Initialize Processor
+    $processor = new \BMI\Plugin\Database\BMISearchReplaceProcessor(
+      $this->map['tables'],
+      $this->logger,
+      $this->manifest,
+      $this->excludeSearchReplaceTables
+    );
+
+    // Process Current Step
+    return $processor->process($step, $tableIndex, $newPrefix);
+
+  }
+
 
 }

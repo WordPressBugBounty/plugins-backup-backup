@@ -34,7 +34,7 @@
   $tooltip_premium_details .= '';
   if (!function_exists('bmi_cb_collapsible')) {
     function bmi_cb_collapsible($c) {
-      echo ' class="bmi_will_collapse" data-if-checked="' . $c . '"';
+      echo ' class="bmi_will_collapse" data-if-checked="' . esc_attr($c) . '"';
     }
   }
 
@@ -59,7 +59,7 @@
 
           
         }
-        echo 'wrapper"' . $tooltipAttr . '="' . $tooltip ;
+        echo 'wrapper"' . esc_attr( $tooltipAttr ) . '="' . esc_attr( $tooltip ) ;
       }
     }
   }
@@ -69,7 +69,7 @@
 <!-- Files -->
 <div class="mm mt lh30">
   <div class="mbl">
-    <?php _e("Here you can define what exactly will be included in the backup. If your site is very large, it may make sense to back up only certain parts of it.", 'backup-backup'); ?>
+    <?php esc_html_e("Here you can define what exactly will be included in the backup. If your site is very large, it may make sense to back up only certain parts of it.", 'backup-backup'); ?>
   </div>
 
   <div class="">
@@ -77,9 +77,9 @@
     <label for="files-group-backup">
       <input id="files-group-backup"<?php bmi_cb_collapsible('file_group_cb'); ?> type="checkbox"<?php bmi_try_checked('BACKUP:FILES'); ?>>
       <span id="bmi-scan-total" class="relative">
-        <b><?php _e("Files", 'backup-backup'); ?></b>
+        <b><?php esc_html_e("Files", 'backup-backup'); ?></b>
         <span class="value">(<div class="spinner-loader"></div>)</span>&nbsp;
-        <span class="bmi-info-icon tooltip" tooltip="<?php echo $tooltip_files; ?>"></span>
+        <span class="bmi-info-icon tooltip" tooltip="<?php echo esc_attr( $tooltip_files ); ?>"></span>
       </span>
     </label>
 
@@ -90,7 +90,7 @@
 <div id="file_group_cb">
 <div class="mm92 lh30 file-checkboxes-wrapper mbl npb">
   <div class="">
-    <span class="medium"><?php _e("Select which files you want to have backed up.", 'backup-backup'); ?></span>
+    <span class="medium"><?php esc_html_e("Select which files you want to have backed up.", 'backup-backup'); ?></span>
   </div>
   <div class="flex file-checkboxes basic-file-exlusion">
 
@@ -99,15 +99,15 @@
         <div class="cf nm">
           <div class="left nm" id="bmi-scan-plugins">
             <input type="checkbox" id="files-group-plugins"<?php bmi_try_checked('BACKUP:FILES::PLUGINS'); ?>>
-            <span class="medium"><?php _e("Plugins", 'backup-backup'); ?></span> <span class="value">(<div class="spinner-loader"></div>)</span>
+            <span class="medium"><?php esc_html_e("Plugins", 'backup-backup'); ?></span> <span class="value">(<div class="spinner-loader"></div>)</span>
           </div>
         </div>
       </label>
 
-      <div class="flex right mrr nm premium-<?php bmi_pro_features($pros, true, $tooltip_premium_details); ?>">
+      <div class="browse-details-wrapper right mrr nm premium-<?php bmi_pro_features($pros, true, $tooltip_premium_details); ?>">
         <div class="nm">
           <a class="left f15 browse-details pointer" data-browsing-path="plugins">
-            <?php _e("Details", 'backup-backup'); ?>
+            <?php esc_html_e("Details", 'backup-backup'); ?>
           </a>
           <span class="right premium premium-img"></span>
         </div>
@@ -120,15 +120,15 @@
           <div class="left nm" id="bmi-scan-plugins">
             <input type="checkbox" id="files-group-uploads"<?php bmi_try_checked('BACKUP:FILES::UPLOADS'); ?>>
             <span id="bmi-scan-uploads">
-              <span class="medium"><?php _e("Uploads", 'backup-backup'); ?></span> <span class="value">(<div class="spinner-loader"></div>)</span>
+              <span class="medium"><?php esc_html_e("Uploads", 'backup-backup'); ?></span> <span class="value">(<div class="spinner-loader"></div>)</span>
             </span>
           </div>
         </div>
       </label>
-      <div class="flex right mrr nm premium-<?php bmi_pro_features($pros, true, $tooltip_premium_details); ?>">
+      <div class="browse-details-wrapper flex right mrr nm premium-<?php bmi_pro_features($pros, true, $tooltip_premium_details); ?>">
         <div class="nm">
           <a class="left f15 browse-details pointer" data-browsing-path="uploads">
-            <?php _e("Details", 'backup-backup'); ?>
+            <?php esc_html_e("Details", 'backup-backup'); ?>
           </a>
           <span class="right premium premium-img"></span>
         </div>
@@ -141,15 +141,15 @@
           <div class="left nm" id="bmi-scan-plugins">
             <input type="checkbox" id="files-group-themes"<?php bmi_try_checked('BACKUP:FILES::THEMES'); ?>>
             <span id="bmi-scan-themes">
-              <span class="medium"><?php _e("Themes", 'backup-backup'); ?></span> <span class="value">(<div class="spinner-loader"></div>)</span>
+              <span class="medium"><?php esc_html_e("Themes", 'backup-backup'); ?></span> <span class="value">(<div class="spinner-loader"></div>)</span>
             </span>
           </div>
         </div>
       </label>
-      <div class="flex right mrr nm premium-<?php bmi_pro_features($pros, true, $tooltip_premium_details); ?>">
+      <div class="browse-details-wrapper flex right mrr nm premium-<?php bmi_pro_features($pros, true, $tooltip_premium_details); ?>">
         <div class="nm">
           <a class="left f15 browse-details pointer" data-browsing-path="themes">
-            <?php _e("Details", 'backup-backup'); ?>
+            <?php esc_html_e("Details", 'backup-backup'); ?>
           </a>
           <span class="right premium premium-img"></span>
         </div>
@@ -162,15 +162,15 @@
           <div class="left nm" id="bmi-scan-plugins">
             <input type="checkbox" id="files-group-other-contents"<?php bmi_try_checked('BACKUP:FILES::OTHERS'); ?>>
             <span id="bmi-scan-contents_others">
-              <span class="medium"><?php _e("Everything else in wp-content", 'backup-backup'); ?></span> <span class="value">(<div class="spinner-loader"></div>)</span>
+              <span class="medium"><?php esc_html_e("Everything else in wp-content", 'backup-backup'); ?></span> <span class="value">(<div class="spinner-loader"></div>)</span>
             </span>
           </div>
         </div>
       </label>
-      <div class="flex right mrr nm premium-<?php bmi_pro_features($pros, true, $tooltip_premium_details); ?>">
+      <div class="browse-details-wrapper flex right mrr nm premium-<?php bmi_pro_features($pros, true, $tooltip_premium_details); ?>">
         <div class="nm">
           <a class="left f15 browse-details pointer" data-browsing-path="other-contents">
-            <?php _e("Details", 'backup-backup'); ?>
+            <?php esc_html_e("Details", 'backup-backup'); ?>
           </a>
           <span class="right premium premium-img"></span>
         </div>
@@ -183,15 +183,15 @@
           <div class="left nm" id="bmi-scan-plugins">
             <input type="checkbox" id="files-group-wp-install"<?php bmi_try_checked('BACKUP:FILES::WP'); ?>>
             <span id="bmi-scan-wordpress">
-              <span class="medium"><?php _e("WordPress installation", 'backup-backup'); ?></span> <span class="value">(<div class="spinner-loader"></div>)</span>
+              <span class="medium"><?php esc_html_e("WordPress installation", 'backup-backup'); ?></span> <span class="value">(<div class="spinner-loader"></div>)</span>
             </span>
           </div>
         </div>
       </label>
-      <div class="flex right mrr nm premium-<?php bmi_pro_features($pros, true, $tooltip_premium_details); ?>">
+      <div class="browse-details-wrapper flex right mrr nm premium-<?php bmi_pro_features($pros, true, $tooltip_premium_details); ?>">
         <div class="nm">
           <a class="left f15 browse-details pointer" data-browsing-path="wp-install">
-            <?php _e("Details", 'backup-backup'); ?>
+            <?php esc_html_e("Details", 'backup-backup'); ?>
           </a>
           <span class="right premium premium-img"></span>
         </div>
@@ -205,16 +205,16 @@
   </div>
   <div class="mtl cf">
     <div class="left inline-radio">
-      <?php _e("Want to exclude files based on filters?", 'backup-backup'); ?>
+      <?php esc_html_e("Want to exclude files based on filters?", 'backup-backup'); ?>
     </div>
     <div class="left d-flex mr60 ia-center">
       <label class="container-radio">
-        <?php _e("No", 'backup-backup'); ?>
-        <input type="radio" name="exclude_files_by_filters"<?php bmi_cb_collapsible('file_filters_exclusion'); ?> value="false"<?php bmi_try_checked('BACKUP:FILES::FILTER', true); ?>>
+        <?php esc_html_e("No", 'backup-backup'); ?>
+        <input id="dis_exclude_files_by_filters" type="radio" name="exclude_files_by_filters"<?php bmi_cb_collapsible('file_filters_exclusion'); ?> value="false"<?php bmi_try_checked('BACKUP:FILES::FILTER', true); ?>>
         <span class="checkmark-radio"></span>
       </label>
       <label class="container-radio ml25">
-        <?php _e("Yes", 'backup-backup'); ?>
+        <?php esc_html_e("Yes", 'backup-backup'); ?>
         <input id="files_by_filters" type="radio" name="exclude_files_by_filters"<?php bmi_cb_collapsible('file_filters_exclusion'); ?> value="true"<?php bmi_try_checked('BACKUP:FILES::FILTER'); ?>>
         <span class="checkmark-radio"></span>
       </label>
@@ -230,12 +230,12 @@
       <label for="ex_b_fs">
         <input type="checkbox" id="ex_b_fs"<?php bmi_cb_collapsible('file_filters_size'); ?><?php bmi_try_checked('BACKUP:FILES::FILTER:SIZE'); ?>>
         <span id="bmi-scan-plugins">
-          <span class="medium"><?php _e("Exclude by", 'backup-backup'); ?> <b><?php _e("file size", 'backup-backup'); ?></b></span><span id="bmi__collon">:</span>
+          <span class="medium"><?php esc_html_e("Exclude by", 'backup-backup'); ?> <b><?php esc_html_e("file size", 'backup-backup'); ?></b></span><span id="bmi__collon">:</span>
         </span>
       </label>
       <div class="rr mtll" id="file_filters_size">
 
-        <?php _e("Do not back up files that are larger than", 'backup-backup'); ?>
+        <?php esc_html_e("Do not back up files that are larger than", 'backup-backup'); ?>
         <input type="number" min="0" id="BFFSIN" class="mbfieldlimit" <?php bmi_try_value('BACKUP:FILES::FILTER:SIZE:IN'); ?>>
         MB
 
@@ -245,22 +245,22 @@
       <label for="ex_b_names">
         <input type="checkbox" id="ex_b_names"<?php bmi_cb_collapsible('file_filters_names'); ?><?php bmi_try_checked('BACKUP:FILES::FILTER:NAMES'); ?>>
         <span id="bmi-scan-plugins">
-          <span class="medium"><?php _e("Exclude by", 'backup-backup'); ?> <b><?php _e("file / folder name", 'backup-backup'); ?></b> <?php _e("(case-sensitive)", 'backup-backup'); ?></span>
+          <span class="medium"><?php esc_html_e("Exclude by", 'backup-backup'); ?> <b><?php esc_html_e("file / folder name", 'backup-backup'); ?></b> <?php esc_html_e("(case-sensitive)", 'backup-backup'); ?></span>
         </span>
       </label>
       <div class="rr" id="file_filters_names">
 
         <div id="bmi_exclusion_rules"></div>
         <div class="f16 hoverable mtll inline">
-          <a href="#" id="add-exclusion-rule" class="nodec secondary hoverable">+ <?php _e("Add an exclusion rule", 'backup-backup'); ?></a>
+          <a href="#" id="add-exclusion-rule" class="nodec secondary hoverable">+ <?php esc_html_e("Add an exclusion rule", 'backup-backup'); ?></a>
         </div>
 
         <div class="mt">
-          <?php _e('File names include the extension, e.g. if you select to exclude all files which end with “.psd” at the end then all files in psd format will be excluded.', 'backup-backup'); ?>
+          <?php esc_html_e('File names include the extension, e.g. if you select to exclude all files which end with ".psd" at the end then all files in psd format will be excluded.', 'backup-backup'); ?>
         </div>
 
         <div class="mtl mbll">
-          <?php _e("The folder where backups are stored (i.e. the backups which this plugin creates) is always excluded, to prevent you from taking backups of your own backups.", 'backup-backup'); ?>
+          <?php esc_html_e("The folder where backups are stored (i.e. the backups which this plugin creates) is always excluded, to prevent you from taking backups of your own backups.", 'backup-backup'); ?>
         </div>
 
       </div>
@@ -270,8 +270,8 @@
       <label for="ex_b_fpaths">
         <input type="checkbox" id="ex_b_fpaths"<?php bmi_cb_collapsible('file_filters_fpaths'); ?><?php bmi_try_checked('BACKUP:FILES::FILTER:FPATHS'); ?>>
         <span id="bmi-scan-plugins" class="relative">
-          <span class="medium"><?php _e("Exclude by", 'backup-backup'); ?> <b><?php _e("file path", 'backup-backup'); ?></b></span>&nbsp;
-          <span class="bmi-info-icon tooltip" tooltip="<?php echo $tooltip_exclude_file; ?>"></span>
+          <span class="medium"><?php esc_html_e("Exclude by", 'backup-backup'); ?> <b><?php esc_html_e("file path", 'backup-backup'); ?></b></span>&nbsp;
+          <span class="bmi-info-icon tooltip" tooltip="<?php echo esc_attr( $tooltip_exclude_file ); ?>"></span>
         </span>
       </label>
       <div class="rr mtll" id="file_filters_fpaths">
@@ -283,10 +283,10 @@
           $ex3 = BMP::fixSlashes(ABSPATH . 'readme.html');
         ?>
 
-        <textarea id="dynamic-fpaths-names" class="fullwidth bmi-txtar" name="name" rows="6" cols="80" placeholder="<?php echo $ex0 . '&#10;' . $ex1 . '&#10;' . $ex2 . '&#10;' . $ex3 ?>">
+        <textarea id="dynamic-fpaths-names" class="fullwidth bmi-txtar" name="name" rows="6" cols="80" placeholder="<?php echo esc_attr( $ex0 . '&#10;' . $ex1 . '&#10;' . $ex2 . '&#10;' . $ex3 ); ?>">
         </textarea>
 
-        <?php echo str_replace('%s', '<b>***ABSPATH***</b>', __('You can use there constant %s as your root path.', 'backup-backup')); ?>
+        <?php echo wp_kses_post( str_replace('%s', '<b>***ABSPATH***</b>', __('You can use there constant %s as your root path.', 'backup-backup')) ); ?>
 
       </div>
     </div>
@@ -295,8 +295,8 @@
       <label for="ex_b_dpaths">
         <input type="checkbox" id="ex_b_dpaths"<?php bmi_cb_collapsible('file_filters_dpaths'); ?><?php bmi_try_checked('BACKUP:FILES::FILTER:DPATHS'); ?>>
         <span id="bmi-scan-plugins" class="relative">
-          <span class="medium"><?php _e("Exclude by", 'backup-backup'); ?> <b><?php _e("directory path", 'backup-backup'); ?></b></span>&nbsp;
-          <span class="bmi-info-icon tooltip" tooltip="<?php echo $tooltip_exclude_path; ?>"></span>
+          <span class="medium"><?php esc_html_e("Exclude by", 'backup-backup'); ?> <b><?php esc_html_e("directory path", 'backup-backup'); ?></b></span>&nbsp;
+          <span class="bmi-info-icon tooltip" tooltip="<?php echo esc_attr( $tooltip_exclude_path ); ?>"></span>
         </span>
       </label>
       <div class="rr mtll" id="file_filters_dpaths">
@@ -307,10 +307,10 @@
           $ex6 = BMP::fixSlashes(WP_CONTENT_DIR . '/uploads');
         ?>
 
-        <textarea id="dynamic-dpaths-names" class="fullwidth bmi-txtar" name="name" rows="6" cols="80" placeholder="<?php echo $ex0 . '&#10;' . $ex4 . '&#10;' . $ex5 . '&#10;' . $ex6 ?>">
+        <textarea id="dynamic-dpaths-names" class="fullwidth bmi-txtar" name="name" rows="6" cols="80" placeholder="<?php echo esc_attr( $ex0 . '&#10;' . $ex4 . '&#10;' . $ex5 . '&#10;' . $ex6 ); ?>">
         </textarea>
 
-        <?php echo str_replace('%s', '<b>***ABSPATH***</b>', __('You can use there constant %s as your root path.', 'backup-backup')); ?>
+        <?php echo wp_kses_post( str_replace('%s', '<b>***ABSPATH***</b>', __('You can use there constant %s as your root path.', 'backup-backup')) ); ?>
 
       </div>
     </div>
@@ -326,8 +326,8 @@
     <label for="database-group-backup">
       <input id="database-group-backup"<?php bmi_cb_collapsible('database_group_cb'); ?> type="checkbox"<?php bmi_try_checked('BACKUP:DATABASE'); ?>>
       <span class="relative" id="bmi-scan-database">
-        <b><?php _e("Databases", 'backup-backup'); ?>&nbsp;</b><span class="value">(<div class="spinner-loader"></div>)</span>
-        <span class="bmi-info-icon tooltip" tooltip="<?php echo $tooltip_database; ?>"></span>
+        <b><?php esc_html_e("Databases", 'backup-backup'); ?>&nbsp;</b><span class="value">(<div class="spinner-loader"></div>)</span>
+        <span class="bmi-info-icon tooltip" tooltip="<?php echo esc_attr( $tooltip_database ); ?>"></span>
       </span>
     </label>
 
@@ -338,7 +338,7 @@
   <div class="mm92 mbl lh30 file-checkboxes-wrapper">
 
     <div class="mbl">
-      <span class="regular"><?php _e("All databases (on the domain", 'backup-backup'); ?> <a href="<?php echo $domain; ?>" target="_blank"><?php echo $domain; ?></a>) <?php _e("will be backed up unless you exclude them by defining exclusion rules.", 'backup-backup'); ?></span>
+      <span class="regular"><?php esc_html_e("All databases (on the domain", 'backup-backup'); ?> <a href="<?php echo esc_url( $domain ); ?>" target="_blank"><?php echo esc_html( $domain ); ?></a>) <?php esc_html_e("will be backed up unless you exclude them by defining exclusion rules.", 'backup-backup'); ?></span>
     </div>
 
     <?php if (has_action('bmi_pro_db_exclude_tables')): ?>
@@ -349,7 +349,7 @@
           <label class="autowidth premium premium-img">
             <input type="checkbox" disabled>
             <span>
-              <span class="regular text-muted"><?php _e("Exclude certain tables from backups", 'backup-backup'); ?></span>
+              <span class="regular text-muted"><?php esc_html_e("Exclude certain tables from backups", 'backup-backup'); ?></span>
             </span>
           </label>
         </div>
@@ -364,18 +364,18 @@
 
     <div class="cf">
       <div class="left inline-radio semibold">
-        <?php _e('Want to apply "smart" exclusion rules?', 'backup-backup'); ?>
+        <?php esc_html_e('Want to apply "smart" exclusion rules?', 'backup-backup'); ?>
       </div>
 
       <div class="left d-flex mr60 ia-center">
         <label id="nnmysql" class="container-radio active">
-          <?php _e("No", 'backup-backup'); ?>
+          <?php esc_html_e("No", 'backup-backup'); ?>
           <input id="nnmysql" type="radio" name="smart_exclusion_db_first_bm" value="false" <?php bmi_try_checked('SMART:EXCLUSION:ENABLED', true); ?> <?php bmi_cb_collapsible('smart-exclusion-wrapper'); ?>>
           <span class="checkmark-radio"></span>
         </label>
         <span class="cf premium-<?php bmi_pro_features($pros, true, __("You will be able to exclude data from your database based on smart rules.", 'backup-backup')); ?>">
           <label class="left container-radio ml25 <?php echo ($pros) ? '' : 'not-allowed'; ?>">
-            <?php _e("Yes", 'backup-backup'); ?>
+            <?php esc_html_e("Yes", 'backup-backup'); ?>
             <input type="radio" name="smart_exclusion_db_first_bm" <?php echo ($pros) ? '' : 'disabled'; ?> id="smart-exclusion-enabled" <?php bmi_try_checked('SMART:EXCLUSION:ENABLED'); ?> <?php bmi_cb_collapsible('smart-exclusion-wrapper'); ?> value="true">
             <span class="checkmark-radio"></span>
           </label>
@@ -387,7 +387,7 @@
   </div>
 
   <div class="mm lh30 mbll">
-    <?php _e('With the "Files" and "Databases" options above you can already define what to include or exclude in your backup. However, you may want to exclude elements in your backups where you are not sure which file or table they reside in. For example, you may want to exclude all spam comments in your backups. This is what the "smart" exclusion rules are for. This is also a good way to clean your site of things you do not want.', 'backup-backup'); ?>
+    <?php esc_html_e('With the "Files" and "Databases" options above you can already define what to include or exclude in your backup. However, you may want to exclude elements in your backups where you are not sure which file or table they reside in. For example, you may want to exclude all spam comments in your backups. This is what the "smart" exclusion rules are for. This is also a good way to clean your site of things you do not want.', 'backup-backup'); ?>
   </div>
 
   <div class="mm mtl mbl lh40 bg-second f20 overlayed" id="smart-exclusion-wrapper">
@@ -400,36 +400,36 @@
     <div class="cf">
       <label class="left half chhl">
         <input type="checkbox" name="smart-exclusion-cache" value="" id="smart-exclusion-cache" <?php bmi_try_checked('SMART:EXCLUSION:CACHE'); ?>>
-        <span><?php _e("Exclude all", 'backup-backup'); ?> <b><?php _e("cache files", 'backup-backup'); ?></b></span>
+        <span><?php esc_html_e("Exclude all", 'backup-backup'); ?> <b><?php esc_html_e("cache files", 'backup-backup'); ?></b></span>
       </label>
       <label class="left half chhl">
         <input type="checkbox" name="smart-exclusion-deactivated-plugins" value="" <?php bmi_try_checked('SMART:EXCLUSION:DPLUGINS'); ?> id="smart-exclusion-deactivated-plugins">
-        <span><?php _e("Exclude all", 'backup-backup'); ?> <b><?php _e("deactivated plugins", 'backup-backup'); ?></b></span>
+        <span><?php esc_html_e("Exclude all", 'backup-backup'); ?> <b><?php esc_html_e("deactivated plugins", 'backup-backup'); ?></b></span>
       </label>
       <label class="left half chhl">
         <input type="checkbox" name="smart-exclusion-debug-logs" value="" id="smart-exclusion-debug-logs" <?php bmi_try_checked('SMART:EXCLUSION:DLOGS'); ?>>
-        <span><?php _e("Exclude all", 'backup-backup'); ?> <b><?php _e("debug logs", 'backup-backup'); ?></b></span>
+        <span><?php esc_html_e("Exclude all", 'backup-backup'); ?> <b><?php esc_html_e("debug logs", 'backup-backup'); ?></b></span>
       </label>
       <label class="left half chhl">
         <input type="checkbox" name="smart-exclusion-non-used-themes" value="" id="smart-exclusion-non-used-themes" <?php bmi_try_checked('SMART:EXCLUSION:NUTHEMES'); ?>>
-        <span><?php _e("Exclude", 'backup-backup'); ?> <b><?php _e("all non-used themes", 'backup-backup'); ?></b></span>
+        <span><?php esc_html_e("Exclude", 'backup-backup'); ?> <b><?php esc_html_e("all non-used themes", 'backup-backup'); ?></b></span>
       </label>
       <label class="left half chhl">
         <input type="checkbox" name="smart-exclusion-post-revisions" value="" id="smart-exclusion-post-revisions" <?php bmi_try_checked('SMART:EXCLUSION:PREVISIONS'); ?>>
-        <span><?php _e("Exclude", 'backup-backup'); ?> <b><?php _e("post revisions", 'backup-backup'); ?></b></span>
+        <span><?php esc_html_e("Exclude", 'backup-backup'); ?> <b><?php esc_html_e("post revisions", 'backup-backup'); ?></b></span>
       </label>
     </div>
 
   </div>
 
 <div class="mm mt mblll bold">
-  <?php _e("Summary / Sanity check", 'backup-backup'); ?>
+  <?php esc_html_e("Summary / Sanity check", 'backup-backup'); ?>
 </div>
 
 <div class="mm mbl lh30 f20">
-  <?php _e("With above exclusion rules you excluded", 'backup-backup'); ?> <b id="esta-exclude">0 B</b>/<b id="esta-exclude-total">0 B</b> <?php _e("of data, which means your backup will be about", 'backup-backup'); ?> <b id="esta-size-for">0 B</b> <?php _e("large, unzipped.", 'backup-backup'); ?>
+  <?php esc_html_e("With above exclusion rules you excluded", 'backup-backup'); ?> <b id="esta-exclude">0 B</b>/<b id="esta-exclude-total">0 B</b> <?php esc_html_e("of data, which means your backup will be about", 'backup-backup'); ?> <b id="esta-size-for">0 B</b> <?php esc_html_e("large, unzipped.", 'backup-backup'); ?>
   <br>
-  <a class="get-file-database-sizes nodec secondary hoverable">– <?php _e('Save and re-calculate with current filters.', 'backup-backup'); ?></a>
+  <a class="get-file-database-sizes nodec secondary hoverable">– <?php esc_html_e('Save and re-calculate with current filters.', 'backup-backup'); ?></a>
 </div>
 
 <?php include BMI_INCLUDES . '/dashboard/chapter/save-button.php'; ?>

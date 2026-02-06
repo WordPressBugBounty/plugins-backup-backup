@@ -20,7 +20,7 @@ $clouds["SFTP"] = [ "name" => "SFTP", "icon" => "sftp-mono.svg" ];
 
 
 foreach ($clouds as $cloudKey => $cloudDetail) {
-  if (!defined('BMI_PRO_INC') && $cloudKey != "BACKUPBLISS") {
+  if (!defined('BMI_PRO_INC') && !in_array($cloudKey, ["BACKUPBLISS", "DROPBOX", "GDRIVE", "FTP", "AWS", "WASABI"])) {
     $clouds[$cloudKey]["tooltip"] = __('%sNever lose a backup by also saving it on ' . $cloudDetail["name"] . '!%s%sUpgrade to %sPremium%s today%s%s%sWe made it really affordable!%s', 'backup-backup');
     $clouds[$cloudKey]["tooltip"] = sprintf($clouds[$cloudKey]["tooltip"], '<div class="bmi-center-text">', '<br>', '<a href="' . BMI_AUTHOR_URI . '" target="_blank">', '<span class="bmi-premium-bg-stars">', '</span>', '</a>', '<br>', '<b>', '</b>', '</div>');
   }
@@ -42,73 +42,89 @@ $clouds["BACKUPBLISS"]["enabled"] = true; //BB Storage always enabled
     <td class="br_name tooltip-html" tooltip="example.com" data-top="5">---</td>
     <td class="br_size">---</td>
     <td class="br_stroage center">
-      <div class="cf br_wrapper_storage">
-        <div class="left">
+      <div class="br_wrapper_storage_grid">
+        <div class="storage-icons-container">
 
-          <svg class="list-storage-img strg-local tooltip" tooltip="<?php _e('Local Storage', 'backup-backup') ?>" data-top="5">
-            <use xlink:href="<?php echo $this->get_asset('images', 'local-server-2.svg#img') ?>"></use>
+          <svg class="list-storage-img strg-local tooltip" tooltip="<?php esc_attr_e('Local Storage', 'backup-backup') ?>"
+            data-top="5">
+            <use xlink:href="<?php echo esc_url( $this->get_asset('images', 'local-server-2.svg#img') ); ?>"></use>
           </svg>
 
-          <?php foreach ($clouds as $cloudKey => $cloudDetail): ?>
-          <?php if ($cloudDetail["enabled"] === true || $cloudDetail["enabled"] === 'true'): ?>
-            <?php //Make sure again the class name you define .strg- conforms with the strucuture as implemented above.
+          <?php foreach ($clouds as $cloudKey => $cloudDetail):
+            $isEnabled = ($cloudDetail["enabled"] === true || $cloudDetail["enabled"] === 'true');
+            $hiddenStyle = $isEnabled ? '' : ' style="display: none;"';
             ?>
-            <svg class="list-storage-img strg-<?php echo strtolower($cloudKey) ?> tooltip-html" tooltip="<?php echo esc_attr(isset($cloudDetail["tooltip"]) ? $cloudDetail["tooltip"] : $cloudDetail["name"]); ?>" data-top="5">
-              <use xlink:href="<?php echo $this->get_asset('images', $cloudDetail["icon"] . '#img') ?>"></use>
+            <?php //Make sure again the class name you define .strg- conforms with the strucuture as implemented above. ?>
+            <svg class="list-storage-img strg-<?php echo esc_attr(strtolower($cloudKey)) ?> tooltip-html"
+              tooltip="<?php echo esc_attr(isset($cloudDetail["tooltip"]) ? $cloudDetail["tooltip"] : $cloudDetail["name"]); ?>"
+              data-top="5" style="<?php echo $isEnabled ? '' : 'display: none;'; ?>">
+              <use xlink:href="<?php echo esc_url( $this->get_asset('images', $cloudDetail["icon"] . '#img') ); ?>"></use>
             </svg>
-          <?php endif; ?>
           <?php endforeach; ?>
 
-      </div>
+        </div>
 
-      <div class="right">
+        <div class="storage-status-indicators">
 
-        <!-- <svg class="list-storage-img strg-suc tooltip" tooltip="<?php _e('Backup is stored on: Cloud & Local Storage.', 'backup-backup') ?>" data-top="5">
-          <use xlink:href="<?php echo $this->get_asset('images', 'list-success.svg#img') ?>"></use>
-        </svg> -->
+          <svg class="list-storage-img strg-warn img-red tooltip"
+            tooltip="<?php esc_attr_e('There was an error during upload to: Cloud.', 'backup-backup') ?>" data-top="5"
+            style="display: none;">
+            <use xlink:href="<?php echo esc_url( $this->get_asset('images', 'list-warning.svg#img') ); ?>"></use>
+          </svg>
 
-        <svg class="list-storage-img strg-warn img-red tooltip" tooltip="<?php _e('There was an error during upload to: Cloud.', 'backup-backup') ?>" data-top="5" style="display: none;">
-          <use xlink:href="<?php echo $this->get_asset('images', 'list-warning.svg#img') ?>"></use>
-        </svg>
+          <svg class="list-storage-img strg-ong ongoing tooltip"
+            tooltip="<?php esc_attr_e('Upload to Cloud in progress:', 'backup-backup') ?>" data-top="5" style="display: none;">
+            <use xlink:href="<?php echo esc_url( $this->get_asset('images', 'list-ongoing.svg#img') ); ?>"></use>
+          </svg>
 
-        <svg class="list-storage-img strg-ong ongoing tooltip" tooltip="<?php _e('Upload to Cloud in progress:', 'backup-backup') ?>" data-top="5" style="display: none;">
-          <use xlink:href="<?php echo $this->get_asset('images', 'list-ongoing.svg#img') ?>"></use>
-        </svg>
+          <svg class="list-storage-img strg-wait tooltip"
+            tooltip="<?php esc_attr_e('Backup is queued for upload.', 'backup-backup') ?>" data-top="5" style="display: none;">
+            <use xlink:href="<?php echo esc_url( $this->get_asset('images', 'list-waiting.svg#img') ); ?>"></use>
+          </svg>
 
-        <svg class="list-storage-img strg-wait tooltip" tooltip="<?php _e('Backup is queued for upload.', 'backup-backup') ?>" data-top="5" style="display: none;">
-          <use xlink:href="<?php echo $this->get_asset('images', 'list-waiting.svg#img') ?>"></use>
-        </svg>
-
-      </div>
+        </div>
       </div>
     </td>
     <td class="center">
       <div class="brow_lock">
-        <img class="tooltip bc-unlocked-btn hoverable" tooltip="<?php _e('Lock backup files', 'backup-backup') ?>" src="<?php echo $this->get_asset('images', 'unlocked-min.svg'); ?>" alt="image">
-        <img class="tooltip bc-locked-btn hoverable" tooltip="<?php _e('Unlock backup files', 'backup-backup') ?>" src="<?php echo $this->get_asset('images', 'lock-min.svg'); ?>" alt="image">
+        <img class="tooltip bc-unlocked-btn hoverable" tooltip="<?php esc_attr_e('Lock backup files', 'backup-backup') ?>"
+          src="<?php echo esc_url( $this->get_asset('images', 'unlocked-min.svg') ); ?>" alt="image">
+        <img class="tooltip bc-locked-btn hoverable" tooltip="<?php esc_attr_e('Unlock backup files', 'backup-backup') ?>"
+          src="<?php echo esc_url( $this->get_asset('images', 'lock-min.svg') ); ?>" alt="image">
       </div>
     </td>
     <td>
       <div class="brow_subactions">
         <a href="#" class="bc-download-btn hoverable nodec untab" tabindex="-1" download>
-          <img class="tooltip" tooltip="<?php _e('Download the backup file. Click on it downloads it', 'backup-backup') ?>" src="<?php echo $this->get_asset('images', 'download-min.png'); ?>" alt="image">
+          <img class="tooltip"
+            tooltip="<?php esc_attr_e('Download the backup file. Click on it downloads it', 'backup-backup') ?>"
+            src="<?php echo esc_url( $this->get_asset('images', 'download-min.png') ); ?>" alt="image">
         </a>
-        <img class="tooltip bc-url-btn hoverable untab" tabindex="-1" tooltip="<?php _e('Copy link to backup file for super-quick migration', 'backup-backup') ?>" src="<?php echo $this->get_asset('images', 'link-min.png'); ?>" alt="image">
+        <a href="#" class="tooltip bc-url-btn hoverable nodec untab bmi-tt-center" tabindex="-1" tooltip="<?php esc_attr_e('Copy link to backup file for super-quick migration', 'backup-backup') ?>">
+          <svg width="21px" height="22px">
+            <use xlink:href="<?php echo esc_url( $this->get_asset('images', 'link-min.svg#img') ); ?>"></use>
+          </svg>
+        </a>
         <a href="#" class="bc-logs-btn hoverable nodec untab" tabindex="-1" download>
-          <img class="tooltip" tooltip="<?php _e('Download log file which was created at time of backup', 'backup-backup') ?>" src="<?php echo $this->get_asset('images', 'log-min.svg'); ?>" alt="image">
+          <img class="tooltip"
+            tooltip="<?php esc_attr_e('Download log file which was created at time of backup', 'backup-backup') ?>"
+            src="<?php echo esc_url( $this->get_asset('images', 'log-min.svg') ); ?>" alt="image">
         </a>
       </div>
     </td>
     <td>
-      <div class="stg-restore-btn hoverable tooltip-html" tooltip="<?php _e('Spin up a staging site with this backup.<br />Click on it to learn more.', 'backup-backup') ?>">
-        <img src="<?php echo $this->get_asset('images', 'stg-restore-btn.svg'); ?>" width="12px" alt="image">
-        <?php _e('Staging', 'backup-backup') ?>
+      <div class="stg-restore-btn hoverable tooltip-html"
+        tooltip="<?php echo esc_attr( __('Spin up a staging site with this backup.<br />Click on it to learn more.', 'backup-backup') ); ?>">
+        <img src="<?php echo esc_url( $this->get_asset('images', 'stg-restore-btn.svg') ); ?>" width="12px" alt="image">
+        <?php esc_html_e('Staging', 'backup-backup') ?>
       </div>
-      <div class="restore-btn hoverable tooltip" tooltip="<?php _e('Restore this backup on this site', 'backup-backup') ?>">
-        <img src="<?php echo $this->get_asset('images', 'restore-min.svg'); ?>" width="12px" alt="image">
-        <?php _e('Restore', 'backup-backup') ?>
+      <div class="restore-btn hoverable tooltip"
+        tooltip="<?php esc_attr_e('Restore this backup on this site', 'backup-backup') ?>">
+        <img src="<?php echo esc_url( $this->get_asset('images', 'restore-min.svg') ); ?>" width="12px" alt="image">
+        <?php esc_html_e('Restore', 'backup-backup') ?>
       </div>
     </td>
-    <td><img class="tooltip bc-remove-btn hoverable" tooltip="<?php _e('Delete this backup', 'backup-backup') ?>" src="<?php echo $this->get_asset('images', 'red-close-min.svg'); ?>" alt="image"></td>
+    <td><img class="tooltip bc-remove-btn hoverable" tooltip="<?php esc_attr_e('Delete this backup', 'backup-backup') ?>"
+        src="<?php echo esc_url( $this->get_asset('images', 'red-close-min.svg') ); ?>" alt="image"></td>
   </tr>
 </table>

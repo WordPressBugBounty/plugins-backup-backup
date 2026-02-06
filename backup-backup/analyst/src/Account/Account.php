@@ -1,5 +1,6 @@
 <?php
 
+
 namespace Account;
 
 use Analyst\Analyst;
@@ -16,6 +17,8 @@ use Analyst\Notices\Notice;
 use Analyst\Notices\NoticeFactory;
 use Analyst\Contracts\TrackerContract;
 use Analyst\Contracts\RequestorContract;
+
+if ( ! defined( 'ABSPATH' ) ) exit;
 
 /**
  * Class Account

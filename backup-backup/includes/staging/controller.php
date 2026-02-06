@@ -365,9 +365,8 @@
           if (strtolower(substr($name, 0, strlen($table_prefix))) == strtolower($table_prefix)) continue;
           
           if (substr($name, 0, strlen($prefix)) == $prefix) {
-            $sql = "DROP TABLE %i;";
-            $sql = $wpdb->prepare($sql, [$name]);
-            $wpdb->query($sql);
+            // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Identifier is safely escaped via escapeSQLIDentifier()
+            $wpdb->query("DROP TABLE " . BMP::escapeSQLIDentifier($name) . ";");
           }
         }
       }

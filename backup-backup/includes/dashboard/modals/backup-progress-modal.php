@@ -13,7 +13,7 @@
   <div class="bmi-modal-wrapper" style="max-width: 900px; max-width: min(900px, 80vw)">
     <div class="bmi-modal-content center">
 
-      <div class="mm60 f26 bold black title"><?php _e('Backup in progress', 'backup-backup') ?></div>
+      <div class="mm60 f26 bold black title"><?php esc_html_e('Backup in progress', 'backup-backup') ?></div>
 
       <div class="progress-bar-wrapper">
 
@@ -26,15 +26,15 @@
 
       <div class="step-progress cf">
         <div class="right f16 medium hoverable pointer"
-          data-show="<?php _e('Show live log', 'backup-backup') ?>"
-          data-hide="<?php _e('Hide live log', 'backup-backup') ?>"
+          data-show="<?php esc_attr_e('Show live log', 'backup-backup') ?>"
+          data-hide="<?php esc_attr_e('Hide live log', 'backup-backup') ?>"
           id="live-log-toggle"
         >
-          <?php _e('Hide live log', 'backup-backup') ?>
+          <?php esc_html_e('Hide live log', 'backup-backup') ?>
         </div>
         <div class="left f16 medium">
-          <?php _e('Step: ', 'backup-backup') ?>
-          <span id="current_step"><?php _e('Preparing backup process...', 'backup-backup') ?></span>
+          <?php esc_html_e('Step: ', 'backup-backup') ?>
+          <span id="current_step"><?php esc_html_e('Preparing backup process...', 'backup-backup') ?></span>
         </div>
       </div>
 
@@ -44,28 +44,28 @@
           <pre></pre>
         </div>
         <div class="f16 semibold secondary hoverable pointer">
-          <a href="<?php echo get_site_url(); ?>/?backup-migration=PROGRESS_LOGS&progress-id=latest.log&backup-id=current&t=<?php echo time(); ?>&sk=<?php echo bmi_get_config('REQUEST:SECRET'); ?>"
+          <a href="<?php echo esc_url( get_site_url() . '/?backup-migration=PROGRESS_LOGS&progress-id=latest.log&bmi-id=current&t=' . time() . '&sk=' . bmi_get_config('REQUEST:SECRET') ); ?>"
              download="backup_live_logs.txt" class="nlink">
-            <?php _e('Download live log', 'backup-backup') ?>
+            <?php esc_html_e('Download live log', 'backup-backup') ?>
           </a>
           <span>&nbsp;|&nbsp;</span>
           <div class="f16 bmi-modal-closer inline" data-close="backup-progress-modal" id="backup-stop">
-            <?php _e('Stop the process', 'backup-backup') ?>
+            <?php esc_html_e('Stop the process', 'backup-backup') ?>
           </div>
         </div>
 
       </div>
 
       <div class="f18 semibold mtll">
-        <?php _e('Please don’t do any major modifications on your site while the backup is running.', 'backup-backup') ?>
+        <?php esc_html_e('Please don\'t do any major modifications on your site while the backup is running.', 'backup-backup') ?>
       </div>
 
       <div class="mtl">
         <div>
           <a href="#" class="btn inline btn-with-img btn-img-low-pad btn-pad bmi-modal-closer backup-minimize">
             <div class="text">
-              <img src="<?php echo $this->get_asset('images', 'minimize-min.png'); ?>" alt="minimize-img">
-              <div class="f18 semibold"><?php _e('Minimize this window', 'backup-backup') ?></div>
+              <img src="<?php echo esc_url( $this->get_asset('images', 'minimize-min.png') ); ?>" alt="minimize-img">
+              <div class="f18 semibold"><?php esc_html_e('Minimize this window', 'backup-backup') ?></div>
             </div>
           </a>
         </div>

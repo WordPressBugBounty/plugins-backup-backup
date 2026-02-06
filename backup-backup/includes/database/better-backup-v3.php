@@ -14,6 +14,7 @@ use BMI\Plugin\BMI_Logger AS Logger;
 use BMI\Plugin\Progress\BMI_ZipProgress AS Progress;
 use BMI\Plugin\Dashboard AS Dashboard;
 use BMI\Plugin\Staging\BMI_Staging as Staging;
+use BMI\Plugin\Backup_Migration_Plugin as BMP;
 
 // Exit on direct access
 if (!defined('ABSPATH')) exit;
@@ -250,7 +251,7 @@ class BMI_Database_Exporter {
         }
 
         $query = "SELECT table_name AS `table`, round(((data_length + index_length) / 1024 / 1024), 2) AS `size`, ";
-        $query .= "(SELECT COUNT(*) FROM `$table_name`) AS `rows`";
+        $query .= "(SELECT COUNT(*) FROM " . BMP::escapeSQLIDentifier($table_name) . ") AS `rows`";
         $query .= "FROM information_schema.TABLES ";
         $query .= "WHERE table_schema = %s AND table_name = %s";
         
@@ -258,6 +259,7 @@ class BMI_Database_Exporter {
           $query = apply_filters('bmip_smart_exclusion_post_revisions_count', $query, $table_name);
         }
 
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Identifier is safely escaped via escapeSQLIDentifier()
         $results = $this->wpdb->get_results($this->wpdb->prepare($query, DB_NAME, $table_name));
 
         if (!is_object($results[0])) {
@@ -300,15 +302,15 @@ class BMI_Database_Exporter {
 
     foreach ($this->tables_by_size as $table_name => $table_object) {
 
-      $query = "SHOW CREATE TABLE $table_name";
-      $result = $this->wpdb->get_results($query);
+      // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Identifier is safely escaped via escapeSQLIDentifier()
+      $result = $this->wpdb->get_results("SHOW CREATE TABLE " . BMP::escapeSQLIDentifier($table_name) . ";");
       foreach ($result as $index => $result_object) {
         foreach ($result_object as $column_name => $column_value) {
 
           if ($column_value == $table_name) continue;
           else {
 
-            $column_value = str_replace("`" . $table_name . "`", "`" . $this->table_prefix . '_' . $table_name . "`", $column_value);
+            $column_value = str_replace(BMP::escapeSQLIDentifier($table_name), BMP::escapeSQLIDentifier($this->table_prefix . '_' . $table_name), $column_value);
 
             $recipe = 'CREATE TABLE IF NOT EXISTS ';
             $recipe .= substr($column_value, 13);
@@ -340,8 +342,8 @@ class BMI_Database_Exporter {
 
       $this->total_queries += 3;
       $recipe = "/* CUSTOM VARS START */\n";
-      $recipe .= "/* REAL_TABLE_NAME: `$table_name`; */\n";
-      $recipe .= "/* PRE_TABLE_NAME: `$time_prefix" . "_" . "$table_name`; */\n";
+      $recipe .= "/* REAL_TABLE_NAME: " . BMP::escapeSQLIDentifier($table_name) . "; */\n";
+      $recipe .= "/* PRE_TABLE_NAME: " . BMP::escapeSQLIDentifier($time_prefix . '_' . $table_name) . "; */\n";
       $recipe .= "/* CUSTOM VARS END */\n\n";
 
       $recipe .= $table_recipe . ";\n";
@@ -435,10 +437,12 @@ class BMI_Database_Exporter {
       if (intval($table_object['rows']) > 0) {
         for (;$i < $rows;) {
 
-          $query = $this->wpdb->prepare("SELECT * FROM `$table_name` LIMIT %d, $this->max_rows", $i);
+          // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Identifier is safely escaped via escapeSQLIDentifier()
+          $query = $this->wpdb->prepare("SELECT * FROM " . BMP::escapeSQLIDentifier($table_name) . " LIMIT %d, $this->max_rows", $i);
           if ($this->isPostRevisionsExcluded && ($table_name == $this->wpdb->posts || $table_name == $this->wpdb->postmeta) && has_filter('bmip_smart_exclusion_post_revisions')) {
             $query = apply_filters('bmip_smart_exclusion_post_revisions', $query, $table_name, $i, $this->max_rows);
           }
+          // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Query is prepared above, may be modified by trusted filter
           $result = $this->wpdb->get_results($query);
 
           $valuesSize = $this->getArraySize($result, $currentBufferSize);
@@ -540,7 +544,7 @@ class BMI_Database_Exporter {
     $file = fopen($this->file_name($table_name), 'a+');
 
     $this->total_queries++;
-    $query = "INSERT INTO `" . $this->table_prefix . "_" . $table_name . "` ";
+    $query = "INSERT INTO " . BMP::escapeSQLIDentifier($this->table_prefix . "_" . $table_name) . " ";
 
     foreach ($result as $index => $result_object) {
 

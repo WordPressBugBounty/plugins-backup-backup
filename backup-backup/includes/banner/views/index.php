@@ -15,10 +15,10 @@
   
 ?>
 <script type="text/javascript" charset="utf-8">
-  var inisev_carousel = { nonce: `<?php echo wp_create_nonce('inisev_carousel'); ?>` };
+  var inisev_carousel = { nonce: <?php echo wp_json_encode(wp_create_nonce('inisev_carousel')); ?> };
 </script>
-<script src="<?php echo $this->url . 'assets/index.min.js?v=' . filemtime($this->_root_dir . '/assets/index.min.js'); ?>" type="text/javascript" charset="utf-8" defer></script>
-<link rel="stylesheet" type="text/css" href="<?php echo $this->url . 'assets/style.min.css?v=' . filemtime($this->_root_dir . '/assets/style.min.css'); ?>">
+<script src="<?php echo esc_url($this->url . 'assets/index.min.js?v=' . filemtime($this->_root_dir . '/assets/index.min.js')); ?>" type="text/javascript" charset="utf-8" defer></script>
+<link rel="stylesheet" type="text/css" href="<?php echo esc_url($this->url . 'assets/style.min.css?v=' . filemtime($this->_root_dir . '/assets/style.min.css')); ?>">
 <section class="ci-carrinis-wrapper">
   <section class="ci-carrinis" id="carrinis">
     <h1>Like this plugin?</h1>
@@ -33,7 +33,7 @@
           $bmi_state = (!$bmi_free || (!$bmi_free && $bmi_pro)) ? 'install' : (($bmi_free && !$bmi_pro) ? 'upgrade' : 'already-installed')
 
         ?>
-        <div class="ci-project ci-project-BackupMigration <?php echo 'ci-'.$bmi_state.'-state-visible'; ?>">
+        <div class="ci-project ci-project-BackupMigration <?php echo esc_attr('ci-'.$bmi_state.'-state-visible'); ?>">
           <?php
 
             if (!$bmi_free || (!$bmi_free && $bmi_pro)) {
@@ -55,7 +55,7 @@
           $mpu_state = $mpu_plugin ? 'already-installed' : 'install';
 
         ?>
-        <div class="ci-project ci-project-MyPopups <?php echo 'ci-'.$mpu_state.'-state-visible'; ?>">
+        <div class="ci-project ci-project-MyPopups <?php echo esc_attr('ci-'.$mpu_state.'-state-visible'); ?>">
           <?php
 
             if ($mpu_plugin) {
@@ -77,7 +77,7 @@
           $cdp_state = (!$cdp_free || (!$cdp_free && $cdp_pro)) ? 'install' : (($cdp_free && !$cdp_pro) ? 'upgrade' : 'already-installed');
 
         ?>
-        <div class="ci-project ci-project-CopyDeletePosts <?php echo 'ci-'.$cdp_state.'-state-visible'; ?>">
+        <div class="ci-project ci-project-CopyDeletePosts <?php echo esc_attr('ci-'.$cdp_state.'-state-visible'); ?>">
           <?php
 
             if (!$cdp_free || (!$cdp_free && $cdp_pro)) {
@@ -100,7 +100,7 @@
           $redi_state = $redi_plugin ? 'already-installed' : 'install';
 
         ?>
-        <div class="ci-project ci-project-redRed ci-<?php echo $redi_state; ?>-state-visible">
+        <div class="ci-project ci-project-redRed ci-<?php echo esc_attr($redi_state); ?>-state-visible">
           <?php
             if ($redi_state == 'install') {
               $this->_include('projects/red/install');
@@ -124,7 +124,7 @@
           $usm_state = (!$usm_free || (!$usm_free && $usm_pro)) ? 'install' : (($usm_free && !$usm_pro) ? 'upgrade' : 'already-installed');
 
         ?>
-        <div class="ci-project ci-project-SocialShare <?php echo 'ci-'.$usm_state.'-state-visible'; ?>">
+        <div class="ci-project ci-project-SocialShare <?php echo esc_attr('ci-'.$usm_state.'-state-visible'); ?>">
           <?php
 
             if (!$usm_free || (!$usm_free && $usm_pro)) {

@@ -28,11 +28,11 @@
     <div class="bmi-modal-content">
 
       <div class="mm60 f26 bold black center mbl mt lh28">
-        <?php _e('We received the debug infos!'); ?><br>
+        <?php esc_html_e('We received the debug infos!', 'backup-backup'); ?><br>
       </div>
 
       <div class="mm60 mbll f18 medium">
-        <?php _e('Your debug code:'); ?>
+        <?php esc_html_e('Your debug code:', 'backup-backup'); ?>
       </div>
 
       <div class="mm60 mbl">
@@ -41,8 +41,8 @@
           <div class="mm60 right-align" style="position: absolute; top: 5px; right: -50px;">
             <a href="#" class="btn inline btn-with-img btn-img-low-pad btn-pad bmi-copper" data-copy="bmi-support-code-generated">
               <div class="text">
-                <img src="<?php echo $this->get_asset('images', 'copy-icon.png'); ?>" alt="copy-img">
-                <div class="f18 semibold"><?php _e('Copy', 'backup-backup') ?></div>
+                <img src="<?php echo esc_url( $this->get_asset('images', 'copy-icon.png') ); ?>" alt="copy-img">
+                <div class="f18 semibold"><?php esc_html_e('Copy', 'backup-backup') ?></div>
               </div>
             </a>
           </div>
@@ -51,27 +51,27 @@
 
       <?php if (!defined('BMI_BACKUP_PRO')): ?>
       <div class="mm60 f18 mbl">
-        <?php echo $bmiSupportMessage; ?><br /><br />
-        <?php echo $bmiSupportMessage3; ?><br />
-        <?php echo $bmiSupportMessage4; ?>
+        <?php echo wp_kses_post( $bmiSupportMessage ); ?><br /><br />
+        <?php echo wp_kses_post( $bmiSupportMessage3 ); ?><br />
+        <?php echo wp_kses_post( $bmiSupportMessage4 ); ?>
 
         <div class="center mbll mtl">
           <a class="btn inline semibold mm60 f16" href="https://wordpress.org/support/plugin/backup-backup/" target="_blank">
-            <?php _e('Go to Support Forum', 'backup-backup') ?>
+            <?php esc_html_e('Go to Support Forum', 'backup-backup') ?>
           </a>
         </div>
-        <div class="center f16 tooltip-html info-cursor" tooltip="<?php _e("Your account on Wordpress.org (where you open a new support thread) is different to the one you login to your WordPress dashboard (where you are now). If you don't have a WordPress.org account yet, please sign up at the top right on here. It only takes a minute :) Thank you!", 'backup-backup') ?>">
-          <?php _e('Trouble logging in there?', 'backup-backup') ?>
+        <div class="center f16 tooltip-html info-cursor" tooltip="<?php esc_attr_e("Your account on Wordpress.org (where you open a new support thread) is different to the one you login to your WordPress dashboard (where you are now). If you don't have a WordPress.org account yet, please sign up at the top right on here. It only takes a minute :) Thank you!", 'backup-backup') ?>">
+          <?php esc_html_e('Trouble logging in there?', 'backup-backup') ?>
         </div>
       </div>
       <?php else: ?>
       <div class="mm60 mb f18 lh28">
-        <?php echo $bmiSupportMessage2; ?>
+        <?php echo wp_kses_post( $bmiSupportMessage2 ); ?>
       </div>
       <?php endif; ?>
 
       <div class="mm60 f18 center mb">
-        <a href="#" class="bmi-modal-closer text-muted" data-close="after-logs-sent-modal"><?php _e('Close window', 'backup-backup') ?></a>
+        <a href="#" class="bmi-modal-closer text-muted" data-close="after-logs-sent-modal"><?php esc_html_e('Close window', 'backup-backup') ?></a>
       </div>
 
     </div>

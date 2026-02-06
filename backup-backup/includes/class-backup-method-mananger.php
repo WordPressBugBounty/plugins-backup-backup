@@ -9,6 +9,8 @@ use BMI\Plugin\Checker\System_Info as SI;
 
 require_once BMI_INCLUDES . DIRECTORY_SEPARATOR . 'traits' . DIRECTORY_SEPARATOR . 'logger-trait.php';
 
+if ( ! defined( 'ABSPATH' ) ) exit;
+
 
 /**
  * Class BMI_BackupMethodManager

@@ -16,20 +16,20 @@
   <div class="error-header">
     <div class="cf">
       <div class="left">
-        <?php _e('We have some notices regarding most recent before update backup.', 'backup-backup'); ?>
+        <?php esc_html_e('We have some notices regarding most recent before update backup.', 'backup-backup'); ?>
       </div>
       <div class="right hoverable">
-        <span class="bmi-error-toggle" data-expand="<?php _e('Expand', 'backup-backup'); ?>" data-collapse="<?php _e('Collapse', 'backup-backup'); ?>">
-          <?php _e('Expand', 'backup-backup'); ?>
+        <span class="bmi-error-toggle" data-expand="<?php esc_attr_e('Expand', 'backup-backup'); ?>" data-collapse="<?php esc_attr_e('Collapse', 'backup-backup'); ?>">
+          <?php esc_html_e('Expand', 'backup-backup'); ?>
         </span> |
         <span id="bmi-error-dismiss">
-          <?php _e('Dismiss', 'backup-backup'); ?>
+          <?php esc_html_e('Dismiss', 'backup-backup'); ?>
         </span>
       </div>
     </div>
   </div>
   <div class="error-body">
-  <?php echo $beforeUpdateIssue; ?>
+  <?php echo wp_kses_post($beforeUpdateIssue); ?>
   </div>
 </div>
 

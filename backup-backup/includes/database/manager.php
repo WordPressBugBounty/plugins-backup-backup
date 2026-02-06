@@ -84,14 +84,14 @@ class BMI_Database {
 
   public function saveDatabaseFields(&$mysqli, $table, &$file, $limit = '') {
 
-    $result	= $mysqli->query('SELECT * FROM `'.$table.'` ' . $limit);
+    $result	= $mysqli->query('SELECT * FROM ' . BMP::escapeSQLIDentifier($table) . ' ' . $limit);
     $fields_amount = $result->field_count;
     $rows_num = $mysqli->affected_rows;
     for ($i = 0, $st_counter = 0; $i < $fields_amount; $i++, $st_counter = 0) {
       while ($row = $result->fetch_row())	{
 
         if ($st_counter % 100 == 0 || $st_counter == 0) {
-          fwrite($file, "\nINSERT INTO `" . $table . "` VALUES");
+          fwrite($file, "\nINSERT INTO " . BMP::escapeSQLIDentifier($table) . " VALUES");
         }
 
         fwrite($file, "\n(");

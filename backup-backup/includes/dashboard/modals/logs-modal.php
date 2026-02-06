@@ -29,13 +29,13 @@
         </div>
         <div class="f16 align-right">
           <a href="#" class="nlink hoverable download-log-url uncensored" download=""> 
-            <?php _e('Download logs', 'backup-backup') ?>
+            <?php esc_html_e('Download logs', 'backup-backup') ?>
           </a>
         </div>
         <div class="log-wrapper">
           <pre></pre>
           <div class="f14 semibold">
-              <?php echo $downloadLogNote ?>
+              <?php echo wp_kses_post( $downloadLogNote ); ?>
           </div>
         </div>
 

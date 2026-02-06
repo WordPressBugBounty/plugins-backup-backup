@@ -13,6 +13,7 @@ namespace BMI\Plugin\Database;
 use BMI\Plugin\BMI_Logger AS Logger;
 use BMI\Plugin\Progress\BMI_ZipProgress AS Progress;
 use BMI\Plugin\Dashboard AS Dashboard;
+use BMI\Plugin\Backup_Migration_Plugin as BMP;
 
 // Exit on direct access
 if (!defined('ABSPATH')) exit;
@@ -164,11 +165,13 @@ class BMI_Database_Exporter {
           continue;
         }
 
-        $query = "SELECT table_name AS `table`, round(((data_length + index_length) / 1024 / 1024), 2) AS `size`, ";
-        $query .= "(SELECT COUNT(*) FROM `$table_name`) AS `rows`";
-        $query .= "FROM information_schema.TABLES ";
-        $query .= "WHERE table_schema = %s AND table_name = %s";
-        $results = $this->wpdb->get_results($this->wpdb->prepare($query, DB_NAME, $table_name));
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Identifier is safely escaped via escapeSQLIDentifier()
+        $results = $this->wpdb->get_results($this->wpdb->prepare("
+          SELECT table_name AS `table`, round(((data_length + index_length) / 1024 / 1024), 2) AS `size`,
+          (SELECT COUNT(*) FROM " . BMP::escapeSQLIDentifier($table_name) . ") AS `rows`
+          FROM information_schema.TABLES
+          WHERE table_schema = %s AND table_name = %s;
+        ", DB_NAME, $table_name));
 
         if (!is_object($results[0])) {
           $this->logger->log("Could not get info about: $table_name (#01)", 'INFO');
@@ -206,15 +209,15 @@ class BMI_Database_Exporter {
 
     foreach ($this->tables_by_size as $table_name => $table_object) {
 
-      $query = "SHOW CREATE TABLE $table_name";
-      $result = $this->wpdb->get_results($query);
+      // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Identifier is safely escaped via escapeSQLIDentifier()
+      $result = $this->wpdb->get_results("SHOW CREATE TABLE " . BMP::escapeSQLIDentifier($table_name) . ";");
       foreach ($result as $index => $result_object) {
         foreach ($result_object as $column_name => $column_value) {
 
           if ($column_value == $table_name) continue;
           else {
 
-            $column_value = str_replace("`" . $table_name . "`", "`" . $this->table_prefix . '_' . $table_name . "`", $column_value);
+            $column_value = str_replace(BMP::escapeSQLIDentifier($table_name), BMP::escapeSQLIDentifier( $this->table_prefix . '_' . $table_name), $column_value);
 
             $recipe = 'CREATE TABLE IF NOT EXISTS ';
             $recipe .= substr($column_value, 13);
@@ -302,8 +305,8 @@ class BMI_Database_Exporter {
 
       for ($i = 0; $i < $rows; $i += $this->max_rows) {
 
-        $query = $this->wpdb->prepare("SELECT * FROM `$table_name` LIMIT %d, $this->max_rows", $i);
-        $result = $this->wpdb->get_results($query);
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Identifier is safely escaped via escapeSQLIDentifier()
+        $result = $this->wpdb->get_results($this->wpdb->prepare("SELECT * FROM " . BMP::escapeSQLIDentifier($table_name) . " LIMIT %d, %d", $i, $this->max_rows));
 
         $this->save_data($result, $table_name);
         unset($result);
@@ -333,7 +336,7 @@ class BMI_Database_Exporter {
 
     $this->total_queries++;
     $query = "/* QUERY START */\n";
-    $query .= "INSERT INTO `" . $this->table_prefix . "_" . $table_name . "` ";
+    $query .= "INSERT INTO " . BMP::escapeSQLIDentifier($this->table_prefix . "_" . $table_name) . " ";
 
     foreach ($result as $index => $result_object) {
 
@@ -344,7 +347,7 @@ class BMI_Database_Exporter {
       foreach ($result_object as $column_name => $value) {
 
         $data_in_order[] = $value;
-        $columns_in_order[] = "`$column_name`";
+        $columns_in_order[] = BMP::escapeSQLIDentifier($column_name);
 
         if (is_numeric($value)) {
 

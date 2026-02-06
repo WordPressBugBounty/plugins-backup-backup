@@ -12,7 +12,7 @@
   /**
    * Main File Backup Includable Logs
    */
-  class BMI_ZipProgress {
+  class BMI_ZipProgress_Logger {
 
     public $latest;
     public $progress;
@@ -37,7 +37,7 @@
 
     public function progress($progress = '0') {
 
-      $this->progress = fopen($this->latest_progress, 'w') or die(__("Unable to open file!", 'backup-backup'));
+      $this->progress = fopen($this->latest_progress, 'w') or die(esc_html__("Unable to open file!", 'backup-backup'));
       fwrite($this->progress, $progress);
       fclose($this->progress);
 
@@ -55,7 +55,7 @@
         }
           @fwrite($this->file, $log_string);
           if (defined('BMI_USING_CLI_FUNCTIONALITY') && BMI_USING_CLI_FUNCTIONALITY === true) {
-            echo $log_string;
+            echo esc_html( $log_string );
           }
         }
         @fclose($this->file);

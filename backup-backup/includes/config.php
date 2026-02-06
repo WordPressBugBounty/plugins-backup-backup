@@ -128,12 +128,12 @@
 
         if (bmi_get_config($setting) == 'true' || bmi_get_config($setting) === true) {
           echo ' checked';
-        } else return false;
+        } else return '';
 
       } else {
 
         if (bmi_get_config($setting) == 'true' || bmi_get_config($setting) === true) {
-          return false;
+          return '';
         } else {
           echo ' checked';
         }
@@ -148,7 +148,7 @@
 
       $res = bmi_get_config($setting);
       if ($res !== false) {
-        echo ' value="' . sanitize_text_field($res) . '"';
+        echo ' value="' . esc_attr( sanitize_text_field($res) ) . '"';
       } else echo '';
 
     }

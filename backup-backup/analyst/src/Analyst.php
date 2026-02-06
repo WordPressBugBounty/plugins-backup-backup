@@ -1,5 +1,9 @@
 <?php
+
+
 namespace Analyst;
+
+if ( ! defined( 'ABSPATH' ) ) exit;
 
 use Account\Account;
 use Account\AccountDataFactory;

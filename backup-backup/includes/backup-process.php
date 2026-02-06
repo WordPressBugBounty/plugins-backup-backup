@@ -5,7 +5,7 @@
 
   // Usage
   use BMI\Plugin\BMI_Logger AS Logger;
-  use BMI\Plugin\Progress\BMI_ZipProgress AS Output;
+  use BMI\Plugin\Progress\BMI_ZipProgress_Logger AS Output;
   use BMI\Plugin\Checker\System_Info as SI;
   use BMI\Plugin\Dashboard as Dashboard;
   use BMI\Plugin\Database\BMI_Database as Database;
@@ -61,7 +61,6 @@
     public $dbitJustFinished;
     public $lock_cli;
     public $startOfBatch;
-    public $beatSent = false;
     public $errorSent = false;
     public $statusSent = false;
     public $backupSize = 0;
@@ -69,7 +68,6 @@
     public $_zip;
     public $_lib;
     public $batches_left;
-    public $shutdownAlreadyInited = false;
     public $res = [ 'status' => 'success', 'default' => true ];
 
     // Prepare the request details
@@ -113,7 +111,7 @@
       if ($curl) {
         // Here we could use nonces, but well, WordPress can't handle nonces in such scenario due to the way its generated
         // We still use "nonce" here to bypass some security plugins as they may block the URL if the nonce string does not exist in such URL
-        $this->url = get_home_url(null, sprintf('/?backup-migration=CURL_BACKUP&backup-id=%s&_wpnonce=%s&t=%s&sk=%s', $this->identy, 'Wn19dnWuq', time(), Dashboard\bmi_get_config('REQUEST:SECRET')));
+        $this->url = get_home_url(null, sprintf('/?backup-migration=CURL_BACKUP&bmi-id=%s&_wpnonce=%s&t=%s&sk=%s', $this->identy, 'Wn19dnWuq', time(), Dashboard\bmi_get_config('REQUEST:SECRET')));
       } else {
         $this->url = null;
       }
@@ -255,11 +253,32 @@
     // Create new process
     public function send_beat($manual = false, &$logger = null) {
       
-      if ($this->beatSent) return;
-      $this->beatSent = true;
+      $globalLockFile = BMI_TMP . DIRECTORY_SEPARATOR . '.beat_lock_' . $this->identy;
+      $maxLockAge = 10;
       
       if (is_null($logger)) $this->load_logger();
       else if ($logger instanceof Output) $this->output = $logger;
+      
+      if (file_exists($globalLockFile)) {
+        $lockAge = time() - filemtime($globalLockFile);
+        if ($lockAge < $maxLockAge) {
+          sleep($maxLockAge - $lockAge + 1);
+          @unlink($globalLockFile);
+        } else {
+          @unlink($globalLockFile);
+        }
+      }
+      
+      $fp = fopen($globalLockFile, 'c');
+      if (!$fp) {
+        $this->output->log('Could not open lock file for writing, skipping this beat.', 'WARN');
+        return;
+      }
+      if (!flock($fp, LOCK_EX | LOCK_NB)) {
+        $this->output->log('Another process is already running, skipping this beat.', 'WARN');
+        fclose($fp);
+        return;
+      }
       
       try {
 
@@ -288,9 +307,16 @@
 
         $r = curl_exec($c);
 
+        $statusCode = curl_getinfo($c, CURLINFO_HTTP_CODE);
+        if ($statusCode > 299) {
+          Logger::error(print_r(curl_getinfo($c), true));
+          $this->output->log('Response: ' . $r, 'ERROR');
+          $this->send_error('There was something wrong with the request, the response code was: ' . $statusCode, true);
+        }
+
         if ($manual === true && $logger !== null) {
           if ($r === false) {
-            if (intval(curl_errno($c)) !== 28) {
+            if (intval(curl_errno($c)) === CURLE_OPERATION_TIMEDOUT || $statusCode === 429) {
               Logger::error(print_r(curl_getinfo($c), true));
               Logger::error(curl_errno($c) . ': ' . curl_error($c));
               $this->output->log('There was something wrong with the request:', 'WARN');
@@ -316,6 +342,10 @@
         $this->output->log($e->getMessage(), 'ERROR');
         if (isset($this->output)) $this->output->end();
 
+      } finally {
+        flock($fp, LOCK_UN);
+        fclose($fp);
+        @unlink($globalLockFile);
       }
 
     }
@@ -1006,9 +1036,6 @@
 
     // Shutdown callback
     public function shutdown() {
-      
-      if ($this->shutdownAlreadyInited) return;
-      $this->shutdownAlreadyInited = true;
 
       // Check if there was any error
       $err = error_get_last();
@@ -1324,8 +1351,5 @@
 
     }
     
-    public function __destruct() {
-      $this->shutdown();
-    }
 
   }

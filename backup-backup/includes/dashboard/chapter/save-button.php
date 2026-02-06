@@ -9,10 +9,10 @@
 ?>
 
 <div class="mm mtl mbl lh30">
-  <a href="#" class="btn save-btn"><?php _e("Save", 'backup-backup'); ?></a>
+  <a href="#" class="btn save-btn"><?php esc_html_e("Save", 'backup-backup'); ?></a>
 </div>
 
 <div class="mm center f20 mb">
-  <a href="#" class="text-muted close-chapters nodec"><?php _e("Collapse this chapter", 'backup-backup'); ?></a>
+  <a href="#" class="text-muted close-chapters nodec"><?php esc_html_e("Collapse this chapter", 'backup-backup'); ?></a>
 </div>
 <div class="mbll"></div>

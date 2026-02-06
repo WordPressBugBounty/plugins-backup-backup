@@ -1,5 +1,7 @@
 <?php
 
+if ( ! defined( 'ABSPATH' ) ) exit;
+
 require_once __DIR__ . '/src/helpers.php';
 
 require_once __DIR__ . '/src/Contracts/HttpClientContract.php';

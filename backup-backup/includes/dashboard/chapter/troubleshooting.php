@@ -26,13 +26,21 @@
   if (defined('BMI_BACKUP_PRO') && BMI_BACKUP_PRO == 1) {
     $pros = true;
   }
+  $allowed_html = [
+  'a' => [
+    'href'     => true,
+    'class'    => true,
+    'download' => true,
+  ],
+  'br' => true,
+];
 
 ?>
 
 <div class="mm mt mb f20 lh40">
 
   <div class="mbl">
-    <?php _e("If something doesn't work, you have several options - pick one:", 'backup-backup'); ?>
+    <?php esc_html_e("If something doesn't work, you have several options - pick one:", 'backup-backup'); ?>
   </div>
 
   <table class="center-table trouble-section">
@@ -43,32 +51,32 @@
           <div class="shadow">
             <div class="flex flexcenter mtl mtb">
               <div style="width: 66px; height: 63px;">
-                <svg style="width: 66px; height: 63px;"><use xlink:href="<?php echo $this->get_asset('images', 'support-1.svg'); ?>#img"></use></svg>
+                <svg style="width: 66px; height: 63px;"><use xlink:href="<?php echo esc_url($this->get_asset('images', 'support-1.svg')); ?>#img"></use></svg>
               </div>
               <div class="semibold">
-                <?php _e("Ask us in the Support forum", 'backup-backup'); ?>
+                <?php esc_html_e("Ask us in the Support forum", 'backup-backup'); ?>
               </div>
             </div>
             <div class="f16">
-              <?php _e("This is your first port of call. We'll try to respond quickly!", 'backup-backup'); ?>
+              <?php esc_html_e("This is your first port of call. We'll try to respond quickly!", 'backup-backup'); ?>
             </div>
           </div>
         </a>
       </td>
       <?php if (!$pros): ?>
       <td style="width: 33%">
-        <a href="<?php echo BMI_AUTHOR_URI; ?>" target="_blank" class="nodec">
+        <a href="<?php echo esc_url(BMI_AUTHOR_URI ); ?>" target="_blank" class="nodec">
           <div class="shadow">
             <div class="flex flexcenter mtl mtb">
               <div style="width: 69px; height: 63px;">
-                <svg style="width: 69px; height: 63px; margin-top: 10px;"><use xlink:href="<?php echo $this->get_asset('images', 'support-2.svg'); ?>#img"></use></svg>
+                <svg style="width: 69px; height: 63px; margin-top: 10px;"><use xlink:href="<?php echo esc_url($this->get_asset('images', 'support-2.svg')); ?>#img"></use></svg>
               </div>
               <div class="semibold">
-                <?php _e("Get the Premium Plugin", 'backup-backup'); ?>
+                <?php esc_html_e("Get the Premium Plugin", 'backup-backup'); ?>
               </div>
             </div>
             <div class="f16">
-              <?php _e("...which includes support, so we can help you in more detail if you get stuck.", 'backup-backup'); ?>
+              <?php esc_html_e("...which includes support, so we can help you in more detail if you get stuck.", 'backup-backup'); ?>
             </div>
           </div>
         </a>
@@ -78,21 +86,21 @@
         <div class="shadow" id="open_trouble_extenstion">
           <div class="flex flexcenter mtl mtb">
             <div style="width: 70px; height: 63px;">
-              <svg style="width: 70px; height: 63px;"><use xlink:href="<?php echo $this->get_asset('images', 'support-3.svg'); ?>#img"></use></svg>
+              <svg style="width: 70px; height: 63px;"><use xlink:href="<?php echo esc_url($this->get_asset('images', 'support-3.svg')); ?>#img"></use></svg>
             </div>
             <div class="semibold">
-              <?php _e("Check advanced options", 'backup-backup'); ?>
+              <?php esc_html_e("Check advanced options", 'backup-backup'); ?>
             </div>
           </div>
           <div class="f16">
-            <?php _e("...in an effort to fix it yourself. Be sure you know what you are doing!", 'backup-backup'); ?>
+            <?php esc_html_e("...in an effort to fix it yourself. Be sure you know what you are doing!", 'backup-backup'); ?>
           </div>
         </div>
       </td>
     </tr>
     <tr>
       <td class="mtlll">
-        <span class="tooltip hoverable info-cursor f18" tooltip="<?php echo $ctl; ?>"><?php _e("Cannot log in there?", 'backup-backup'); ?></span>
+        <span class="tooltip hoverable info-cursor f18" tooltip="<?php echo esc_attr($ctl); ?>"><?php esc_html_e("Cannot log in there?", 'backup-backup'); ?></span>
       </td>
       <td></td>
       <td></td>
@@ -106,26 +114,26 @@
 
   <div class="mm">
     <div class="f26 semibold mb">
-      <?php _e("Troubleshooting settings", 'backup-backup'); ?>
+      <?php esc_html_e("Troubleshooting settings", 'backup-backup'); ?>
     </div>
   </div>
 
   <div class="mm bmi-troubleshooting-btn-mm">
 
     <div class="f20 semibold">
-      <?php _e("Send troubleshooting data", 'backup-backup'); ?>
+      <?php esc_html_e("Send troubleshooting data", 'backup-backup'); ?>
     </div>
 
     <div class="f16 mtll mbll bmi-troubleshooting-btn-section">
       <div class="bmi-troubleshooting-btn-text">
-        <?php _e("Send us the debug information of your latest failed backup or restore, so that we can investigate.", 'backup-backup'); ?>
+        <?php esc_html_e("Send us the debug information of your latest failed backup or restore, so that we can investigate.", 'backup-backup'); ?>
       </div>
       <div class="bmi-inline">
-        <a href="#" class="btn bmi-send-troubleshooting-logs bmi-troubleshooting-btn mm30"><?php _e("Share debug info with the BackupBliss team.", 'backup-backup'); ?></a>
+        <a href="#" class="btn bmi-send-troubleshooting-logs bmi-troubleshooting-btn mm30"><?php esc_html_e("Share debug info with the BackupBliss team.", 'backup-backup'); ?></a>
       </div>
       <div class="bmi-troubleshooting-info-logs">
-        <?php echo $bmiTroubleshootingLogShareInfo; ?><br>
-        <?php echo $bmiTroubleshootingLogShareInfo2; ?>
+        <?php echo wp_kses($bmiTroubleshootingLogShareInfo, $allowed_html); ?><br>
+        <?php echo wp_kses($bmiTroubleshootingLogShareInfo2, $allowed_html); ?>
       </div>
     </div>
 
@@ -133,10 +141,10 @@
 
   <div class="mm">
     <div class="f20 semibold">
-      <?php _e("Site information", 'backup-backup'); ?>
+      <?php esc_html_e("Site information", 'backup-backup'); ?>
     </div>
     <div class="f16 mtll mbll">
-      <?php _e("Here is some information about your site, which may help debug if there is an issue:", 'backup-backup'); ?>
+      <?php esc_html_e("Here is some information about your site, which may help debug if there is an issue:", 'backup-backup'); ?>
     </div>
   </div>
 
@@ -152,25 +160,25 @@
           foreach ($info as $key => $value) {
             $i++; ?>
             <tr class="<?php echo(($i <= 7)?'ignored-tr':'hide-show-tr'); ?>">
-              <th align="left"><?php echo ucwords(str_replace('_', ' ', $key)); ?></th>
+              <th align="left"><?php echo esc_html(ucwords(str_replace('_', ' ', $key))); ?></th>
               <td><?php
 
                 if (is_object($value)) {
-                  echo $value->format('Y-m-d H:i:s.u');
+                  echo esc_html($value->format('Y-m-d H:i:s.u'));
                 } elseif (is_array($value)) {
                   if (sizeof($value) === 0) {
                     echo '---';
                   } else {
                     if ($key == 'wp_active_themes_info') {
-                      echo $value[0]['name'] . '@' . $value[0]['version'];
+                      echo esc_html($value[0]['name']) . '@' . esc_html($value[0]['version']);
                     } elseif ($key == 'wp_active_plugins_info') {
                       $disp = '';
                       for ($i = 0; $i < sizeof($value); ++$i) {
-                        $disp .= $value[$i]['name'] . '@' . $value[$i]['version'] . ' | ';
+                        $disp .= esc_html($value[$i]['name']) . '@' . esc_html($value[$i]['version']) . ' | ';
                       }
-                      echo rtrim($disp, ' | ');
+                      echo esc_html(rtrim($disp, ' | '));
                     } else {
-                      echo implode(' | ', $value);
+                      echo esc_html(implode(' | ', $value));
                     }
                   }
                 } elseif (is_bool($value)) {
@@ -179,7 +187,7 @@
                   if (!$value || is_null($value) || strlen($value) == '0') {
                     echo '---';
                   } else {
-                    echo $value;
+                    echo esc_html($value);
                   }
                 } ?></td>
             </tr>
@@ -189,8 +197,8 @@
         <tr class="ignored-tr">
           <th style="width: 400px"></th>
           <td align="right">
-            <span class="hoverable secondary" id="switch-show-trs" data-see="<?php _e("See more", 'backup-backup'); ?>" data-hide="<?php _e("Collapse", 'backup-backup'); ?>">
-              <?php _e("See more", 'backup-backup'); ?>
+            <span class="hoverable secondary" id="switch-show-trs" data-see="<?php echo esc_attr__( "See more", 'backup-backup'); ?>" data-hide="<?php echo esc_attr__( "Collapse", 'backup-backup'); ?>">
+              <?php esc_html_e("See more", 'backup-backup'); ?>
             </span>
           </td>
         </tr>
@@ -199,77 +207,82 @@
   </div>
 
   <div class="mm mtll f16">
-    <a href="#" class="nodec secondary hoverable" id="download-site-infos"><?php _e("Download your site info", 'backup-backup'); ?></a> <?php _e("(e.g., for easy sharing with us, so that we can debug)", 'backup-backup'); ?>
+    <a href="#" class="nodec secondary hoverable" id="download-site-infos"><?php esc_html_e("Download your site info", 'backup-backup'); ?></a> <?php esc_html_e("(e.g., for easy sharing with us, so that we can debug)", 'backup-backup'); ?>
   </div>
 
   <div class="mm mtl semibold">
-    <?php _e("Logging", 'backup-backup'); ?>
+    <?php esc_html_e("Logging", 'backup-backup'); ?>
   </div>
 
   <div class="mm mtll f16 lh28">
-    <?php _e("All backup creation and restore processes are documented in log files, which can be used to debug issues.", 'backup-backup'); ?>
-    <a href="<?php echo get_site_url(); ?>/?backup-migration=PROGRESS_LOGS&progress-id=complete_logs.log&backup-id=current&t=<?php echo time(); ?> &sk=<?php echo bmi_get_config('REQUEST:SECRET'); ?>"
+    <?php esc_html_e("All backup creation and restore processes are documented in log files, which can be used to debug issues.", 'backup-backup'); ?>
+    <a href="<?php echo esc_url( get_site_url() . '/?backup-migration=PROGRESS_LOGS&progress-id=complete_logs.log&bmi-id=current&t=' . time() . '&sk=' . bmi_get_config('REQUEST:SECRET') ); ?>"
        download="troubleshooting-logs.txt" class="nodec hoverable secondary">
-       <?php _e("Download logs.", 'backup-backup'); ?>
+       <?php esc_html_e("Download logs.", 'backup-backup'); ?>
     </a>
   </div>
 
   <div class="mm mtl semibold">
-    <?php _e("Backup/restore process issues", 'backup-backup'); ?>
+    <?php esc_html_e("Backup/restore process issues", 'backup-backup'); ?>
   </div>
 
   <div class="mm mtll f16 lh28">
-    <?php _e("If you are sure the backup process is not running but you can't stop it, ", 'backup-backup'); ?>
+    <?php esc_html_e("If you are sure the backup process is not running but you can't stop it, ", 'backup-backup'); ?>
     <a href="#!" id="bmi-force-backup-to-stop" class="nodec hoverable secondary">
-       <?php _e("force the process to stop.", 'backup-backup'); ?>
+       <?php esc_html_e("force the process to stop.", 'backup-backup'); ?>
     </a>
     <br>
-    <?php _e("If you are sure the restore process is not running but you can't stop it, ", 'backup-backup'); ?>
+    <?php esc_html_e("If you are sure the restore process is not running but you can't stop it, ", 'backup-backup'); ?>
     <a href="#!" id="bmi-force-restore-to-stop" class="nodec hoverable secondary">
-       <?php _e("force the restoration to stop.", 'backup-backup'); ?>
+       <?php esc_html_e("force the restoration to stop.", 'backup-backup'); ?>
     </a>
     <br>
-    <span><?php _e('*If the process is still running after being killed, it probably is still running (for real). Wait a bit for it to fail.', 'backup-backup'); ?></span>
+    <span><?php esc_html_e('*If the process is still running after being killed, it probably is still running (for real). Wait a bit for it to fail.', 'backup-backup'); ?></span>
   </div>
 
   <div class="mm mtl semibold">
-    <?php _e("Error: php_uname is disabled for security reasons", 'backup-backup'); ?>
+    <?php esc_html_e("Error: php_uname is disabled for security reasons", 'backup-backup'); ?>
   </div>
 
   <div class="mm mtll f16 lh28">
-    <?php _e("Some hosting providers block the php_uname function, which is required by the pclzip module included in WordPress.", 'backup-backup'); ?><br>
-    <?php _e("You can automatically replace the function with compatible code:", 'backup-backup'); ?>
-    <a href="#" class="nodec secondary hoverable" id="fix-uname-issues"><?php _e("replace the php_uname function in the pclzip file.", 'backup-backup'); ?></a><br>
-    <?php _e("You can also restore the changes with one click if something goes wrong:", 'backup-backup'); ?>
-    <a href="#" class="nodec secondary hoverable" id="revert-uname-issues"><?php _e("restore the original pclzip file (it will work after the first replacement).", 'backup-backup'); ?></a>
+    <?php esc_html_e("Some hosting providers block the php_uname function, which is required by the pclzip module included in WordPress.", 'backup-backup'); ?><br>
+    <?php esc_html_e("You can automatically replace the function with compatible code:", 'backup-backup'); ?>
+    <a href="#" class="nodec secondary hoverable" id="fix-uname-issues"><?php esc_html_e("replace the php_uname function in the pclzip file.", 'backup-backup'); ?></a><br>
+    <?php esc_html_e("You can also restore the changes with one click if something goes wrong:", 'backup-backup'); ?>
+    <a href="#" class="nodec secondary hoverable" id="revert-uname-issues"><?php esc_html_e("restore the original pclzip file (it will work after the first replacement).", 'backup-backup'); ?></a>
   </div>
 
   <div class="mm mtl semibold">
-    <?php _e("Test email", 'backup-backup'); ?>
+    <?php esc_html_e("Test email", 'backup-backup'); ?>
   </div>
 
   <div class="mm mtll f16 lh28">
-    <?php _e("If you want to know if your server is properly configured to send emails, you can test it here.", 'backup-backup'); ?><br>
-    <?php _e("Remember that even if you get a success alert, there may still be some issues.", 'backup-backup'); ?> <?php _e("Check if the email is visible in your mailbox / spam folder.", 'backup-backup'); ?><br>
-    <?php _e("The message will be sent to the email you provided in the ", 'backup-backup'); ?> <a href="#" class="collapser-openner nodec secondary hoverable" data-el="#other-options"><?php _e("other options", 'backup-backup'); ?></a>.<br>
-    <a href="#" id="bmi_send_test_mail" class="nodec hoverable secondary"><?php _e("Click here", 'backup-backup'); ?></a> <?php _e("to send the email.", 'backup-backup'); ?><br>
+    <?php esc_html_e("If you want to know if your server is properly configured to send emails, you can test it here.", 'backup-backup'); ?><br>
+    <?php esc_html_e("Remember that even if you get a success alert, there may still be some issues.", 'backup-backup'); ?> <?php esc_html_e("Check if the email is visible in your mailbox / spam folder.", 'backup-backup'); ?><br>
+    <?php esc_html_e("The message will be sent to the email you provided in the ", 'backup-backup'); ?> <a href="#" class="collapser-openner nodec secondary hoverable" data-el="#other-options"><?php esc_html_e("other options", 'backup-backup'); ?></a>.<br>
+    <a href="#" id="bmi_send_test_mail" class="nodec hoverable secondary"><?php esc_html_e("Click here", 'backup-backup'); ?></a> <?php esc_html_e("to send the email.", 'backup-backup'); ?><br>
   </div>
 
   <div class="mm mtl mbll semibold">
-    <?php _e("Reset configuration", 'backup-backup'); ?>
+    <?php esc_html_e("Reset configuration", 'backup-backup'); ?>
   </div>
 
   <div class="mm mb f16">
-    <?php _e("Please", 'backup-backup'); ?> <a href="#" class="hoverable secondary bmi-modal-opener nodec" data-modal="reset-confirm-modal"><?php _e("click here", 'backup-backup'); ?></a> <?php _e("to reset the plugin configuration.", 'backup-backup'); ?>
+    <?php esc_html_e("Please", 'backup-backup'); ?> <a href="#" class="hoverable secondary bmi-modal-opener nodec" data-modal="reset-confirm-modal"><?php esc_html_e("click here", 'backup-backup'); ?></a> <?php esc_html_e("to reset the plugin configuration.", 'backup-backup'); ?>
   </div>
 
   <div class="mm mb f18">
-    <?php _e("If you're looking for other options not listed above, check out the", 'backup-backup'); ?> <a href="#" class="collapser-openner nodec secondary hoverable" data-el="#other-options"><?php _e("\"Other options\"", 'backup-backup'); ?></a> <?php _e("chapter as they might be there.", 'backup-backup'); ?>
+    <?php esc_html_e("If you're looking for other options not listed above, check out the", 'backup-backup'); ?> <a href="#" class="collapser-openner nodec secondary hoverable" data-el="#other-options"><?php esc_html_e('"Other options"', 'backup-backup'); ?></a> <?php esc_html_e("chapter as they might be there.", 'backup-backup'); ?>
   </div>
 
+  <div class="mm mb f18 lh28">
+    <?php esc_html_e("If your site is having issues with scheduled backups or uploading backups to remote storage, ", 'backup-backup'); ?>
+    <a href="#" class="hoverable secondary nodec" id="resync-with-ping-server"><?php esc_html_e("click here to resync with our ping server.", 'backup-backup'); ?></a><br>
+    <?php esc_html_e("If the issue persists, please contact support.", 'backup-backup'); ?>
+  </div>
 </div>
 
 <div class="mm center f20 mb">
-  <a href="#" class="text-muted close-chapters nodec"><?php _e("Collapse this chapter", 'backup-backup'); ?></a>
+  <a href="#" class="text-muted close-chapters nodec"><?php esc_html_e("Collapse this chapter", 'backup-backup'); ?></a>
 </div>
 <div class="mbll"></div>

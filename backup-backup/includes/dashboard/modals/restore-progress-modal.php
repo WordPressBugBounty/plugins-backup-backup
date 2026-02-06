@@ -13,11 +13,11 @@
   <div class="bmi-modal-wrapper no-hpad" style="max-width: 900px; max-width: min(900px, 80vw)">
     <div class="bmi-modal-content center">
 
-      <div class="mm60 f30 bold black title"><?php _e('Restoration in progress', 'backup-backup') ?></div>
+      <div class="mm60 f30 bold black title"><?php esc_html_e('Restoration in progress', 'backup-backup') ?></div>
 
       <div class="red-error-bg tml">
         <div class="red-warning mtl mbl f18">
-          <?php _e('Do not close this window as long as the restoration process is ongoing', 'backup-backup'); ?>
+          <?php esc_html_e('Do not close this window as long as the restoration process is ongoing', 'backup-backup'); ?>
         </div>
       </div>
 
@@ -32,8 +32,8 @@
 
       <div class="mm60 step-progress cf">
         <div class="left f16 medium">
-          <?php _e('Step: ', 'backup-backup') ?>
-          <span id="restore_current_step"><?php _e('Preparing restore process...', 'backup-backup') ?></span>
+          <?php esc_html_e('Step: ', 'backup-backup') ?>
+          <span id="restore_current_step"><?php esc_html_e('Preparing restore process...', 'backup-backup') ?></span>
         </div>
       </div>
 
@@ -44,9 +44,9 @@
         </div>
 
         <div class="f16 semibold secondary hoverable pointer">
-          <a href="<?php echo get_site_url(); ?>/?backup-migration=PROGRESS_LOGS&progress-id=latest_migration.log&backup-id=current&t=<?php echo time(); ?>&sk=<?php echo bmi_get_config('REQUEST:SECRET'); ?>"
+          <a href="<?php echo esc_url( get_site_url() . '/?backup-migration=PROGRESS_LOGS&progress-id=latest_migration.log&bmi-id=current&t=' . time() . '&sk=' . bmi_get_config('REQUEST:SECRET') ); ?>"
              download="restoration_live_log.txt" class="nlink">
-            <?php _e('Download live log', 'backup-backup') ?>
+            <?php esc_html_e('Download live log', 'backup-backup') ?>
           </a>
         </div>
 

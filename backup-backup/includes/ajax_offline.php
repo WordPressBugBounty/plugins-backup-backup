@@ -10,6 +10,10 @@ use BMI\Plugin\BMI_Pro_Core;
 use BMI\Plugin\BMProAjax as BMProAjax;
 use BMI\Plugin\Scanner\BMI_BackupsScanner as Backups;
 use BMI\Plugin\External\BMI_External_BackupBliss as BackupBliss;
+use BMI\Plugin\External\BMI_External_Dropbox as Dropbox;
+use BMI\Plugin\External\BMI_External_GDrive as GDrive;
+use BMI\Plugin\External\BMI_External_FTP as FTP;
+use BMI\Plugin\External\BMI_External_S3 as S3;
 use BMI\Plugin\Dashboard as Dashboard;
 
 // Exit on direct access
@@ -23,7 +27,19 @@ class BMI_Ajax_Offline
 
   public $post;
   public $backupbliss;
+  public $dropbox;
+  public $gdrive;
+  public $ftp;
+  public $aws;
+  public $wasabi;
   public $proajax;
+
+
+  public $dropboxStatus = false;
+  public $gdriveStatus = false;
+  public $ftpStatus = false;
+  public $awsStatus = false;
+  public $wasabiStatus = false;
   
   public function __construct($post)
   {
@@ -40,7 +56,44 @@ class BMI_Ajax_Offline
       require_once BMI_PRO_INC . 'ajax_offline.php';
       $this->proajax = new BMI_Ajax_Offline_Premium($post);
     }
+
+    $isDropboxEnabled = Dashboard\bmi_get_config('STORAGE::EXTERNAL::DROPBOX');
+    $isGDriveEnabled = Dashboard\bmi_get_config('STORAGE::EXTERNAL::GDRIVE');
+    $isFtpEnabled = Dashboard\bmi_get_config('STORAGE::EXTERNAL::FTP');
+    $isAWSEnabled = Dashboard\bmi_get_config('STORAGE::EXTERNAL::AWS');
+    $isWasabiEnabled = Dashboard\bmi_get_config('STORAGE::EXTERNAL::WASABI');
     
+    $isEnabledDropbox = ($isDropboxEnabled === true || $isDropboxEnabled === 'true') && $this->getDropboxConnectionStatus();
+    $isEnabledGdrive = ($isGDriveEnabled === true || $isGDriveEnabled === 'true') && $this->getGDriveConnectionStatus();
+    $isEnabledFtp = ($isFtpEnabled === true || $isFtpEnabled === 'true') && $this->getFtpConnectionStatus();
+    $isEnabledAWS = ($isAWSEnabled === true || $isAWSEnabled === 'true') && $this->getAWSConnectionStatus();
+    $isEnabledWasabi = ($isWasabiEnabled === true || $isWasabiEnabled === 'true') && $this->getWasabiConnectionStatus();
+
+    if ($isEnabledDropbox) {
+      require_once BMI_INCLUDES . '/external/dropbox.php';
+      $this->dropbox = new Dropbox();
+    }
+
+    if ($isEnabledGdrive) {
+      require_once BMI_INCLUDES . '/external/google-drive.php';
+      $this->gdrive = new GDrive();
+    }
+
+    if ($isEnabledFtp) {
+      require_once BMI_INCLUDES . '/external/ftp.php';
+      $this->ftp = new FTP();
+    }
+
+    if ($isEnabledAWS) {
+      require_once BMI_INCLUDES . '/external/s3.php';
+      $this->aws = new S3('aws');
+    }
+
+    if ($isEnabledWasabi) {
+      require_once BMI_INCLUDES . '/external/s3.php';
+      $this->wasabi = new S3('wasabi');
+    }
+
     require_once BMI_INCLUDES . '/external/backupbliss.php';
     $this->backupbliss = new BackupBliss();
 
@@ -62,14 +115,86 @@ class BMI_Ajax_Offline
     
   }
 
-  public function getBackupBlissConnectionStatus()
-  {
+  public function getWasabiConnectionStatus() {
+    require_once BMI_INCLUDES . '/external/s3.php';
 
-    $res = $this->backupbliss->getSecret();
-    return $res !== false;
-
+    $s3 = new S3('wasabi');
+    $status = $s3->verifyConnection();
+    if (isset($status['result']) && $status['result'] == 'connected') {
+      $this->wasabiStatus = true;
+      return true;
+    } else {
+      return false;
+    }
   }
 
+
+  public function getDropboxConnectionStatus() {
+    require_once BMI_INCLUDES . '/external/dropbox.php';
+
+    $dropbox = new Dropbox();
+    $status = $dropbox->verifyConnection();
+    if (isset($status['result']) && $status['result'] == 'connected') {
+        $this->dropboxStatus = true;
+      return true;
+    } else {
+      return false;
+    }
+  }
+
+  /**
+   * getGDriveConnectionStatus - Returns Connection Status for PHP
+   *
+   * @return boolean true on connected | false on disconnected
+   */
+  public function getGDriveConnectionStatus()
+  {
+    require_once BMI_INCLUDES . '/external/google-drive.php';
+
+    $gdrive = new GDrive();
+    $status = $gdrive->verifyConnection();
+    if (isset($status['result']) && $status['result'] == 'connected') {
+      $this->gdriveStatus = true;
+      return true;
+    } else {
+      return false;
+    }
+  }
+
+  public function getAWSConnectionStatus() {
+    require_once BMI_INCLUDES . '/external/s3.php';
+
+    $s3 = new S3('aws');
+    $status = $s3->verifyConnection();
+    if (isset($status['result']) && $status['result'] == 'connected') {
+      $this->awsStatus = true;
+      return true;
+    } else {
+      return false;
+    }
+  }
+
+  public function getFtpConnectionStatus()
+  {
+    require_once BMI_INCLUDES . '/external/ftp.php';
+
+
+    $ftp = new FTP();
+    $status = $ftp->verifyConnection();
+    if (isset($status['result']) && $status['result'] == 'connected') {
+      $this->ftpStatus = true;
+      return true;
+    } else {
+      return false;
+    }
+  }
+
+
+  public function getBackupBlissConnectionStatus()
+  {
+    $status = $this->backupbliss->verifyConnection();
+    return isset($status['result']) && $status['result'] == 'connected';
+  }
   public function checkForBackupsToUpload() {
     $toBeUploaded = $this->fetchToBeUploaded();
 
@@ -79,6 +204,11 @@ class BMI_Ajax_Offline
     //If there's no task or queue present, then check for backups to upload
     if (sizeof($task) == 0 && sizeof($queue) == 0) {
         $this->backupbliss->checkForBackupsToUpload();
+        if ($this->dropbox && $this->dropboxStatus) $this->dropbox->checkForBackupsToUploadToDropbox();
+        if ($this->gdrive && $this->gdriveStatus) $this->gdrive->checkForBackupsToUpload();
+        if ($this->ftp && $this->ftpStatus) $this->ftp->checkForBackupsToUpload();
+        if ($this->aws && $this->awsStatus) $this->aws->checkForBackupsToUpload();
+        if ($this->wasabi && $this->wasabiStatus) $this->wasabi->checkForBackupsToUpload();
 
         //Check for backups premium
         if ($this->proajax)
@@ -229,11 +359,117 @@ class BMI_Ajax_Offline
           }
         }
 
-        if ($this->backupbliss->getNotice("upload_issue")) {
+        if ($this->backupbliss->getNotice("upload_issue_space")) {
           return false;
         }
 
         break;
+      }
+
+      case "dropbox": {
+        if (!$this->dropbox || !$this->dropboxStatus) return false;
+        if (in_array(get_transient('bmip_dropbox_issue'), ['rate_limit', 'not_enough_memory', 'insufficient_space', 'auth_error_disconnected'])) {
+          $issue = get_transient('bmip_dropbox_issue');
+          switch($issue){
+            case 'auth_error_disconnected':
+              delete_option($this->dropbox->dropboxAuthCodeOption);
+              delete_option($this->dropbox->dropboxId);
+              delete_transient($this->dropbox->dropboxAccessToken);
+              return false;
+            case 'not_enough_memory':
+              if (BMP::getAvailableMemoryInBytes() >= 16 * 1024 * 1024) {
+                delete_transient('bmip_dropbox_issue');
+                return true;
+              }
+              break;
+            case 'insufficient_space':
+              $spaceUsage = $this->dropbox->getSpaceUsage();
+              if ($spaceUsage === false) {
+                return false;
+              }
+      
+              $requiredSpace = get_option('bmip_dropbox_required_space', 0);
+              $requiredSpace = intval($requiredSpace);
+              $availableSpace = $spaceUsage['allocation']['allocated'] - $spaceUsage['used'];
+
+              if ($backupSize != -1 && $availableSpace >= $backupSize)
+                return true; //Allow backup to be uploaded if the backup size is within the storage limit
+              
+          
+              if ($availableSpace >= $requiredSpace) {
+                delete_transient('bmip_dropbox_issue');
+                return true;
+              }
+              break;
+          }
+
+          return false;
+        }
+
+        break;
+      }
+
+      case "gdrive": {
+        if (get_transient('bmip_gd_issue') === 'auth_error_disconnected') {
+          delete_option('bmi_pro_gd_client_id');
+          delete_option('bmi_pro_gd_token');
+          delete_transient('bmi_pro_access_token');
+          return false;
+        }
+        if (!$this->gdrive || !$this->gdriveStatus) return false;
+        if (get_transient('bmip_display_quota_issues')) {
+          $requiredSpace = get_option('bmip_gd_required_space', 0);
+          $gdriveStorage = $this->gdrive->getGoogleDriveAvailableStorage();
+
+          if ($backupSize != -1 && $gdriveStorage >= $backupSize)
+            return true; //Allow backup to be uploaded if the backup size is within the storage limit
+
+          if ($requiredSpace < $gdriveStorage && $requiredSpace != 0) {
+            delete_transient('bmip_display_quota_issues');
+            delete_option('bmip_gd_required_space');
+            delete_option('bmip_to_be_uploaded');
+          } else {
+            return false;
+          }
+        }
+
+        break;
+      }
+
+      case "ftp": {
+        if (!$this->ftp || !$this->ftpStatus) return false;
+
+        break;
+      }
+
+      case "aws": {
+        if (!$this->aws || !$this->awsStatus) return false;
+        $issue = $this->aws->getIssue()['issue'];
+        switch ($issue){
+          case 'rate_limit':
+            return false;
+          case 'disconnected':
+          case 'forbidden':
+            $this->aws->restartUploadProcess();
+            return false;
+          default:
+            return true;
+        }
+      }
+
+      case "wasabi": {
+        if (!$this->wasabi || !$this->wasabiStatus) return false;
+        $issue = $this->wasabi->getIssue()['issue'];
+        switch ($issue){
+          case 'rate_limit':
+            return false;
+          case 'disconnected':
+          case 'forbidden':
+            $this->wasabi->restartUploadProcess();
+            return false;
+          default:
+            return true;
+        }
       }
     }
 
@@ -277,7 +513,10 @@ class BMI_Ajax_Offline
 
   public function getDeactivatedClouds() {
     $deactivatedClouds = [];
+    if (!$this->ftpStatus) $deactivatedClouds[] = "ftp";
     if (!$this->getBackupBlissConnectionStatus()) $deactivatedClouds[] = "backupbliss";
+    if (!$this->dropboxStatus) $deactivatedClouds[] = "dropbox";
+    if (!$this->gdriveStatus) $deactivatedClouds[] = "gdrive";
 
     if ($this->proajax)
       $deactivatedClouds = array_merge($this->proajax->getDeactivatedClouds(), $deactivatedClouds);
@@ -363,7 +602,214 @@ class BMI_Ajax_Offline
           $this->backupbliss->uploadFile($task['uploadSession'], $task['backupPath'], $task['manifestPath'], $task['md5'], $task['batch'], $task['bytesPerRequest']);
           return ['status' => 'success'];
         }
-      } elseif ($this->proajax) {
+      }
+      // Dropbox Process
+      elseif ($type == 'dropbox') {
+
+        $sessionId = isset($task['sessionId']) ? $task['sessionId'] : '';
+        $offset = isset($task['offset']) ? $task['offset'] : 0;
+        $backupName = isset($task['name']) ? $task['name'] : '';
+        $md5 = isset($task['md5']) ? $task['md5'] : '';
+
+        $dropbox = new Dropbox();
+        $result = $dropbox->uploadDropboxBackup($sessionId, $backupName, $offset, $md5);
+        switch ($result['status']) {
+          case 'success':
+            $uploadedBackupStatus = get_option('bmi_uploaded_backups_status', []);
+            if (!isset($uploadedBackupStatus[$md5])) {
+              $uploadedBackupStatus[$md5] = [];
+            }
+            $uploadedBackupStatus[$md5]['dropbox'] = true;
+            update_option('bmi_uploaded_backups_status', $uploadedBackupStatus);
+            $toBeUploaded['current_upload'] = [];
+            if (isset($toBeUploaded['failed']) && isset($toBeUploaded['failed'][$taskname])) unset($toBeUploaded['failed'][$taskname]);
+            break;
+          case 'error':
+            Logger::error('[BMI PRO] Could not upload ' . $backupName . ' to Dropbox as an error occurred: ' . $result['error']);
+
+            if ($result['error'] == 'internal_file_not_found') {
+              return $this->dropbox->restartUploadprocess();
+            }
+
+            if (!isset($toBeUploaded['failed'])) $toBeUploaded['failed'] = [];
+            if (isset($toBeUploaded['failed'][$taskname])) $toBeUploaded['failed'][$taskname]++;
+            else $toBeUploaded['failed'][$taskname] = 1;
+            break;
+          case 'continue':
+            $offset = isset($result['offset']) ? $result['offset'] : 0;
+            $sessionId = isset($result['sessionId']) ? $result['sessionId'] : '';
+            if ($offset != 0 ) $toBeUploaded['current_upload']['offset'] = $offset;
+            if ($sessionId != '') $toBeUploaded['current_upload']['sessionId'] = $sessionId;
+            $fileSize = filesize(BMI_BACKUPS . DIRECTORY_SEPARATOR . $backupName);
+            $toBeUploaded['current_upload']['progress'] = round(($offset / $fileSize) * 100) . '%';
+
+            // remove from failed
+            if (isset($toBeUploaded['failed']) && isset($toBeUploaded['failed'][$taskname])) unset($toBeUploaded['failed'][$taskname]);
+            break;
+        }
+
+        delete_transient("bmip_upload_ongoing");
+        update_option('bmip_to_be_uploaded', $toBeUploaded);
+        return ['status' => 'success'];
+      }
+      // Google Drive Process
+      elseif ($type == 'gdrive') {
+
+        if (!isset($task['uploadURL'])) {
+
+          $backupPath = BMI_BACKUPS . DIRECTORY_SEPARATOR . $task['name'];
+          $manifestPath = BMI_BACKUPS . DIRECTORY_SEPARATOR . $task['json'];
+          $uploadURL = $this->gdrive->createUploadGoogleDriveURL($backupPath, $manifestPath);
+
+          $availableMemory = BMP::getAvailableMemoryInBytes();
+          $bytesPerRequest = intval($availableMemory / 4);
+
+          $toBeUploaded['current_upload']['bytesPerRequest'] = $bytesPerRequest;
+          $toBeUploaded['current_upload']['uploadURL'] = $uploadURL['uploadURL'];
+          $toBeUploaded['current_upload']['manifestPath'] = $manifestPath;
+          $toBeUploaded['current_upload']['backupPath'] = $backupPath;
+          $toBeUploaded['current_upload']['batch'] = 1;
+
+          update_option('bmip_to_be_uploaded', $toBeUploaded);
+
+          if (!file_exists($backupPath)) delete_option('bmip_to_be_uploaded');
+          return ['status' => 'success'];
+        } else {
+
+          if (!file_exists($task['backupPath'])) {
+            delete_option('bmip_to_be_uploaded');
+            return ['status' => 'success'];
+          }
+
+          $this->gdrive->uploadGoogleDriveFile($task['uploadURL'], $task['backupPath'], $task['manifestPath'], $task['md5'], $task['batch'], $task['bytesPerRequest']);
+          return ['status' => 'success'];
+        }
+      }
+      // FTP Process
+      elseif ($type == 'ftp') {
+
+        if (!isset($task['uploadURL'])) {
+          $backupPath = BMI_BACKUPS . DIRECTORY_SEPARATOR . $task['name'];
+          $manifestPath = BMI_BACKUPS . DIRECTORY_SEPARATOR . $task['json'];
+          $availableMemory = BMP::getAvailableMemoryInBytes();
+
+          $bytesPerRequest = intval($availableMemory / 4);
+          $toBeUploaded['current_upload']['bytesPerRequest'] = $bytesPerRequest;
+          $toBeUploaded['current_upload']['uploadURL'] = get_option('bmi_pro_ftp_host');
+          $toBeUploaded['current_upload']['manifestPath'] = $manifestPath;
+          $toBeUploaded['current_upload']['backupPath'] = $backupPath;
+          $toBeUploaded['current_upload']['batch'] = 1;
+
+          update_option('bmip_to_be_uploaded', $toBeUploaded);
+
+          if (!file_exists($backupPath)) delete_option('bmip_to_be_uploaded');
+          return ['status' => 'success'];
+        } else {
+
+          if (!file_exists($task['backupPath'])) {
+            delete_option('bmip_to_be_uploaded');
+            return ['status' => 'success'];
+          }
+          $this->ftp->uploadFtpDriveFiles($task['uploadURL'], $task['backupPath'], $task['manifestPath'], $task['md5'], $task['batch'], $task['bytesPerRequest']);
+          return ['status' => 'success'];
+        }
+
+      }
+      // AWS
+      elseif ($type == 'aws') {
+
+        $uploadId = isset($task['uploadId']) ? $task['uploadId'] : '';
+        $offset = isset($task['offset']) ? $task['offset'] : 0;
+        $backupName = isset($task['name']) ? $task['name'] : '';
+        $md5 = isset($task['md5']) ? $task['md5'] : '';
+
+        $s3 = new S3('aws');
+        
+        $result = $s3->uploadBackup($uploadId, $backupName, $offset, $md5);
+        switch ($result['status']) {
+          case 'success':
+            $uploadedBackupStatus = get_option('bmi_uploaded_backups_status', []);
+            if (!isset($uploadedBackupStatus[$md5])) {
+              $uploadedBackupStatus[$md5] = [];
+            }
+            $uploadedBackupStatus[$md5]['aws'] = true;
+            update_option('bmi_uploaded_backups_status', $uploadedBackupStatus);
+            $toBeUploaded['current_upload'] = [];
+            if (isset($toBeUploaded['failed']) && isset($toBeUploaded['failed'][$taskname])) unset($toBeUploaded['failed'][$taskname]);
+            break;
+          case 'error':
+            Logger::error('[BMI PRO] Could not upload ' . $backupName . ' to AWS S3 as an error occurred: ' . $result['error']);
+
+            $toBeUploaded['current_upload'] = [];
+            if (!isset($toBeUploaded['failed'])) $toBeUploaded['failed'] = [];
+            if (isset($toBeUploaded['failed'][$taskname])) $toBeUploaded['failed'][$taskname]++;
+            else $toBeUploaded['failed'][$taskname] = 1;
+            break;
+          case 'continue':
+            $offset = isset($result['offset']) ? $result['offset'] : 0;
+            $uploadId = isset($result['uploadId']) ? $result['uploadId'] : '';
+            if ($offset != 0 ) $toBeUploaded['current_upload']['offset'] = $offset;
+            if ($uploadId != '') $toBeUploaded['current_upload']['uploadId'] = $uploadId;
+            $fileSize = filesize(BMI_BACKUPS . DIRECTORY_SEPARATOR . $backupName);
+            $toBeUploaded['current_upload']['progress'] = round(($offset / $fileSize) * 100) . '%';
+
+            // remove from failed
+            if (isset($toBeUploaded['failed']) && isset($toBeUploaded['failed'][$taskname])) unset($toBeUploaded['failed'][$taskname]);
+            break;
+        }
+
+        delete_transient("bmip_upload_ongoing");
+        update_option('bmip_to_be_uploaded', $toBeUploaded);
+        return ['status' => 'success'];
+      }
+      //Wasabi
+      elseif ($type == 'wasabi') {
+
+        $uploadId = isset($task['uploadId']) ? $task['uploadId'] : '';
+        $offset = isset($task['offset']) ? $task['offset'] : 0;
+        $backupName = isset($task['name']) ? $task['name'] : '';
+        $md5 = isset($task['md5']) ? $task['md5'] : '';
+
+        $s3 = new S3('wasabi');
+        
+        $result = $s3->uploadBackup($uploadId, $backupName, $offset, $md5);
+        switch ($result['status']) {
+          case 'success':
+            $uploadedBackupStatus = get_option('bmi_uploaded_backups_status', []);
+            if (!isset($uploadedBackupStatus[$md5])) {
+              $uploadedBackupStatus[$md5] = [];
+            }
+            $uploadedBackupStatus[$md5]['wasabi'] = true;
+            update_option('bmi_uploaded_backups_status', $uploadedBackupStatus);
+            $toBeUploaded['current_upload'] = [];
+            if (isset($toBeUploaded['failed']) && isset($toBeUploaded['failed'][$taskname])) unset($toBeUploaded['failed'][$taskname]);
+            break;
+          case 'error':
+            Logger::error('[BMI PRO] Could not upload ' . $backupName . ' to Wasabi as an error occurred: ' . $result['error']);
+
+            $toBeUploaded['current_upload'] = [];
+            if (!isset($toBeUploaded['failed'])) $toBeUploaded['failed'] = [];
+            if (isset($toBeUploaded['failed'][$taskname])) $toBeUploaded['failed'][$taskname]++;
+            else $toBeUploaded['failed'][$taskname] = 1;
+            break;
+          case 'continue':
+            $offset = isset($result['offset']) ? $result['offset'] : 0;
+            $uploadId = isset($result['uploadId']) ? $result['uploadId'] : '';
+            if ($offset != 0 ) $toBeUploaded['current_upload']['offset'] = $offset;
+            if ($uploadId != '') $toBeUploaded['current_upload']['uploadId'] = $uploadId;
+            $fileSize = filesize(BMI_BACKUPS . DIRECTORY_SEPARATOR . $backupName);
+            $toBeUploaded['current_upload']['progress'] = round(($offset / $fileSize) * 100) . '%';
+
+            // remove from failed
+            if (isset($toBeUploaded['failed']) && isset($toBeUploaded['failed'][$taskname])) unset($toBeUploaded['failed'][$taskname]);
+            break;
+        }
+
+        delete_transient("bmip_upload_ongoing");
+        update_option('bmip_to_be_uploaded', $toBeUploaded);
+        return ['status' => 'success'];
+      }
+      elseif ($this->proajax) {
         $ret = $this->proajax->processClouds($type, $task, $toBeUploaded, $taskname);
         if ($ret["status"] !== "no_tasks")
           return $ret;

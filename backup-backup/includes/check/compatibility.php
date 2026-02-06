@@ -454,6 +454,9 @@ class Compatibility {
                 $this->mainReasonFound = true;
             }
         }
+        if ($this->addRecommendation('error_during_downloading_backup', __("Please upload the backup file manually to this site and start a Restoration. You can download and upload backups on the plugin screen “Manage & Restore Backups”.", 'backup-backup'))) {
+            $this->mainReasonFound = true;
+        }
         if ($this->for == 'backup') {
             $this->addBackupRecommendations();
         } else if ($this->for == 'migration') {
@@ -517,6 +520,14 @@ class Compatibility {
         if(current_user_can('manage_options') && current_user_can('administrator')) {
             return BMP::getRecentSize() * 1.4;
         }
+    }
+    
+    /**
+     * Get whether a main reason for incompatibility was found.
+     * @return bool True if a main reason was found, false otherwise.
+     */
+    public function mainReasonFound() {
+        return $this->mainReasonFound;
     }
     
 }

@@ -1,6 +1,7 @@
+<?php if ( ! defined( 'ABSPATH' ) ) exit; ?>
 <div class="bmi-banner">
   <div class="bmi-banner__body">
-    <button type="button" aria-label="close banner" class="bmi-banner__button-close" data-nonce="<?php echo sanitize_text_field($this->nonce); ?>">
+    <button type="button" aria-label="close banner" class="bmi-banner__button-close" data-nonce="<?php echo esc_attr(sanitize_text_field($this->nonce)); ?>">
       <svg
         width="14"
         height="13"
@@ -129,6 +130,6 @@
     </div>
   </div>
   <p class="bmi-banner__love">
-    Made with 💚 by <a href="<?php echo $this->plugin_menu_url; ?>"><?php echo $this->name; ?></a>
+    Made with 💚 by <a href="<?php echo esc_url($this->plugin_menu_url); ?>"><?php echo esc_html($this->name); ?></a>
   </p>
 </div>

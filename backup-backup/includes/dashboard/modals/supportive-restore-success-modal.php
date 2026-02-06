@@ -22,14 +22,14 @@
     <div class="bmi-modal-wrapper no-hpad" style="max-width: 775px; max-width: min(775px, 80vw)">
         <div class="bmi-modal-content center">
 
-            <img class="mtl" src="<?php echo $this->get_asset('images', 'happy-smile.png'); ?>" alt="success">
-            <div class="mm60 f35 bold black mbl mtll"><?php _e('Restore successful!', 'backup-backup') ?></div>
+            <img class="mtl" src="<?php echo esc_url( $this->get_asset('images', 'happy-smile.png') ); ?>" alt="success">
+            <div class="mm60 f35 bold black mbl mtll"><?php esc_html_e('Restore successful!', 'backup-backup') ?></div>
 
             <div class="mbl f18 lh25 mm60 align-left mtl">
-                <?php _e("The restore was 100% successful, however we noticed some optimization potential (to enhance the speed).", 'backup-backup'); ?><br>
+                <?php esc_html_e("The restore was 100% successful, however we noticed some optimization potential (to enhance the speed).", 'backup-backup'); ?><br>
             </div>
             <div class="mbl f18 lh25 mm60 align-left">
-                <?php echo $forumText ?>
+                <?php echo wp_kses_post( $forumText ); ?>
             </div>
 
             <div class="log-wrapper">
@@ -39,13 +39,13 @@
 
                 <div class="copy-logs-wrapper">
                     <a href="#" class="btn inline btn-pad bmi-copper othersec mm30 restore-log" data-copy="restore-log">
-                        <div class="f15 semibold"><?php _e('Copy logs', 'backup-backup') ?></div>
+                        <div class="f15 semibold"><?php esc_html_e('Copy logs', 'backup-backup') ?></div>
                     </a>
                 </div>
                 <div class="trouble-logging-into-forum align-left">
-                    <span class="tooltip hoverable info-cursor f14" tooltip="<?php echo $ctl; ?>">
+                    <span class="tooltip hoverable info-cursor f14" tooltip="<?php echo esc_attr( $ctl ); ?>">
                         <a href="https://wordpress.org/support/plugin/backup-backup/" target="_blank">
-                            <?php _e("Trouble logging<br>into the forum?", 'backup-backup'); ?>
+                            <?php echo wp_kses_post( __( "Trouble logging<br>into the forum?", 'backup-backup' ) ); ?>
                         </a>
                     </span>
                 </div>
@@ -55,9 +55,9 @@
 
             <div>
                 <div class="mm mtl mbl lh30">
-                    <a href="#" class="btn shared-log-after-restore"><?php _e("Done", 'backup-backup'); ?></a>
+                    <a href="#" class="btn shared-log-after-restore"><?php esc_html_e("Done", 'backup-backup'); ?></a>
                 </div>
-                <a class="lh22 f15 skip-share-logs-after-restore" href="#"><?php _e("Skip", 'backup-backup'); ?></a>
+                <a class="lh22 f15 skip-share-logs-after-restore" href="#"><?php esc_html_e("Skip", 'backup-backup'); ?></a>
 
             </div>
         </div>

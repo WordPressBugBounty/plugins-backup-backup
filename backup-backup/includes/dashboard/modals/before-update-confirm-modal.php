@@ -25,25 +25,25 @@
         </div>
         
         <h2 style="font-size: 24px; color: #1e1e1e; margin: 0 0 16px; line-height: 1.3;">
-          <?php _e("Safeguard Your Site with Smart Auto-Backups", 'backup-backup'); ?>
+          <?php esc_html_e("Safeguard Your Site with Smart Auto-Backups", 'backup-backup'); ?>
         </h2>
         
         <p style="font-size: 16px; color: #505050; margin: 0 0 24px; line-height: 1.5;">
-          <?php _e("Would you like to make an automatic backup before proceeding with the update?", 'backup-backup'); ?>
+          <?php esc_html_e("Would you like to make an automatic backup before proceeding with the update?", 'backup-backup'); ?>
         </p>
         
         <p style="font-size: 14px; color: #666; font-style: italic; margin: 0 0 32px; line-height: 1.4;">
-          <?php echo $note; ?>
+          <?php echo wp_kses_post( $note ); ?>
         </p>
       </div>
 
       <div class="center mtl">
         <div class="cf inline">
           <div class="left inline mr50">
-            <a href="#" class="btn bold mm" id="before-update-backup-confirm"><?php _e("Yes", 'backup-backup'); ?></a>
+            <a href="#" class="btn bold mm" id="before-update-backup-confirm"><?php esc_html_e("Yes", 'backup-backup'); ?></a>
           </div>
           <div class="left inline">
-            <a href="#" class="btn bold mm grey nodec bmi-modal-closer" id="before-update-backup-cancel"><?php _e("No", 'backup-backup'); ?></a>
+            <a href="#" class="btn bold mm grey nodec bmi-modal-closer" id="before-update-backup-cancel"><?php esc_html_e("No", 'backup-backup'); ?></a>
           </div>
         </div>
       </div>

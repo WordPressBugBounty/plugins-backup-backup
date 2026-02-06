@@ -114,7 +114,8 @@ class BMI_Search_Replace_Engine {
   			$report['tables']++;
   			$columns = [];
 
-		    $fields = $wpdb->get_results('DESCRIBE ' . $table);
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Identifier is safely escaped via escapeSQLIDentifier()
+		    $fields = $wpdb->get_results('DESCRIBE ' . BMP::escapeSQLIDentifier($table) . ';');
         foreach ($fields as $index => $object) {
           $columns[$object->Field] = $object->Key == 'PRI' ? true : false;
         }
@@ -137,8 +138,8 @@ class BMI_Search_Replace_Engine {
           $column = $fieldsForWhereStmt[$i];
           if ($i == 0) $whereStmt .= ' WHERE ';
           // if ($this->isStaging) {
-            $whereStmt .= '(`' . $column . '`' . ' LIKE ' . '"%' . mysqli_real_escape_string($wpdb->dbh, $search) . '%"';
-            $whereStmt .= ' AND `' . $column . '`' . ' NOT LIKE ' . '"%' . mysqli_real_escape_string($wpdb->dbh, $replace) . '%")';
+            $whereStmt .= '(' . BMP::escapeSQLIDentifier($column) . ' LIKE ' . '"%' . esc_sql($search) . '%"';
+            $whereStmt .= ' AND ' . BMP::escapeSQLIDentifier($column) . ' NOT LIKE ' . '"%' . esc_sql($replace) . '%")';
           // } else {
           //   $whereStmt .= '`' . $column . '`' . ' LIKE ' . '"%' . mysqli_real_escape_string($wpdb->dbh, $search) . '%"';
           // }
@@ -146,7 +147,8 @@ class BMI_Search_Replace_Engine {
         }
 
         if ($whereStmt === '') continue;
-        $row_count = $wpdb->get_results('SELECT COUNT(*) AS num FROM `' . $table . '`' . $whereStmt);
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Identifier and where clause are safely escaped
+        $row_count = $wpdb->get_results($wpdb->prepare('SELECT COUNT(*) AS num FROM ' . BMP::escapeSQLIDentifier($table) . $whereStmt . ';'));
         $row_count = $row_count[0]->num;
         if ($row_count == 0) {
           $report['currentPage'] = $report['currentPage'] + 1;
@@ -169,7 +171,8 @@ class BMI_Search_Replace_Engine {
   				$start = $page * $page_size;
   				$end = $start + $page_size;
 
-          $data = $wpdb->get_results(sprintf('SELECT * FROM %s%s LIMIT %d, %d', $table, $whereStmt, $start, $end));
+          // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Identifier and where clause are safely escaped
+          $data = $wpdb->get_results($wpdb->prepare('SELECT * FROM ' . BMP::escapeSQLIDentifier($table) . $whereStmt . ' LIMIT %d, %d;', $start, $page_size));
           for ($i = 0; $i < sizeof($data); ++$i) {
 
             $row = $data[$i];
@@ -193,16 +196,16 @@ class BMI_Search_Replace_Engine {
 
               if ($edited_data != $data_to_fix) {
   							$report['change']++;
-  							$update_sql[] = '`' . $column . '`' . ' = "' . mysqli_real_escape_string($wpdb->dbh, $edited_data) . '"';
+  							$update_sql[] = '' . BMP::escapeSQLIDentifier($column) . ' = "' . esc_sql($edited_data) . '"';
   							$upd = true;
-                $where_sql[] = '`' . $column . '`' . ' = "' . mysqli_real_escape_string($wpdb->dbh, $data_to_fix) . '"';
+                $where_sql[] = '' . BMP::escapeSQLIDentifier($column) . ' = "' . esc_sql($data_to_fix) . '"';
   						}
 
             }
 
             if ($upd && !empty($where_sql)) {
-              $sql = 'UPDATE ' . $table . ' SET ' . implode(', ', $update_sql) . ' WHERE ' . implode(' AND ', array_filter($where_sql));
-              $results = $wpdb->get_results($sql);
+              // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Identifiers and values are safely escaped via escapeSQLIDentifier() and esc_sql()
+              $wpdb->get_results($wpdb->prepare("UPDATE " . BMP::escapeSQLIDentifier($table) . " SET " . implode(', ', $update_sql) . " WHERE " . implode(' AND ', array_filter($where_sql)) . ";"));
 
               unset($sql);
 

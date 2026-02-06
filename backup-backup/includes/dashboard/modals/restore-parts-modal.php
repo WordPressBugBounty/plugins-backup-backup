@@ -17,7 +17,7 @@
     <a href="#" class="bmi-modal-close">×</a>
     <div class="bmi-modal-content center">
         <div class="f26 bold black modal-title">
-            <?php _e('Restore Backup', 'backup-backup'); ?>
+            <?php esc_html_e('Restore Backup', 'backup-backup'); ?>
         </div>
         <div class="location-container">
         </div>
@@ -27,8 +27,8 @@
             <thead>
               <tr>
                 <th class="checkbox-column"></th>
-                <th><?php _e('Name', 'backup-backup'); ?></th>
-                <th><?php _e('Date Modified', 'backup-backup'); ?></th>
+                <th><?php esc_html_e('Name', 'backup-backup'); ?></th>
+                <th><?php esc_html_e('Date Modified', 'backup-backup'); ?></th>
               </tr>
             </thead>
             <tbody>
@@ -39,7 +39,7 @@
         <div class="mm60 mtl center">
             <a href="#" class="btn max280" id="restore-parts">
             <div class="text">
-                <div class="f20 bold"><?php _e('Start restoring!', 'backup-backup') ?></div>
+                <div class="f20 bold"><?php esc_html_e('Start restoring!', 'backup-backup') ?></div>
             </div>
             </a>
         </div>

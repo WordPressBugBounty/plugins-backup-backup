@@ -13,6 +13,7 @@ namespace BMI\Plugin\Database;
 // Use
 use BMI\Plugin\BMI_Logger AS Logger;
 use BMI\Plugin\Progress\BMI_ZipProgress AS Progress;
+use BMI\Plugin\Backup_Migration_Plugin as BMP;
 
 
 // // Exit on direct access
@@ -996,8 +997,8 @@ class BMI_Database_Sorting {
     $heading .= "/* QUERY END */\n";
     $heading .= "\n";
     $heading .= "/* CUSTOM VARS START */\n";
-    $heading .= "/* REAL_TABLE_NAME: `" . $table_name . "`; */\n";
-    $heading .= "/* PRE_TABLE_NAME: `" . $unique . "_" . $table_name . "`; */\n";
+    $heading .= "/* REAL_TABLE_NAME: " . BMP::escapeSQLIDentifier($table_name) . "; */\n";
+    $heading .= "/* PRE_TABLE_NAME: " . BMP::escapeSQLIDentifier($unique . "_" . $table_name) . "; */\n";
     $heading .= "/* CUSTOM VARS END */\n";
     $heading .= "\n";
 

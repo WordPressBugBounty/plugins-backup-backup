@@ -14,11 +14,11 @@
   <div class="already_ready">
     <div class="flex flexcenter">
       <div>
-        <img src="<?php echo $this->get_asset('images', 'premium.svg') ?>" alt="premium-bg" class="fixed-icon-width">
+        <img src="<?php echo esc_url($this->get_asset('images', 'premium.svg')); ?>" alt="premium-bg" class="fixed-icon-width">
       </div>
     </div>
     <div class="secondary-all">
-      <?php echo BMI_ALREADY_IN_PRO; ?>
+      <?php echo wp_kses_post(BMI_ALREADY_IN_PRO); ?>
     </div>
   </div>
 </div>

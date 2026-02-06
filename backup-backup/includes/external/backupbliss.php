@@ -32,10 +32,13 @@ class BMI_External_BackupBliss
     }
 
     if ($action == "connect") {
-      $key = $this->getSecret($post['api_key']);
-      if($key !== false) {
-        update_option("bmi_pro_backupbliss_key", $key);
+      $ret = $this->getSecret($post['api_key']);
+      if($ret[0] !== false) {
+        update_option("bmi_pro_backupbliss_key", $ret[1]);
         return ["status"=>'success']; 
+      } else {
+        if ($ret[1] != "")
+          return ["status"=>'fail', "message"=>$ret[1]];
       }
       
       return ["status"=>'fail', "message"=>"Invalid API Key provided!"];
@@ -83,6 +86,7 @@ class BMI_External_BackupBliss
     $backupsAvailable = $backups->getAvailableBackups("local");
     $localBackups = $backupsAvailable['local'];
     $localBackups = array_reverse($localBackups);
+    $uploadedBackupStatus = get_option('bmi_uploaded_backups_status', []);
 
     $files = $this->parseFiles($this->getAllFiles());
     // if (BMI_DEBUG) {
@@ -95,6 +99,9 @@ class BMI_External_BackupBliss
     foreach ($localBackups as $name => $details) {
 
       $md5 = $details[7];
+      if (isset($uploadedBackupStatus[$md5]) && isset($uploadedBackupStatus[$md5]['backupbliss'])) {
+          continue;
+      }
 
       if (!(isset($files['manifests'][$md5 . '.json']) && isset($files['backups'][$name]))) {
 
@@ -210,9 +217,9 @@ class BMI_External_BackupBliss
       $key = $api_key;
 
     if ($key === false) {
-      return false;
+      return [false, ""];
     } elseif($api_key === false) {
-      return $key;
+      return [$key !== false, $key];
     }
 
     $url = BMI_BB_STORAGE_API_URI . '/plugin/verify';
@@ -231,7 +238,7 @@ class BMI_External_BackupBliss
     if (is_wp_error($response)) {
       $error_message = $response->get_error_message();
       Logger::error('[BMI PRO] Something went wrong while authenticating the BackupBliss api key:' . $error_message);
-      return false;
+      return [false, $error_message];
     } else {
 
       $http_code = wp_remote_retrieve_response_code($response);
@@ -244,14 +251,17 @@ class BMI_External_BackupBliss
 
 
         if ($result->status) {
-          return $key;
+          return [true, $key];
         }
       } else if ($http_code == 401) {
         if ($api_key) //Authentication request so no need to show notice.
-          return false;
+          return [false, ""];
         $this->_keyDeactivatedNotice();
+      } else if ($http_code == 429) {
+        $result = json_decode($response['body']);
+        return [false, $result->message];
       }
-      return false;
+      return [false, ""];
     }
   }
 
@@ -279,6 +289,26 @@ class BMI_External_BackupBliss
 
   public function canShowFailureWarnNotice() {
     return !get_transient("bmip_backupbliss_hide_failure_notice", false);
+  }
+
+  public function hasRequiredSpaceBeenFreed()
+  {
+    $required_space_file = get_option("bmip_backupbliss_required_space", false);
+    if ($required_space_file === false || !file_exists($required_space_file)) {
+      return true;
+    }
+    
+    $required_space = @filesize($required_space_file);
+
+    if ($required_space === false) {
+      return false;
+    }
+
+    $storage_info = $this->getStorageInfo();
+    if (is_array($storage_info) && isset($storage_info["remaining_space"]) && $storage_info["remaining_space"] > $required_space) {
+      return true;
+    }
+    return false;
   }
 
   public function removeNotice($type)
@@ -356,14 +386,14 @@ class BMI_External_BackupBliss
     }
 
     $secret = $this->getSecret();
-    if (!$secret) {
+    if (!$secret[0]) {
       return ["status" => false];
     }
 
     $max_execution_time_pre_limit = ini_get('max_execution_time') - 2;
 
     $headers = $custom_headers == null ? [
-      'Authorization: Bearer ' . $secret,
+      'Authorization: Bearer ' . $secret[1],
       'Accept: application/json',
       'Content-Type: application/json',
     ] : $custom_headers;
@@ -577,6 +607,12 @@ class BMI_External_BackupBliss
     return false;
   }
 
+  public function verifyConnection()
+  {
+    $res = $this->getSecret() ? 'connected' : 'disconnected';
+    return [ 'status' => 'success', 'result' => $res ];
+  }
+
   private function downloadFile($file_details, $start_byte = 0, $end_byte = null)
   {
     if (BMI_DEBUG) {
@@ -679,6 +715,31 @@ class BMI_External_BackupBliss
 
     $toBeUploaded = get_option('bmip_to_be_uploaded', false);
 
+    if (isset($toBeUploaded['current_upload']['verifying'])) {
+      if (!$this->getFileDetailByName($md5 . '.json') || !$this->getFileDetailByName(basename($filePath))) {
+        $task = $toBeUploaded['current_upload']['task'];
+        $toBeUploaded['current_upload'] = [];
+        if (!isset($toBeUploaded['failed'])) $toBeUploaded['failed'] = [];
+        $toBeUploaded['failed'][$task] = 1;
+
+        update_option('bmip_to_be_uploaded', $toBeUploaded);
+        return ['status' => 'fail', 'data' => 'File not found on server during verification.'];
+      }
+      $uploadedBackupStatus = get_option('bmi_uploaded_backups_status', []);
+      if (!isset($uploadedBackupStatus[$md5])) {
+        $uploadedBackupStatus[$md5] = [];
+      }
+      $uploadedBackupStatus[$md5]['backupbliss'] = true;
+      update_option('bmi_uploaded_backups_status', $uploadedBackupStatus);
+
+      $task = $toBeUploaded['current_upload']['task'];
+      $toBeUploaded['current_upload'] = [];
+      if (!isset($toBeUploaded['failed'])) $toBeUploaded['failed'] = [];
+      if (isset($toBeUploaded['failed'][$task])) unset($toBeUploaded['failed'][$task]);
+      update_option('bmip_to_be_uploaded', $toBeUploaded);
+      return ['status' => 'success', 'data' => 'File verified successfully.'];
+    }
+
     if (BMI_DEBUG)
     {
       Logger::error("Before uploadFile - " . print_r($uploadSession, true));
@@ -727,14 +788,16 @@ class BMI_External_BackupBliss
 
         $size = strlen($binaryData);
         $manifestRes = $this->uploadChunkWithSession($manifestUploadSession, $binaryData, 0, $size - 1, $size);
+        if (
+          $manifestRes['status'] == true 
+          && intval($manifestRes['http_code']) == 201
+        ) {
+          $toBeUploaded['current_upload']['verifying'] = true;
+          update_option('bmip_to_be_uploaded', $toBeUploaded);
+          return ['status' => 'success', 'data' => $response];
+        }
 
-        $task = $toBeUploaded['current_upload']['task'];
-        $toBeUploaded['current_upload'] = [];
-        if (!isset($toBeUploaded['failed'])) $toBeUploaded['failed'] = [];
-        if (isset($toBeUploaded['failed'][$task])) unset($toBeUploaded['failed'][$task]);
-
-        update_option('bmip_to_be_uploaded', $toBeUploaded);
-        return ['status' => 'success', 'data' => $response];
+        return ['status' => 'fail', 'data' => $manifestRes];
       }
 
      
@@ -782,14 +845,19 @@ class BMI_External_BackupBliss
         Logger::error('[BMI PRO] Message received (body):' . print_r($response['response_data'], true));
       }
 
-      $error_message_notice = 'Upload to BackupBliss could not finish, due to an error.<br />';
+      $error_message_notice = 'Upload to BackupBliss could not finish, due to an error:<br />';
       if (is_string($response['response_data'])) {
         $error = json_decode($response['response_data']);
-        if (isset($error->error->message)) {
-          $errorMessage = $error->error->message;
+        if (isset($error->error->message) || isset($error->message)) {
+          $errorMessage = isset($error->error->message) ? $error->error->message : $error->message;
           $error_message_notice .= "Code: $code - Received message:<i>" . $errorMessage . '</i><br />';
         } else if ($error == null) {
-          $error_message_notice .= "HTTP Error Response - " . $response["response_data"];
+          $cleanResponse = strip_tags(trim($response["response_data"]));
+          $cleanResponse = preg_replace('/\s+/', ' ', $cleanResponse);
+          if (empty($cleanResponse)) {
+            $cleanResponse = 'Unknown server error occurred';
+          }
+          $error_message_notice .= "HTTP Error Response: <i>" . htmlspecialchars($cleanResponse) . '</i><br />';
         }
       }
 
@@ -824,4 +892,5 @@ class BMI_External_BackupBliss
     delete_transient('bmip_upload_ongoing');
     return ['status' => 'success', 'data' => $response];
   }
+
 }

@@ -28,31 +28,31 @@
     <div class="bmi-modal-content center">
 
       <div class="mm60 f30 bold black flex flexcenter mb">
-        <img src="<?php echo $this->get_asset('images', 'red-cross.svg'); ?>" alt="red-cross" width="110px">
-        <?php _e('Staging site creation failed', 'backup-backup') ?>
+        <img src="<?php echo esc_url( $this->get_asset('images', 'red-cross.svg') ); ?>" alt="red-cross" width="110px">
+        <?php esc_html_e('Staging site creation failed', 'backup-backup') ?>
       </div>
 
       <div class="mm60 f22 lh28">
-        <?php echo $messageStagingError1; ?>
+        <?php echo wp_kses_post( $messageStagingError1 ); ?>
       </div>
 
       <div class="mm60 f22 mbl mtl lh28">
-        <?php echo $stagingErrorInstruction; ?>
+        <?php echo wp_kses_post( $stagingErrorInstruction ); ?>
       </div>
 
       <div class="mm60">
         <a class="btn inline semibold mm60 f16 bmi-send-troubleshooting-logs" href="#!" target="_blank">
-          <?php _e('Share debug infos with BackupBliss team', 'backup-backup') ?>
+          <?php esc_html_e('Share debug infos with BackupBliss team', 'backup-backup') ?>
         </a>
       </div>
 
       <div class="mm60 f16 lh28 mtl">
-        <?php echo $bmiTroubleshootingLogShareInfo; ?><br>
-        <?php echo $bmiTroubleshootingLogShareInfo2; ?>
+        <?php echo wp_kses_post( $bmiTroubleshootingLogShareInfo ); ?><br>
+        <?php echo wp_kses_post( $bmiTroubleshootingLogShareInfo2 ); ?>
       </div>
 
       <div class="mm60 f18 center mb mtl">
-        <a href="#" class="bmi-modal-closer text-muted" data-close="staging-error-modal"><?php _e('Close window', 'backup-backup') ?></a>
+        <a href="#" class="bmi-modal-closer text-muted" data-close="staging-error-modal"><?php esc_html_e('Close window', 'backup-backup') ?></a>
       </div>
 
     </div>

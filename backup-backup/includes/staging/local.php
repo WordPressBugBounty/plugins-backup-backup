@@ -294,10 +294,8 @@
       $currentPrefixes = $this->getAllStagingSitePrefixes();
       $relatedTables = [];
 
-      $sql = "SELECT (DATA_LENGTH + INDEX_LENGTH) as `size`, TABLE_NAME AS `name` FROM information_schema.TABLES WHERE TABLE_SCHEMA = %s;";
-      $sql = $wpdb->prepare($sql, array(DB_NAME));
 
-      $tables = $wpdb->get_results($sql);
+      $tables = $wpdb->get_results($wpdb->prepare("SELECT (DATA_LENGTH + INDEX_LENGTH) as `size`, TABLE_NAME AS `name` FROM information_schema.TABLES WHERE TABLE_SCHEMA = %s;", array(DB_NAME)));
       foreach ($tables as $tableObject) {
 
         $name = $tableObject->name;
@@ -337,13 +335,12 @@
       global $wpdb;
 
       // Update option name
-      $sql = "UPDATE %i SET `option_name` = %s WHERE `option_name` = %s;";
       $newOptionTable = $this->siteConfig['db_prefix'] . 'options';
       $newOptionName = $this->siteConfig['db_prefix'] . 'user_roles';
       $oldOptionName = $this->siteConfig['source_db_prefix'] . 'user_roles';
 
-      $sql = $wpdb->prepare($sql, [$newOptionTable, $newOptionName, $oldOptionName]);
-      $wpdb->query($sql);
+      // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Identifier is safely escaped via escapeSQLIDentifier()
+      $wpdb->query($wpdb->prepare("UPDATE " . BMP::escapeSQLIDentifier($newOptionTable) . " SET `option_name` = %s WHERE `option_name` = %s;", $newOptionName, $oldOptionName));
 
       if ($wpdb->last_error !== '') {
         $translated = __('There was an error during update of user roles:', 'backup-backup') . ' ' . $wpdb->last_error;
@@ -351,9 +348,8 @@
         return $this->returnError($translated, $english);
       }
       
-      $sql = "DELETE FROM %i WHERE `option_name` = 'BMI::STORAGE::LOCAL::PATH';";
-      $sql = $wpdb->prepare($sql, [$newOptionTable]);
-      $wpdb->query($sql);
+      // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Identifier is safely escaped via escapeSQLIDentifier()
+      $wpdb->query($wpdb->prepare("DELETE FROM " . BMP::escapeSQLIDentifier($newOptionTable) . " WHERE `option_name` = 'BMI::STORAGE::LOCAL::PATH';"));
 
       if ($wpdb->last_error !== '') {
         $translated = __('There was an error during BMI config hard removal:', 'backup-backup') . ' ' . $wpdb->last_error;
@@ -368,9 +364,8 @@
       global $wpdb;
       
       // Remove failed table if created
-      $sql = "DROP TABLE IF EXISTS %i;";
-      $sql = $wpdb->prepare($sql, [$destination]);
-      $wpdb->query($sql);
+      // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Identifier is safely escaped via escapeSQLIDentifier()
+      $wpdb->query("DROP TABLE IF EXISTS " . BMP::escapeSQLIDentifier($destination) . ";");
 
       if ($wpdb->last_error !== '') {
         $translated = __('There was an error during previous destination table removal:', 'backup-backup') . ' ' . $wpdb->last_error;
@@ -379,10 +374,8 @@
       }
       
       // Create new table
-      $sql = "CREATE TABLE %i LIKE %i;";
-      $sql = $wpdb->prepare($sql, [$destination, $source]);
-      $wpdb->query($sql);
-
+      // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Identifier is safely escaped via escapeSQLIDentifier()
+      $wpdb->query("CREATE TABLE " . BMP::escapeSQLIDentifier($destination) . " LIKE " . BMP::escapeSQLIDentifier($source) . ";");
       if ($wpdb->last_error !== '') {
         $translated = __('There was an error during database table creation:', 'backup-backup') . ' ' . $wpdb->last_error;
         $english = 'There was an error during database table creation:' . ' ' . $wpdb->last_error;
@@ -390,10 +383,8 @@
       }
 
       // Duplicate data
-      $sql = "INSERT INTO %i SELECT * from %i;";
-      $sql = $wpdb->prepare($sql, [$destination, $source]);
-      $wpdb->query($sql);
-
+      // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Identifier is safely escaped via escapeSQLIDentifier()
+      $wpdb->query("INSERT INTO " . BMP::escapeSQLIDentifier($destination) . " SELECT * from " . BMP::escapeSQLIDentifier($source) . ";");
       if ($wpdb->last_error !== '') {
         $translated = __('There was an error during database table data duplication:', 'backup-backup') . ' ' . $wpdb->last_error;
         $english = 'There was an error during database table data duplication:' . ' ' . $wpdb->last_error;
@@ -407,21 +398,19 @@
       global $wpdb;
 
       // Create new table
-      $sql = "SHOW CREATE TABLE %i;";
-      $sql = $wpdb->prepare($sql, [$source]);
-      $sourceCreate = $wpdb->get_row($sql);
+      // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Identifier is safely escaped via escapeSQLIDentifier()
+      $sourceCreate = $wpdb->get_row("SHOW CREATE TABLE " . BMP::escapeSQLIDentifier($source) . ";");
       $isTable = isset($sourceCreate->{'Create Table'});
       if ($isTable) {
-        $sourceCreate->{'Create Table'} = str_ireplace('CREATE TABLE `' . $source, 'CREATE TABLE IF NOT EXISTS `' . $destination, $sourceCreate->{'Create Table'});
+        $sourceCreate->{'Create Table'} = str_ireplace('CREATE TABLE ' . BMP::escapeSQLIDentifier($source), 'CREATE TABLE IF NOT EXISTS ' . BMP::escapeSQLIDentifier($destination), $sourceCreate->{'Create Table'});
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- SQL generated from escaped SHOW CREATE TABLE output
         $wpdb->query($sourceCreate->{'Create Table'});
         //Insert data 
-        $sql = "INSERT INTO %i SELECT * from %i;";
-        $sql = $wpdb->prepare($sql, [$destination, $source]);
-        $wpdb->query($sql);
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Identifier is safely escaped via escapeSQLIDentifier()
+        $wpdb->query("INSERT INTO " . BMP::escapeSQLIDentifier($destination) . " SELECT * from " . BMP::escapeSQLIDentifier($source) . ";");
       } else {
-        $sql = "CREATE TABLE %i AS SELECT * FROM %i;";
-        $sql = $wpdb->prepare($sql, [$destination, $source]);
-        $wpdb->query($sql);
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Identifier is safely escaped via escapeSQLIDentifier()
+        $wpdb->query("CREATE TABLE " . BMP::escapeSQLIDentifier($destination) . " AS SELECT * FROM " . BMP::escapeSQLIDentifier($source) . ";");
       }
 
 

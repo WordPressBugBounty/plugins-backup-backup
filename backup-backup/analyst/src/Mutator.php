@@ -1,10 +1,13 @@
 <?php
 
+
 namespace Analyst;
 
 use Analyst\Cache\DatabaseCache;
 use Analyst\Contracts\CacheContract;
 use Analyst\Notices\NoticeFactory;
+
+if ( ! defined( 'ABSPATH' ) ) exit;
 
 /**
  * Class Mutator mutates (modifies) UX with additional
