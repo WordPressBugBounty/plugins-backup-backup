@@ -161,6 +161,12 @@
           }
           $gdirve_banner = new \Inisev\Subs\BMI_Banners_GDrive('Backup & Migration', 'backup-migration');
         }
+
+        // Backup banner
+        if (!(class_exists('\Inisev\Subs\BMI_Backup_Banner') || class_exists('Inisev\Subs\BMI_Backup_Banner') || class_exists('BMI_Backup_Banner'))) {
+          require_once BMI_MODULES_DIR . 'backup-banner' . DIRECTORY_SEPARATOR . 'misc.php';
+          new \Inisev\Subs\BMI_Backup_Banner(BMI_ROOT_FILE, BMI_ROOT_DIR, 'backup-backup', 'Backup & Migration', 'backup-migration');
+        }
         
       }
 
@@ -1459,13 +1465,13 @@
               http_response_code(200);
               if (ob_get_contents()) ob_end_clean();
               if ($get_pid == 'complete_logs.log') {
-                $file = BMI_CONFIG_DIR . DIRECTORY_SEPARATOR . 'complete_logs.log';
+                $file = BMI_CONFIG_DIR . DIRECTORY_SEPARATOR . 'complete_logs.' . BMI_LOGS_SUFFIX . '.log';
                 if (ob_get_level()) ob_end_clean();
                 $this->readFileSensitive($file);
                 exit;
               } else if ($get_pid == 'latest_full.log') {
-                $progress = dirname(BMI_BACKUPS) . DIRECTORY_SEPARATOR . 'backups' . DIRECTORY_SEPARATOR . 'latest_progress.log';
-                $logs = dirname(BMI_BACKUPS) . DIRECTORY_SEPARATOR . 'backups' . DIRECTORY_SEPARATOR . 'latest.log';
+                $progress = dirname(BMI_BACKUPS) . DIRECTORY_SEPARATOR . 'backups' . DIRECTORY_SEPARATOR . 'latest_progress.' . BMI_LOGS_SUFFIX . '.log';
+                $logs = dirname(BMI_BACKUPS) . DIRECTORY_SEPARATOR . 'backups' . DIRECTORY_SEPARATOR . 'latest.' . BMI_LOGS_SUFFIX . '.log';
                 if ((file_exists($progress) && file_exists($logs) && ((time() - filemtime($progress)) < (60 * 1))) || current_user_can('administrator')) {
                   if (ob_get_level()) ob_end_clean();
                   readfile($progress);
@@ -1486,8 +1492,8 @@
                   }
                 }
               } else if ($get_pid == 'latest_migration_full.log') {
-                $progress = dirname(BMI_BACKUPS) . DIRECTORY_SEPARATOR . 'backups' . DIRECTORY_SEPARATOR . 'latest_migration_progress.log';
-                $logs = dirname(BMI_BACKUPS) . DIRECTORY_SEPARATOR . 'backups' . DIRECTORY_SEPARATOR . 'latest_migration.log';
+                $progress = dirname(BMI_BACKUPS) . DIRECTORY_SEPARATOR . 'backups' . DIRECTORY_SEPARATOR . 'latest_migration_progress.' . BMI_LOGS_SUFFIX . '.log';
+                $logs = dirname(BMI_BACKUPS) . DIRECTORY_SEPARATOR . 'backups' . DIRECTORY_SEPARATOR . 'latest_migration.' . BMI_LOGS_SUFFIX . '.log';
                 if ((file_exists($progress) && file_exists($logs) && ((time() - filemtime($progress)) < (60 * 1))) || current_user_can('administrator')) {
                   if (ob_get_level()) ob_end_clean();
                   readfile($progress);
@@ -1508,8 +1514,8 @@
                   }
                 }
               } else if ($get_pid == 'latest_staging_full.log') {
-                $progress = BMI_STAGING . DIRECTORY_SEPARATOR . 'latest_staging_progress.log';
-                $logs = BMI_STAGING . DIRECTORY_SEPARATOR . 'latest_staging.log';
+                $progress = BMI_STAGING . DIRECTORY_SEPARATOR . 'latest_staging_progress.' . BMI_LOGS_SUFFIX . '.log';
+                $logs = BMI_STAGING . DIRECTORY_SEPARATOR . 'latest_staging.' . BMI_LOGS_SUFFIX . '.log';
                 if ((file_exists($progress) && file_exists($logs) && ((time() - filemtime($progress)) < (60 * 1))) || current_user_can('administrator')) {
                   if (ob_get_level()) ob_end_clean();
                   readfile($progress);
@@ -1529,9 +1535,10 @@
                   }
                 }
               } else {
-                $file = dirname(BMI_BACKUPS) . DIRECTORY_SEPARATOR . 'backups' . DIRECTORY_SEPARATOR . $get_pid;
-                if ($get_pid == 'latest_staging.log') $file = BMI_STAGING . DIRECTORY_SEPARATOR . $get_pid;
-                if ($get_pid == 'latest_staging_progress.log') $file = BMI_STAGING . DIRECTORY_SEPARATOR . $get_pid;
+                $filename = substr($get_pid, 0, strrpos($get_pid, '.log')) . '.' . BMI_LOGS_SUFFIX . '.log';
+                $file = dirname(BMI_BACKUPS) . DIRECTORY_SEPARATOR . 'backups' . DIRECTORY_SEPARATOR . $filename;
+                if ($get_pid == 'latest_staging.log') $file = BMI_STAGING . DIRECTORY_SEPARATOR . $filename;
+                if ($get_pid == 'latest_staging_progress.log') $file = BMI_STAGING . DIRECTORY_SEPARATOR . $filename;
                 if (file_exists($file) && (((time() - filemtime($file)) < (60 * 1)) || current_user_can('administrator'))) {
                   if (ob_get_level()) ob_end_clean();
 
@@ -1539,9 +1546,9 @@
                   else $this->readFileSensitive($file);
 
                   echo "\n";
-                  if ($get_pid == 'latest.log') $file = dirname(BMI_BACKUPS) . DIRECTORY_SEPARATOR . 'backups' . DIRECTORY_SEPARATOR . 'latest_progress.log';
-                  if ($get_pid == 'latest_migration.log') $file = dirname(BMI_BACKUPS) . DIRECTORY_SEPARATOR . 'backups' . DIRECTORY_SEPARATOR . 'latest_migration_progress.log';
-                  if ($get_pid == 'latest_staging.log') $file = BMI_STAGING . DIRECTORY_SEPARATOR . 'latest_staging_progress.log';
+                  if ($get_pid == 'latest.log') $file = dirname(BMI_BACKUPS) . DIRECTORY_SEPARATOR . 'backups' . DIRECTORY_SEPARATOR . 'latest_progress.' . BMI_LOGS_SUFFIX . '.log';
+                  if ($get_pid == 'latest_migration.log') $file = dirname(BMI_BACKUPS) . DIRECTORY_SEPARATOR . 'backups' . DIRECTORY_SEPARATOR . 'latest_migration_progress.' . BMI_LOGS_SUFFIX . '.log';
+                  if ($get_pid == 'latest_staging.log') $file = BMI_STAGING . DIRECTORY_SEPARATOR . 'latest_staging_progress.' . BMI_LOGS_SUFFIX . '.log';
                   echo esc_html(__("[DOWNLOAD GENERATED] File downloaded on (server time): ", 'backup-backup')) . esc_html(date('Y-m-d H:i:s')) . "\n";
                   echo esc_html(__("[DOWNLOAD GENERATED] Last update (seconds): ", 'backup-backup')) . esc_html(time() - filemtime($file)) . esc_html(__(" seconds ago ", 'backup-backup')) . "\n";
                   echo esc_html(__("[DOWNLOAD GENERATED] Last update (date): ", 'backup-backup')) . esc_html(date('Y-m-d H:i:s', filemtime($file))) . " \n";

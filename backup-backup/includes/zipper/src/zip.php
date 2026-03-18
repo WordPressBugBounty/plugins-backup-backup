@@ -10,6 +10,7 @@ use BMI\Plugin\Database\BMI_Database as Database;
 use BMI\Plugin\Database\BMI_Database_Exporter as BetterDatabaseExport;
 use BMI\Plugin\Progress\BMI_ZipProgress as Progress;
 use BMI\Plugin\Heart\BMI_Backup_Heart as Bypasser;
+use BMI\Plugin\Database\Export\DatabaseExportProcessor;
 
 if ( ! defined( 'ABSPATH' ) ) exit;
 
@@ -145,8 +146,19 @@ class Zip {
           require_once BMI_INCLUDES . DIRECTORY_SEPARATOR . 'database' . DIRECTORY_SEPARATOR . 'better-backup-v3.php';
 
           // Get database dump
-          $this->zip_progress->log(__("Making database backup (using v3 engine, requires at least v1.2.2 to restore)", 'backup-backup'), 'STEP');
-
+          
+          $dbEngine = 3;
+          if (Dashboard\bmi_get_config('OTHER::NEW_DATABASE_EXPORT_ENGINE')) {
+            require_once BMI_INCLUDES . DIRECTORY_SEPARATOR . 'database' . DIRECTORY_SEPARATOR . 'export' . DIRECTORY_SEPARATOR . 'class-database-export-processor.php';
+            $dbEngine = 4;
+            $db_exporter = new DatabaseExportProcessor($better_database_files_dir, $this->zip_progress);
+            $this->zip_progress->log(__("Making database backup (using v4 engine, requires at least v1.2.2 to restore)", 'backup-backup'), 'STEP');
+          } else {
+              
+            $this->zip_progress->log(__("Making database backup (using v3 engine, requires at least v1.2.2 to restore)", 'backup-backup'), 'STEP');
+            $dbEngine = 3;
+            $db_exporter = new BetterDatabaseExport($better_database_files_dir, $this->zip_progress);
+          }
         } else {
 
           // Require Database Manager
@@ -160,14 +172,19 @@ class Zip {
         $this->zip_progress->log(__("Iterating database...", 'backup-backup'), 'INFO');
 
         if (!is_dir($better_database_files_dir)) @mkdir($better_database_files_dir, 0755, true);
-        $db_exporter = new BetterDatabaseExport($better_database_files_dir, $this->zip_progress);
         
         $this->zip_progress->log('Exporting database via zip.php', 'VERBOSE');
-        $db_exporter->export();
-        $this->db_exporter_files = $db_exporter->files;
-        $this->db_exporter_queries = $db_exporter->total_queries;
-
-        $this->zip_progress->total_queries = $this->db_exporter_queries;
+        if ($dbEngine === 4) {
+          $result = $db_exporter->exportAll();
+          $this->db_exporter_files = $result['files'];
+          $this->db_exporter_queries = $result['total_queries'];
+          $this->zip_progress->total_queries = $result['total_queries'];
+        } else {
+          $db_exporter->export();
+          $this->db_exporter_files = $db_exporter->files;
+          $this->db_exporter_queries = $db_exporter->total_queries;
+          $this->zip_progress->total_queries = $this->db_exporter_queries;
+        }
 
         $this->dbDumped = true;
         $this->zip_progress->log(__("Database backup finished", 'backup-backup'), 'SUCCESS');
@@ -796,7 +813,7 @@ class Zip {
         $this->zip_progress->log(__("Generating manifest file and saving current live-log...", 'backup-backup'), 'INFO');
 
         file_put_contents($database_file_dir . 'bmi_backup_manifest.json', $this->zip_progress->createManifest($dbBackupEngine));
-        file_put_contents($database_file_dir . 'bmi_logs_this_backup.log', file_get_contents(BMI_BACKUPS . DIRECTORY_SEPARATOR . 'latest.log'));
+        file_put_contents($database_file_dir . 'bmi_logs_this_backup.log', file_get_contents(BMI_BACKUPS . DIRECTORY_SEPARATOR . 'latest.' . BMI_LOGS_SUFFIX . '.log'));
         
         sleep(1);
 

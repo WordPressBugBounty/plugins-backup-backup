@@ -185,12 +185,19 @@
         if ($key !== false) unset($current_patch[$key]);
         update_option('bmi_hotfixes', $current_patch);
       }
+
+      $bmiLogFilesSuffix = bmi_get_config('STORAGE::LOCAL::LOGS::SUFFIX', $newConfigStaticPath);
+      if ($bmiLogFilesSuffix == false) {
+        $bmiLogFilesSuffix = bmi_config_random_string(10);
+        bmi_set_config('STORAGE::LOCAL::LOGS::SUFFIX', $bmiLogFilesSuffix);
+      }
       
       if (!defined('BMI_BACKUPS_ROOT')) define('BMI_BACKUPS_ROOT', $localStoragePath);
       if (!defined('BMI_CONFIG_DIR')) define('BMI_CONFIG_DIR', $localStoragePath);
       if (!defined('BMI_BACKUPS')) define('BMI_BACKUPS', $localStoragePath . DIRECTORY_SEPARATOR . 'backups');
       if (!defined('BMI_STAGING')) define('BMI_STAGING', $localStoragePath . DIRECTORY_SEPARATOR . 'staging');
       if (!defined('BMI_TMP')) define('BMI_TMP', BMI_BACKUPS_ROOT . DIRECTORY_SEPARATOR . 'tmp');
+      if (!defined('BMI_LOGS_SUFFIX')) define('BMI_LOGS_SUFFIX', $bmiLogFilesSuffix);
       
       $bmi_initial_config_dirpath = $localStoragePath;
       $bmi_initial_config_filepath = $newConfigStaticPath;

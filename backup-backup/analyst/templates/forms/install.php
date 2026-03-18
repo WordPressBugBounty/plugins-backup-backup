@@ -50,7 +50,7 @@
         method: 'POST',
         data: {
           action: 'analyst_install_' + pluginId,
-          nonce: analyst_opt_localize.nonce
+          analyst_nonce: analyst_opt_localize.analyst_nonce
         },
         success: function (data) {
 		  if (data && !data.success) {
@@ -109,7 +109,7 @@
 
 	  $.post(ajaxurl, {
       action: 'analyst_skip_install_' + pluginId,
-      nonce: analyst_opt_localize.nonce
+      analyst_nonce: analyst_opt_localize.analyst_nonce
     }).done(function () {
 		  $('#analyst-install-modal').hide()
     })

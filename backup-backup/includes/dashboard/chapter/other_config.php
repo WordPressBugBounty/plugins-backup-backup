@@ -550,6 +550,18 @@
           </span>
         </label>
       </div>
+      <div class="lh40">
+        <label for="bmi-use-new-database-export-engine">
+          <input type="checkbox" id="bmi-use-new-database-export-engine"<?php bmi_try_checked('OTHER::NEW_DATABASE_EXPORT_ENGINE'); ?> />
+          <span class="relative">
+        <?php esc_html_e("Enable the optimized Database Export engine to reduce memory usage and speed up table dumping.", 'backup-backup'); ?>
+        <span class="bmi-info-icon tooltip" tooltip="<?php echo esc_attr__(
+          "The optimized export engine streams table data in memory-efficient chunks rather than loading entire tables at once. Unlike the Search & Replace engine which focuses on data transformation, this engine is specifically designed to minimize peak memory consumption and accelerate the raw data dumping process during backup.",
+          'backup-backup'
+        ); ?>"></span>
+          </span>
+        </label>
+      </div>
 
       <div class="lh40">
         <label for="bmi-db-single-file-backup">

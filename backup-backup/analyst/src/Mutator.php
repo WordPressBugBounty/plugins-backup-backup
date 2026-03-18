@@ -90,7 +90,7 @@ class Mutator
 			wp_enqueue_style('analyst_custom', analyst_assets_url('/css/customize.css'));
 			wp_enqueue_script('analyst_custom', analyst_assets_url('/js/customize.js'));
       wp_localize_script('analyst_custom', 'analyst_opt_localize', array(
-        'nonce' => wp_create_nonce('analyst_opt_ajax_nonce')
+        'analyst_nonce' => wp_create_nonce('analyst_opt_ajax_nonce')
       ));
 		});
 	}
@@ -125,7 +125,7 @@ class Mutator
         die;
       }
       
-      if (!isset($_POST['nonce']) || !wp_verify_nonce(sanitize_text_field($_POST['nonce']), 'analyst_opt_ajax_nonce')) {
+      if (!isset($_POST['analyst_nonce']) || !wp_verify_nonce(sanitize_text_field($_POST['analyst_nonce']), 'analyst_opt_ajax_nonce')) {
         wp_send_json_error(['message' => 'invalid_nonce']);
         die;
       }

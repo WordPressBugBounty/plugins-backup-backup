@@ -147,8 +147,9 @@ class BMI_Search_Replace_Engine {
         }
 
         if ($whereStmt === '') continue;
+        $sql = 'SELECT COUNT(*) AS num FROM ' . BMP::escapeSQLIDentifier($table) . $whereStmt . ';';
         // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Identifier and where clause are safely escaped
-        $row_count = $wpdb->get_results($wpdb->prepare('SELECT COUNT(*) AS num FROM ' . BMP::escapeSQLIDentifier($table) . $whereStmt . ';'));
+        $row_count = $wpdb->get_results($sql);
         $row_count = $row_count[0]->num;
         if ($row_count == 0) {
           $report['currentPage'] = $report['currentPage'] + 1;

@@ -13,7 +13,7 @@
 
     public static function append($type, $log) {
 
-      $configDir = BMI_CONFIG_DIR . DIRECTORY_SEPARATOR . 'complete_logs.log';
+      $configDir = BMI_CONFIG_DIR . DIRECTORY_SEPARATOR . 'complete_logs.' . BMI_LOGS_SUFFIX . '.log';
       if (is_dir(dirname($configDir)) && file_exists($configDir)) {
         $date = '[' . date('Y-m-d H:i:s') . '] ';
         $file = fopen($configDir, 'a');

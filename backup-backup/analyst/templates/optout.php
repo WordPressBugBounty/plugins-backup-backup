@@ -67,7 +67,7 @@
           method: 'POST',
           data: {
             action: 'analyst_opt_out_' + pluginId,
-            nonce: analyst_opt_localize.nonce
+            analyst_nonce: analyst_opt_localize.analyst_nonce
           },
           success: function (data) {
             $(self).text('Opt out')

@@ -23,8 +23,8 @@
 
       if (!file_exists(BMI_STAGING)) mkdir(BMI_STAGING, 0755, true);
 
-      $this->latest = BMI_STAGING . '/latest_staging.log';
-      $this->progress = BMI_STAGING . '/latest_staging_progress.log';
+      $this->latest = BMI_STAGING . '/latest_staging.' . BMI_LOGS_SUFFIX . '.log';
+      $this->progress = BMI_STAGING . '/latest_staging_progress.' . BMI_LOGS_SUFFIX . '.log';
 
       if (file_exists($this->latest) && $continue === false) {
         unlink($this->latest);

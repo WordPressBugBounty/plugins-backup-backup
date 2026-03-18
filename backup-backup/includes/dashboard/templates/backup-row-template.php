@@ -14,6 +14,7 @@ $clouds["GDRIVE"] = [ "name" => "Google Drive", "icon" => "google-drive-mono.svg
 $clouds["ONEDRIVE"] = [ "name" => "OneDrive", "icon" => "one-drive-mono.svg" ];
 $clouds["DROPBOX"] = [ "name" => "Dropbox", "icon" => "dropbox-mono.svg" ];
 $clouds["FTP"] = [ "name" => "FTP", "icon" => "ftp-mono.svg" ];
+$clouds["PCLOUD"] = [ "name" => "pCloud", "icon" => "pcloud-mono.svg" ];
 $clouds["AWS"] = [ "name" => "Amazon S3", "icon" => "amazon-s3-mono.svg" ];
 $clouds["WASABI"] = [ "name" => "Wasabi", "icon" => "wasabi-s3-mono.svg" ];
 $clouds["SFTP"] = [ "name" => "SFTP", "icon" => "sftp-mono.svg" ];

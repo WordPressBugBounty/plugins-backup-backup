@@ -11,6 +11,7 @@
   use BMI\Plugin\Database\BMI_Database as Database;
   use BMI\Plugin\Database\BMI_Database_Exporter as BetterDatabaseExport;
   use BMI\Plugin\Backup_Migration_Plugin as BMP;
+  use BMI\Plugin\Database\Export\DatabaseExportProcessor;
   use BMI\Plugin\BMI_Pro_Core as Pro_Core;
   use BMI\Plugin AS BMI;
 
@@ -140,7 +141,7 @@
         ini_set('display_errors', 1);
         ini_set('error_reporting', E_ALL);
         ini_set('log_errors', 1);
-        ini_set('error_log', BMI_CONFIG_DIR . '/background-errors.log');
+        ini_set('error_log', BMI_CONFIG_DIR . '/background-errors.' . BMI_LOGS_SUFFIX . '.log');
       }
 
     }
@@ -578,7 +579,7 @@
       if (strpos($_manifest, 'file://') !== false) $_manifest = substr($_manifest, 7);
 
       $log_file = fopen($logs, 'w');
-                  fwrite($log_file, file_get_contents(BMI_BACKUPS . DIRECTORY_SEPARATOR . 'latest.log'));
+                  fwrite($log_file, file_get_contents(BMI_BACKUPS . DIRECTORY_SEPARATOR . 'latest.' . BMI_LOGS_SUFFIX . '.log'));
                   fclose($log_file);
       $files = [$logs, $_manifest];
 
@@ -1273,15 +1274,22 @@
             $this->output->log("Iterating database...", 'INFO');
           }
 
-          // Require Database Manager
-          require_once BMI_INCLUDES . DIRECTORY_SEPARATOR . 'database' . DIRECTORY_SEPARATOR . 'better-backup-v3.php';
 
           $database_file_dir = $this->fixSlashes((dirname($database_file))) . DIRECTORY_SEPARATOR;
           $better_database_files_dir = $database_file_dir . 'db_tables';
           $better_database_files_dir = str_replace('file:', 'file://', $better_database_files_dir);
 
           if (!is_dir($better_database_files_dir)) @mkdir($better_database_files_dir, 0755, true);
-          $db_exporter = new BetterDatabaseExport($better_database_files_dir, $this->output, $this->dbit, intval($this->backupstart));
+          $dbEngine = 3;
+          if (Dashboard\bmi_get_config('OTHER::NEW_DATABASE_EXPORT_ENGINE')) {
+            require_once BMI_INCLUDES . DIRECTORY_SEPARATOR . 'database' . DIRECTORY_SEPARATOR . 'export' . DIRECTORY_SEPARATOR . 'class-database-export-processor.php';
+            $dbEngine = 4;
+            $db_exporter = new DatabaseExportProcessor($better_database_files_dir, $this->output, intval($this->backupstart));
+          } else {
+            // Require Database Manager
+            require_once BMI_INCLUDES . DIRECTORY_SEPARATOR . 'database' . DIRECTORY_SEPARATOR . 'better-backup-v3.php';
+            $db_exporter = new BetterDatabaseExport($better_database_files_dir, $this->output, $this->dbit, intval($this->backupstart));
+          }
 
           $dbBatchingEnabled = false;
           if (Dashboard\bmi_get_config('OTHER:BACKUP:DB:BATCHING') == 'true') {
@@ -1294,7 +1302,11 @@
 
           if (BMI_CLI_REQUEST === true || $dbBatchingEnabled === false) {
 
-            $results = $db_exporter->export();
+            if ($dbEngine === 4) {
+              $results = $db_exporter->exportAll();
+            } else {
+              $results = $db_exporter->export();
+            }
 
             $this->output->log("Database backup finished", 'SUCCESS');
             $this->dbitJustFinished = true;
@@ -1303,7 +1315,16 @@
 
           } else {
             
-            $results = $db_exporter->export($this->dbit, $this->dblast);
+            if ($dbEngine === 4) {
+              $results = $db_exporter->exportBatch();
+              // Backward compatibility for v3 engine
+              $this->dbit += 1;
+              $results['batchingStep'] = $this->dbit; 
+              $results['finishedQuery'] = $this->dblast;
+              $results['dumpCompleted'] = $results['status'] === DatabaseExportProcessor::STATUS_COMPLETED;
+            } else {
+              $results = $db_exporter->export($this->dbit, $this->dblast);
+            }
 
             $this->dbit = intval($results['batchingStep']);
             $this->dblast = intval($results['finishedQuery']);

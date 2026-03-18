@@ -23,8 +23,8 @@
 
       if (!file_exists(BMI_BACKUPS)) mkdir(BMI_BACKUPS, 0755, true);
 
-      $this->latest = BMI_BACKUPS . '/latest_migration.log';
-      $this->progress = BMI_BACKUPS . '/latest_migration_progress.log';
+      $this->latest = BMI_BACKUPS . '/latest_migration.' . BMI_LOGS_SUFFIX . '.log';
+      $this->progress = BMI_BACKUPS . '/latest_migration_progress.' . BMI_LOGS_SUFFIX . '.log';
 
       if (file_exists($this->latest) && $continue === false) {
         unlink($this->latest);

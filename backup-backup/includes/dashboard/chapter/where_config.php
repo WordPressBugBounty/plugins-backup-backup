@@ -131,6 +131,29 @@
         </div>
       </div>
       <?php } ?>
+      <?php
+        if (has_action('bmi_pro_pcloud_template')) {
+          do_action('bmi_pro_pcloud_template');
+        } else {
+      ?>
+      <div class="tab2-item">
+        <div class="already_ready"></div>
+        <div class="bg_clock_day2">
+          <img src="<?php echo $this->get_asset('images', 'premium.svg') ?>" alt="crown" class="crown_img" height="30px" width="30px">
+          <?php echo BMI_ALREADY_IN_PRO; ?>
+        </div>
+        <div class="d-flex ia-center">
+          <img src="<?php echo $this->get_asset('images', 'pcloud.svg') ?>" alt="logo" class="tab2-img"> <span class="ml25 title_whereStored">pCloud</span>
+          <img src="<?php echo $this->get_asset('images', 'premium.svg') ?>" alt="logo" class="crown2">
+        </div>
+        <div class="ia-center">
+          <div class="b2 bmi-switch"><input type="checkbox" disabled="disabled" class="checkbox">
+            <div class="bmi-knobs"><span></span></div>
+            <div class="bmi-layer_str"></div>
+          </div>
+        </div>
+      </div>
+      <?php } ?>
 
       <?php
       if (has_action('bmi_pro_sftp_template')) {

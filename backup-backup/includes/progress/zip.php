@@ -38,8 +38,8 @@
       $this->millis = microtime(true);
       $this->cron = $cron;
       $this->logfilename = substr($backup_name, 0, -4) . '.log';
-      $this->latest = BMI_BACKUPS . '/latest.log';
-      $this->latest_progress = BMI_BACKUPS . '/latest_progress.log';
+      $this->latest = BMI_BACKUPS . '/latest.' . BMI_LOGS_SUFFIX . '.log';
+      $this->latest_progress = BMI_BACKUPS . '/latest_progress.' . BMI_LOGS_SUFFIX . '.log';
       $this->files = $files;
       $this->bytes = $bytes;
       $this->total_queries = 1;

@@ -7,8 +7,11 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 
 use Account\Account;
 use Account\AccountDataFactory;
+use Analyst\Cache\DatabaseCache;
 use Analyst\Contracts\AnalystContract;
 use Analyst\Contracts\RequestorContract;
+use Analyst\Storage\DatabaseStorage;
+use Analyst\Storage\FileStorage;
 
 class Analyst implements AnalystContract
 {
@@ -65,6 +68,12 @@ class Analyst implements AnalystContract
 
 	protected function __construct()
 	{
+		$dbStorage = new DatabaseStorage();
+		$fileStorage = new FileStorage();
+
+		DatabaseCache::setStorageBackends($dbStorage, $fileStorage);
+		AccountDataFactory::setStorageBackends($dbStorage, $fileStorage);
+
 		$this->mutator = new Mutator();
 
 		$this->accountDataFactory = AccountDataFactory::instance();

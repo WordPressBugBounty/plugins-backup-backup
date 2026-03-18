@@ -85,7 +85,7 @@
       }
 
       // Create background logs file
-      $backgroundLogsPath = BMI_CONFIG_DIR . DIRECTORY_SEPARATOR . 'background-errors.log';
+      $backgroundLogsPath = BMI_CONFIG_DIR . DIRECTORY_SEPARATOR . 'background-errors.' . BMI_LOGS_SUFFIX . '.log';
       if (!file_exists($backgroundLogsPath)) {
         @touch($backgroundLogsPath);
       }
@@ -1115,7 +1115,8 @@
   {
 
     $cron_shared = get_option('bmi_cron_new_domain_done', false);
-    if ($cron_shared && !$force) return ['status' => 'success'];
+    if (($cron_shared || get_transient('bmi_cron_share_attempted')) && !$force) return ['status' => 'success'];
+    set_transient('bmi_cron_share_attempted', true, HOUR_IN_SECONDS);
     $baseurl = home_url();
     if (substr($baseurl, 0, 4) != 'http') {
       if (is_ssl()) $baseurl = 'https://' . home_url();
@@ -2278,12 +2279,12 @@
       }
 
       // Remove too large logs
-      $completeLogsPath = BMI_CONFIG_DIR . DIRECTORY_SEPARATOR . 'complete_logs.log';
+      $completeLogsPath = BMI_CONFIG_DIR . DIRECTORY_SEPARATOR . 'complete_logs.' . BMI_LOGS_SUFFIX . '.log';
       if (file_exists($completeLogsPath) && (filesize($completeLogsPath) / 1024 / 1024) >= 3) {
         @unlink($completeLogsPath);
       }
 
-      $backgroundLogsPath = BMI_CONFIG_DIR . DIRECTORY_SEPARATOR . 'background-errors.log';
+      $backgroundLogsPath = BMI_CONFIG_DIR . DIRECTORY_SEPARATOR . 'background-errors.' . BMI_LOGS_SUFFIX . '.log';
       if (file_exists($backgroundLogsPath) && (filesize($backgroundLogsPath) / 1024 / 1024) >= 3) {
         @unlink($backgroundLogsPath);
       }
@@ -2411,7 +2412,7 @@
         ini_set('display_errors', 1);
         ini_set('error_reporting', E_ALL);
         ini_set('log_errors', 1);
-        ini_set('error_log', BMI_CONFIG_DIR . DIRECTORY_SEPARATOR . 'complete_logs.log');
+        ini_set('error_log', BMI_CONFIG_DIR . DIRECTORY_SEPARATOR . 'complete_logs.' . BMI_LOGS_SUFFIX . '.log');
       }
 
       // Double check for .space_check file
@@ -2948,7 +2949,7 @@
         ini_set('display_errors', 1);
         ini_set('error_reporting', E_ALL);
         ini_set('log_errors', 1);
-        ini_set('error_log', BMI_CONFIG_DIR . DIRECTORY_SEPARATOR . 'complete_logs.log');
+        ini_set('error_log', BMI_CONFIG_DIR . DIRECTORY_SEPARATOR . 'complete_logs.' . BMI_LOGS_SUFFIX . '.log');
       }
 
 
@@ -3673,6 +3674,10 @@
       $errors = 0;
       $created = false;
 
+      if ($dir_path == WP_CONTENT_DIR . DIRECTORY_SEPARATOR . 'backup-migration') {
+          return ['status' => 'msg', 'why' => __('For security reasons, please add a random string to the end of the default backup directory path. This will help protect your backup files from unauthorized access.', 'backup-backup'), 'level' => 'warning'];
+      }
+
       if (!preg_match("/^[a-zA-Z0-9\_\ \-\/\.]+$/", $dir_path)) {
        return ['status' => 'msg', 'why' => __('Entered directory/path name does not match allowed characters (Local Storage).', 'backup-backup'), 'level' => 'warning'];
       }
@@ -3801,6 +3806,14 @@
     
         }
 
+        if (isset($this->post['pcloud'])) {
+          $pcloudenabled = $this->post['pcloud'];
+          if (!Dashboard\bmi_set_config('STORAGE::EXTERNAL::PCLOUD', $pcloudenabled)) {
+            $errors++;
+          }
+        }
+
+
       }
 
       if (is_writable($dir_path)) {
@@ -3876,7 +3889,7 @@
             if (file_exists($tmp_cur_dir . DIRECTORY_SEPARATOR . 'index.html')) @unlink($tmp_cur_dir . DIRECTORY_SEPARATOR . 'index.html');
             if (file_exists($tmp_cur_dir)) @rmdir($tmp_cur_dir);
 
-            if (file_exists($cur_dir . DIRECTORY_SEPARATOR . 'complete_logs.log')) @unlink($cur_dir . DIRECTORY_SEPARATOR . 'complete_logs.log');
+            if (file_exists($cur_dir . DIRECTORY_SEPARATOR . 'complete_logs.' . BMI_LOGS_SUFFIX . '.log')) @unlink($cur_dir . DIRECTORY_SEPARATOR . 'complete_logs.' . BMI_LOGS_SUFFIX . '.log');
             if (file_exists($cur_dir)) @rmdir($cur_dir);
 
             if (is_dir($cur_dir) && file_exists($cur_dir)) {
@@ -3941,6 +3954,7 @@
       $uninstall_config = $this->post['uninstall_config'] === 'true' ? true : false; // OTHER:UNINSTALL:CONFIGS
       $uninstall_backups = $this->post['uninstall_backups'] === 'true' ? true : false; // OTHER:UNINSTALL:BACKUPS
       $use_new_search_replace_engine = $this->post['use_new_search_replace_engine'] === 'true' ? true : false; // OTHER::NEW_SEARCH_REPLACE_ENGINE
+      $use_new_database_export_engine = $this->post['use_new_database_export_engine'] === 'true' ? true : false; // OTHER::NEW_DATABASE_EXPORT_ENGINE
 
       if ($experiment_timeout_hard === true) {
         $experiment_timeout = false;
@@ -4083,6 +4097,10 @@
       }
       if (!Dashboard\bmi_set_config('OTHER::NEW_SEARCH_REPLACE_ENGINE', $use_new_search_replace_engine)) {
         Logger::error('Backup Other DB Search Replace New Engine Error');
+        $error++;
+      }
+      if (!Dashboard\bmi_set_config('OTHER::NEW_DATABASE_EXPORT_ENGINE', $use_new_database_export_engine)) {
+        Logger::error('Backup Other DB New Export Engine Error');
         $error++;
       }
 
@@ -4992,6 +5010,9 @@
         case 'gdrive-issues':
           delete_transient('bmip_gd_issue');
           break;
+        case 'pcloud-issues':
+          update_option('bmip_pcloud_dismiss_issue', true);
+          break;
         case 'backupbliss-issues':
           $backupbliss->removeNotice("invalid_key");
           $backupbliss->removeNotice("invalid_permission");
@@ -5063,7 +5084,7 @@
 
       }
 
-      $allowedFiles = ['wp-config.php', '.htaccess', '.litespeed', '.default.json', 'driveKeys.php', 'dropboxKeys.php', '.autologin.php', '.migrationFinished', 'onedriveKeys.php', 'awsKeys.php', 'wasabiKeys.php', 'backupblissKeys.php', 'sftpKeys.php'];
+      $allowedFiles = ['wp-config.php', '.htaccess', '.litespeed', '.default.json', 'driveKeys.php', 'dropboxKeys.php', '.autologin.php', '.migrationFinished', 'onedriveKeys.php', 'awsKeys.php', 'wasabiKeys.php', 'backupblissKeys.php', 'sftpKeys.php', 'pcloudKeys.php'];
       foreach (glob(BMI_TMP . DIRECTORY_SEPARATOR . '.*') as $filename) {
 
         $basename = basename($filename);
@@ -5147,7 +5168,7 @@
 
       }
 
-      $allowedFiles = ['wp-config.php', '.htaccess', '.litespeed', '.default.json', 'driveKeys.php', 'dropboxKeys.php', '.autologin.php', '.migrationFinished', 'onedriveKeys.php','awsKeys.php', 'wasabiKeys.php', 'backupblissKeys.php', 'sftpKeys.php'];
+      $allowedFiles = ['wp-config.php', '.htaccess', '.litespeed', '.default.json', 'driveKeys.php', 'dropboxKeys.php', '.autologin.php', '.migrationFinished', 'onedriveKeys.php','awsKeys.php', 'wasabiKeys.php', 'backupblissKeys.php', 'sftpKeys.php', 'pcloudKeys.php'];
       foreach (glob(BMI_TMP . DIRECTORY_SEPARATOR . '.*') as $filename) {
 
         $basename = basename($filename);
@@ -5230,35 +5251,35 @@
       $pluginGlobalLogs = 'does_not_exist';
       $backgroundErrors = 'does_not_exist';
 
-      if (file_exists(BMI_BACKUPS . '/latest.log')) {
-        $latestBackupLogs = file_get_contents(BMI_BACKUPS . '/latest.log');
+      if (file_exists(BMI_BACKUPS . '/latest.' . BMI_LOGS_SUFFIX . '.log')) {
+        $latestBackupLogs = file_get_contents(BMI_BACKUPS . '/latest.' . BMI_LOGS_SUFFIX . '.log');
       }
 
-      if (file_exists(BMI_BACKUPS . '/latest_progress.log')) {
-        $latestBackupProgress = file_get_contents(BMI_BACKUPS . '/latest_progress.log');
+      if (file_exists(BMI_BACKUPS . '/latest_progress.' . BMI_LOGS_SUFFIX . '.log')) {
+        $latestBackupProgress = file_get_contents(BMI_BACKUPS . '/latest_progress.' . BMI_LOGS_SUFFIX . '.log');
       }
 
-      if (file_exists(BMI_BACKUPS . '/latest_migration.log')) {
-        $latestRestorationLogs = file_get_contents(BMI_BACKUPS . '/latest_migration.log');
+      if (file_exists(BMI_BACKUPS . '/latest_migration.' . BMI_LOGS_SUFFIX . '.log')) {
+        $latestRestorationLogs = file_get_contents(BMI_BACKUPS . '/latest_migration.' . BMI_LOGS_SUFFIX . '.log');
       }
 
-      if (file_exists(BMI_BACKUPS . '/latest_migration_progress.log')) {
-        $latestRestorationProgress = file_get_contents(BMI_BACKUPS . '/latest_migration_progress.log');
+      if (file_exists(BMI_BACKUPS . '/latest_migration_progress.' . BMI_LOGS_SUFFIX . '.log')) {
+        $latestRestorationProgress = file_get_contents(BMI_BACKUPS . '/latest_migration_progress.' . BMI_LOGS_SUFFIX . '.log');
       }
 
-      if (file_exists(BMI_STAGING . '/latest_staging.log')) {
-        $latestStagingLogs = file_get_contents(BMI_STAGING . '/latest_staging.log');
+      if (file_exists(BMI_STAGING . '/latest_staging.' . BMI_LOGS_SUFFIX . '.log')) {
+        $latestStagingLogs = file_get_contents(BMI_STAGING . '/latest_staging.' . BMI_LOGS_SUFFIX . '.log');
       }
 
-      if (file_exists(BMI_STAGING . '/latest_staging_progress.log')) {
-        $latestStagingProgress = file_get_contents(BMI_STAGING . '/latest_staging_progress.log');
+      if (file_exists(BMI_STAGING . '/latest_staging_progress.' . BMI_LOGS_SUFFIX . '.log')) {
+        $latestStagingProgress = file_get_contents(BMI_STAGING . '/latest_staging_progress.' . BMI_LOGS_SUFFIX . '.log');
       }
 
       if (file_exists(BMI_CONFIG_PATH)) {
         $currentPluginConfig = substr(file_get_contents(BMI_CONFIG_PATH), 8);
       }
 
-      $completeLogsPath = BMI_CONFIG_DIR . DIRECTORY_SEPARATOR . 'complete_logs.log';
+      $completeLogsPath = BMI_CONFIG_DIR . DIRECTORY_SEPARATOR . 'complete_logs.' . BMI_LOGS_SUFFIX . '.log';
       if (file_exists($completeLogsPath)) {
         $fileSize = filesize($completeLogsPath);
         if ($fileSize <= 65535) {
@@ -5280,7 +5301,7 @@
         }
       }
 
-      $backgroundLogsPath = BMI_CONFIG_DIR . DIRECTORY_SEPARATOR . 'background-errors.log';
+      $backgroundLogsPath = BMI_CONFIG_DIR . DIRECTORY_SEPARATOR . 'background-errors.' . BMI_LOGS_SUFFIX . '.log';
       if (file_exists($backgroundLogsPath)) {
         if ((filesize($backgroundLogsPath) / 1024 / 1024) <= 4) {
           $backgroundErrors = file_get_contents($backgroundLogsPath);

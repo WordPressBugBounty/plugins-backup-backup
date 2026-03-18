@@ -24,8 +24,8 @@
 
       if (!file_exists(BMI_BACKUPS)) mkdir(BMI_BACKUPS, 0755, true);
 
-      $this->latest = BMI_BACKUPS . '/latest.log';
-      $this->latest_progress = BMI_BACKUPS . '/latest_progress.log';
+      $this->latest = BMI_BACKUPS . '/latest.' . BMI_LOGS_SUFFIX . '.log';
+      $this->latest_progress = BMI_BACKUPS . '/latest_progress.' . BMI_LOGS_SUFFIX . '.log';
 
     }
 

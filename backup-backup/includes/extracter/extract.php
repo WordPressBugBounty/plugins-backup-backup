@@ -427,7 +427,7 @@
       if (file_exists($tblmap)) {
         @unlink($tblmap);
       }
-      $allowedFiles = ['wp-config.php', '.htaccess', '.litespeed', '.default.json', 'driveKeys.php', 'dropboxKeys.php', '.autologin.php', '.migrationFinished', 'onedriveKeys.php', 'awsKeys.php', 'wasabiKeys.php', 'backupblissKeys.php', 'sftpKeys.php'];
+      $allowedFiles = ['wp-config.php', '.htaccess', '.litespeed', '.default.json', 'driveKeys.php', 'dropboxKeys.php', '.autologin.php', '.migrationFinished', 'onedriveKeys.php', 'awsKeys.php', 'wasabiKeys.php', 'backupblissKeys.php', 'sftpKeys.php', 'pcloudKeys.php'];
       foreach (glob(BMI_TMP . DIRECTORY_SEPARATOR . 'backup-migration_??????????') as $filename) {
 
         $basename = basename($filename);
