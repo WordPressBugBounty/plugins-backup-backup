@@ -1,21 +1,7 @@
 (function ($) {
 
   var nonce = bmi_backup_banner.dismiss_nonce;
-  var pluginUrl = bmi_backup_banner.plugin_url;
-
-  // Find the Backup Migration sidebar menu item
-  var $menuItem = $('#adminmenu').find('li.toplevel_page_backup-migration');
-
-  // Highlight the sidebar menu item (exclude from overlay)
-  if ($menuItem.length) {
-    $menuItem.addClass('bmi-backup-banner--sidebar-highlight');
-  }
-
-  $('#adminmenu li').not('#toplevel_page_backup-migration, #toplevel_page_backup-migration *').each(function () {
-      $(this).addClass('bmi-menu-dim');
-  });
-  $('.wp-menu-separator').css('margin', '0');
-  
+  var pluginUrl = bmi_backup_banner.plugin_url;  
   // Position the wavy arrow from the banner to the sidebar menu item
   function positionArrow() {
     if (window.innerWidth < 1200) {
@@ -24,6 +10,8 @@
     }
     var $arrow = $('#bmi-backup-banner-arrow');
     var $banner = $('#bmi-backup-banner');
+    var $menuItem = $('#adminmenu').find('li.toplevel_page_backup-migration');
+
     if (!$menuItem.length || !$arrow.length || !$banner.length) return;
 
     // Position banner so its bottom is 50px below the menu item's bottom
@@ -60,9 +48,38 @@
     });
   }
 
-  // Position arrow on load and resize
-  positionArrow();
+  // Reveal banner elements once page is fully loaded
+  function showBanner() {
+      // Find the Backup Migration sidebar menu item
+      var $menuItem = $('#adminmenu').find('li.toplevel_page_backup-migration');
+
+      // Highlight the sidebar menu item (exclude from overlay)
+      if ($menuItem.length) {
+        $menuItem.addClass('bmi-backup-banner--sidebar-highlight');
+      }
+
+      $('#adminmenu li').not('#toplevel_page_backup-migration, #toplevel_page_backup-migration *').each(function () {
+          $(this).addClass('bmi-menu-dim');
+      });
+      $('.wp-menu-separator').css('margin', '0');
+    positionArrow();
+    $('#bmi-backup-banner-overlay').addClass('bmi-backup-banner--ready');
+    $('#bmi-backup-banner').addClass('bmi-backup-banner--ready');
+    $('#bmi-backup-banner-arrow').addClass('bmi-backup-banner--ready');
+
+    // Re-emit resize so position is recalculated with transitions now active
+    requestAnimationFrame(function () {
+      window.dispatchEvent(new Event('resize'));
+    });
+  }
+
   $(window).on('resize', positionArrow);
+
+  if (document.readyState === 'complete') {
+    showBanner();
+  } else {
+    $(window).on('load', showBanner);
+  }
 
   // Dismiss helper
   function dismissBanner(callback) {
@@ -79,6 +96,7 @@
   }
 
   function hideBanner() {
+    var $menuItem = $('#adminmenu').find('li.toplevel_page_backup-migration');
     $('#bmi-backup-banner').hide();
     $('#bmi-backup-banner-overlay').hide();
     $('#bmi-backup-banner-arrow').hide();

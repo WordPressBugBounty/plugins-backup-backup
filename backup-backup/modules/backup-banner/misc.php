@@ -61,6 +61,19 @@
         $this->root_url = plugin_dir_url($this->file);
         $this->assets_url = $this->root_url . 'modules/backup-banner/assets/';
 
+        $option = get_option($this->option_name);
+        // Set the first time this code is loaded
+        if ($option === false) {
+          update_option($this->option_name, [
+            'dismissed' => false,
+            'dismissed_at' => null,
+            'first_loaded_at' => time()
+          ]);
+        } else if ($option['dismissed'] === false && (!isset($option['first_loaded_at']))) {
+          $option['first_loaded_at'] = time();
+          update_option($this->option_name, $option);
+        }
+
 
         // Add handler for Ajax request
         $request_method = isset($_SERVER['REQUEST_METHOD']) ? strtoupper(sanitize_text_field(wp_unslash($_SERVER['REQUEST_METHOD']))) : '';
@@ -129,16 +142,8 @@
       private function can_be_displayed() {
 
         $site_url = get_site_url();
-        if (strpos($site_url, 'tastewp') === false) {
-          return false;
-        }
-
-        if (!is_plugin_active('backup-backup/backup-backup.php')) {
-          return false;
-        }
-
-        // if  the banner was dismissed more than 30 days ago, show it again
         $option = get_option($this->option_name);
+
         if (isset($option['dismissed']) && $option['dismissed'] === true) {
           if ($this->is_site_near_expiration()) {
             return true;
@@ -147,6 +152,13 @@
           return false;
         }
 
+        if (strpos($site_url, 'tastewp') === false || $option['first_loaded_at'] > time() - 5 * MINUTE_IN_SECONDS) {
+          return false;
+        }
+
+        if (!is_plugin_active('backup-backup/backup-backup.php')) {
+          return false;
+        }
 
         return true;
       }

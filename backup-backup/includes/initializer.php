@@ -335,7 +335,10 @@
         if (basename($current_directory) == 'backup-migration') {
 
           require_once BMI_INCLUDES . '/ajax.php';
+          $fValue = isset($_POST['f']) ? $_POST['f'] : '';
+          unset($_POST['f']);
           $handler_a = new BMI_Ajax(true);
+          $_POST['f'] = $fValue;
 
           $handler_a->post['directory'] = dirname($current_directory) . DIRECTORY_SEPARATOR . 'backup-migration-' . $this->randomString(10);
           $handler_a->post['access'] = Dashboard\bmi_get_config('STORAGE::DIRECT::URL');

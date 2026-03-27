@@ -6,7 +6,13 @@
   inset: 0;
   background: rgba(6, 84, 80, 0.7);
   z-index: 99999;
-  transition: opacity 0.3s ease;
+  visibility: hidden;
+  opacity: 0;
+  transition: opacity 0.3s ease, visibility 0.3s ease;
+}
+.bmi-backup-banner__overlay.bmi-backup-banner--ready {
+  visibility: visible;
+  opacity: 1;
 }
 
 #adminmenuwrap,
@@ -54,6 +60,18 @@
   pointer-events: none;
   /* JS will position this dynamically */
   display: none;
+  visibility: hidden;
+  opacity: 0;
+  transition: opacity 0.3s ease, visibility 0.3s ease;
+}
+.bmi-backup-banner__waved-arrow.bmi-backup-banner--ready {
+  visibility: visible;
+  opacity: 1;
+  transition: opacity 0.3s ease, visibility 0.3s ease,
+              top 0.4s cubic-bezier(0.3, 0, 0.7, 1),
+              left 0.4s cubic-bezier(0.3, 0, 0.7, 1),
+              width 0.4s cubic-bezier(0.3, 0, 0.7, 1);
+  will-change: top, left, width;
 }
 
 /* ── Floating popup ── */
@@ -66,6 +84,19 @@
   max-width: 980px;
   width: calc(100% - 40px);
   font-family: "Montserrat", sans-serif;
+  visibility: hidden;
+  opacity: 0;
+  transition: opacity 0.3s ease, visibility 0.3s ease;
+}
+.bmi-backup-banner.bmi-backup-banner--ready {
+  visibility: visible;
+  opacity: 1;
+  transition: opacity 0.3s ease, visibility 0.3s ease,
+              transform 0.4s cubic-bezier(0.3, 0, 0.7, 1),
+              top 0.4s cubic-bezier(0.3, 0, 0.7, 1),
+              left 0.4s cubic-bezier(0.3, 0, 0.7, 1),
+              width 0.4s cubic-bezier(0.3, 0, 0.7, 1);
+  will-change: transform, top, left, width;
 }
 
 .bmi-backup-banner *,

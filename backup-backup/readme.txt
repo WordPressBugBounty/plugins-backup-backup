@@ -1,13 +1,13 @@
-=== Backup Migration ===
+=== Backup ===
 Contributors: Migrate
 Tags: Migration, Backup, Staging, Migrate, Backups
 Requires at least: 4.6
 Tested up to: 6.9.4
-Stable tag: 2.1.2
+Stable tag: 2.1.3
 License: GPLv3
 Requires PHP: 5.6
 
-Backup Migration
+Backup
 
 == Description ==
 
@@ -177,6 +177,17 @@ Vietnamese: [Tạo sao lưu, khôi phục các bản sao lưu và di chuyển c�
 5. The plugin should be shown below the settings menu.
 
 == Changelog ==
+= 2.1.3 =
+
+* [FEATURE] Enhanced backup banner with improved initialization logic, positioning, and transition effects.  
+* [FEATURE] Added delayed banner display after 5 minutes of initialization.  
+* [FEATURE] Implemented dynamic arrow positioning updates on DOM mutations for the banner.  
+* [FEATURE] Added menu item checks for accurate banner positioning and behavior.  
+* [FEATURE] Limited banner overlay to admin items only when triggered.  
+* [FEATURE] Enabled new database export engine option in settings.
+* [FIX] Preserved POST `f` value during AJAX handler initialization.  
+* [FIX] Ensured menu item is correctly referenced when hiding the banner.
+
 = 2.1.2 =
 
 * Tested with WordPress 6.9.4
@@ -226,17 +237,6 @@ Vietnamese: [Tạo sao lưu, khôi phục các bản sao lưu và di chuyển c�
 * [ENHANCEMENT] Improved backup and restore log handling using bmi-id for consistency and compatibility.  
 * [ENHANCEMENT] Improved backup locking and race condition handling to prevent overlapping operations.  
 * [ENHANCEMENT] Improved tooltip messaging and visual feedback for backup completion and storage icons.  
-* [ENHANCEMENT] Enhanced banner responsiveness and layout across different screen sizes.  
-* [FIX] Prevented direct access to PHP files by adding missing access checks.  
-* [FIX] Corrected backup deletion logic to only remove external backups created on the same site.  
-* [FIX] Fixed backup URL and migration parameters to consistently use bmi-id instead of backup-id.  
-* [FIX] Improved ZIP archive detection with fallback validation checks.  
-* [FIX] Prevented backup scans from running while a backup is already in progress.  
-* [FIX] Allowed spaces in backup directory names during validation.  
-* [FIX] Fixed FTP connection handling by checking function availability before use.  
-* [FIX] Resolved issues with backup path validation before running backup status checks.  
-* [FIX] Prevented review banners from showing on unsupported admin pages.  
-* [FIX] Improved JSON content type validation for offline verification requests.  
 * [... and more ...]
 
 = previous =
@@ -244,23 +244,14 @@ Old changelog has been removed due to WordPress limitation of 5000 characters.
 
 == Upgrade Notice ==
 
-= 2.1.2 =
-What's new in 2.1.2?
+= 2.1.3 =
+What's new in 2.1.3?
 
-* Tested with WordPress 6.9.4
-* [FEATURE] Implemented new database export engine with support for unbuffered queries.  
-* [FEATURE] Added dual storage backend with file-based fallback for improved reliability.  
-* [FEATURE] Added backup banner with dismiss functionality and updated assets.  
-* [FEATURE] Introduced log file suffix configuration for improved log management.  
-* [ENHANCEMENT] Increased default search/replace limits and enabled new search/replace engine.  
-* [ENHANCEMENT] Enhanced fetchRows method to support unbuffered queries for better performance.  
-* [ENHANCEMENT] Improved banner responsiveness, text wrapping, and installation link handling.  
-* [ENHANCEMENT] Improved responsive design of feature cards and dashboard banners.  
-* [ENHANCEMENT] Simplified restore success modal logic for better user feedback.  
-* [ENHANCEMENT] Streamlined exclusion logic and error handling in database export process.  
-* [FIX] Prevented frequent cron job execution for improved stability.  
-* [REFACTOR] Kept legacy database engine as primary while introducing new engine as alternative.  
-* [REFACTOR] Simplified banner dismiss logic and improved redirect behavior.  
-* [REFACTOR] Removed unnecessary database prepare calls.  
-* [DOCS] Added warning about unbuffered query behavior in database export documentation.  
-* [MISC] Various internal improvements, optimizations, and minor fixes across the plugin.
+* [FEATURE] Enhanced backup banner with improved initialization logic, positioning, and transition effects.  
+* [FEATURE] Added delayed banner display after 5 minutes of initialization.  
+* [FEATURE] Implemented dynamic arrow positioning updates on DOM mutations for the banner.  
+* [FEATURE] Added menu item checks for accurate banner positioning and behavior.  
+* [FEATURE] Limited banner overlay to admin items only when triggered.  
+* [FEATURE] Enabled new database export engine option in settings.
+* [FIX] Preserved POST `f` value during AJAX handler initialization.  
+* [FIX] Ensured menu item is correctly referenced when hiding the banner.
