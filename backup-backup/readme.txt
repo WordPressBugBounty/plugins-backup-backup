@@ -1,13 +1,13 @@
-=== Backup ===
+=== BackupBliss – Backup & Migration with Free Cloud Storage ===
 Contributors: Migrate
 Tags: Migration, Backup, Staging, Migrate, Backups
 Requires at least: 4.6
 Tested up to: 6.9.4
-Stable tag: 2.1.3
+Stable tag: 2.1.4
 License: GPLv3
 Requires PHP: 5.6
 
-Backup
+Backup, migrate, and create staging sites with free cloud storage and support.
 
 == Description ==
 
@@ -177,6 +177,11 @@ Vietnamese: [Tạo sao lưu, khôi phục các bản sao lưu và di chuyển c�
 5. The plugin should be shown below the settings menu.
 
 == Changelog ==
+= 2.1.4 =
+
+* [FIX] Ensured restore success modal appears correctly after restore completion.
+* [FIX] Corrected SQL LIKE statement escaping for accurate query handling and improved security.
+
 = 2.1.3 =
 
 * [FEATURE] Enhanced backup banner with improved initialization logic, positioning, and transition effects.  
@@ -244,14 +249,8 @@ Old changelog has been removed due to WordPress limitation of 5000 characters.
 
 == Upgrade Notice ==
 
-= 2.1.3 =
-What's new in 2.1.3?
+= 2.1.4 =
+What's new in 2.1.4?
 
-* [FEATURE] Enhanced backup banner with improved initialization logic, positioning, and transition effects.  
-* [FEATURE] Added delayed banner display after 5 minutes of initialization.  
-* [FEATURE] Implemented dynamic arrow positioning updates on DOM mutations for the banner.  
-* [FEATURE] Added menu item checks for accurate banner positioning and behavior.  
-* [FEATURE] Limited banner overlay to admin items only when triggered.  
-* [FEATURE] Enabled new database export engine option in settings.
-* [FIX] Preserved POST `f` value during AJAX handler initialization.  
-* [FIX] Ensured menu item is correctly referenced when hiding the banner.
+* [FIX] Ensured restore success modal appears correctly after restore completion.
+* [FIX] Corrected SQL LIKE statement escaping for accurate query handling and improved security.

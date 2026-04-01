@@ -349,7 +349,7 @@
       }
       
       // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Identifier is safely escaped via escapeSQLIDentifier()
-      $wpdb->query($wpdb->prepare("DELETE FROM " . BMP::escapeSQLIDentifier($newOptionTable) . " WHERE `option_name` = 'BMI::STORAGE::LOCAL::PATH';"));
+      $wpdb->query("DELETE FROM " . BMP::escapeSQLIDentifier($newOptionTable) . " WHERE `option_name` = 'BMI::STORAGE::LOCAL::PATH';");
 
       if ($wpdb->last_error !== '') {
         $translated = __('There was an error during BMI config hard removal:', 'backup-backup') . ' ' . $wpdb->last_error;
