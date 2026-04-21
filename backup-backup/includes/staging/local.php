@@ -463,6 +463,125 @@
       return $this->abort(true);
     }
 
+    public function reconstructConfigurations() {
+
+      global $table_prefix;
+
+      // Load any surviving configuration entries so we preserve them
+      $existingConfig = [];
+      if (file_exists($this->configPath)) {
+        $raw = file_get_contents($this->configPath);
+        $raw = trim(substr($raw, 8));
+        if (is_serialized($raw)) {
+          $parsed = maybe_unserialize($raw);
+          if (is_array($parsed)) $existingConfig = $parsed;
+        }
+      }
+      $this->config = $existingConfig;
+
+      $abspath      = trailingslashit(ABSPATH);
+      $reconstructed = [];
+      $skipped       = [];
+      $errors        = [];
+
+      $entries = @scandir($abspath);
+      if ($entries === false) {
+        return ['status' => 'error', 'message' => 'Cannot read ABSPATH directory.'];
+      }
+
+      foreach ($entries as $entry) {
+
+        if ($entry === '.' || $entry === '..') continue;
+
+        $candidatePath = $abspath . $entry;
+        if (!is_dir($candidatePath)) continue;
+
+        $markerFile = $candidatePath . DIRECTORY_SEPARATOR . '.bmi_staging';
+        if (!file_exists($markerFile)) continue;
+
+        $stagingName = $entry;
+        $stagingRoot = untrailingslashit($candidatePath);
+
+        // Skip sites that already have an intact config file
+        if (isset($this->config[$stagingName]) && isset($this->config[$stagingName]['config'])) {
+          $existingConfigFile = BMI_STAGING . DIRECTORY_SEPARATOR . sanitize_text_field($this->config[$stagingName]['config']) . '.php';
+          if (file_exists($existingConfigFile)) {
+            $skipped[] = $stagingName;
+            continue;
+          }
+        }
+
+        $dbPrefix    = null;
+        $wpConfigPath = $stagingRoot . DIRECTORY_SEPARATOR . 'wp-config.php';
+
+        if (file_exists($wpConfigPath) && is_readable($wpConfigPath)) {
+          $wpConfigContent = file_get_contents($wpConfigPath);
+          if (preg_match('/\$table_prefix\s*=\s*[\'"]([^\'"]+)[\'"]\s*;/', $wpConfigContent, $matches)) {
+            $candidate = $matches[1];
+            if ($candidate !== $table_prefix) {
+              $dbPrefix = $candidate;
+            }
+          }
+        }
+
+        if ($dbPrefix === null) {
+          $errors[] = $stagingName;
+          continue;
+        }
+
+        // Build site config
+        $configId   = uniqid();
+        $siteConfig = [
+          'name'                 => $stagingName,
+          'url'                  => home_url($stagingName),
+          'root_source'          => trailingslashit(ABSPATH),
+          'root_staging'         => $stagingRoot,
+          'db_prefix'            => $dbPrefix,
+          'creation_date'        => filemtime($markerFile),
+          'password'             => $this->getRandomPassword(),
+          'creator_ip'           => $this->getIpAddress(),
+          'login_ip'             => $this->getIpAddress(),
+          'login_user_id'        => get_current_user_id(),
+          'source_home_url'      => home_url(),
+          'source_site_url'      => site_url(),
+          'source_db_prefix'     => $table_prefix,
+          'communication_secret' => 'local',
+          'expiration_time'      => 'never',
+          'step'                 => 7,
+          'batch'                => 1,
+          'total_size'           => 'N/A',
+          'total_files'          => 'N/A',
+          'total_directories'    => 'N/A',
+          'total_db_size'        => 'N/A',
+          'amountOfTables'       => 'N/A',
+          'sumOfTotalSize'       => 'N/A',
+        ];
+
+        $siteConfigPath = BMI_STAGING . DIRECTORY_SEPARATOR . $configId . '.php';
+        file_put_contents($siteConfigPath, '<?php //' . serialize($siteConfig));
+
+        // Register in global config
+        $this->config[$stagingName] = [
+          'config' => $configId,
+          'name'   => $stagingName,
+          'prefix' => $dbPrefix,
+        ];
+
+        $reconstructed[] = $stagingName;
+
+      }
+
+      $this->saveConfig();
+
+      return [
+        'status'        => (count($errors) > 0 && count($reconstructed) === 0) ? 'error' : 'success',
+        'reconstructed' => $reconstructed,
+        'skipped'       => $skipped,
+        'errors'        => $errors,
+      ];
+
+    }
+
     // Step: 0 (initialization of the staging site, create entry)
     private function initialization() {
 

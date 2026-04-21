@@ -22,7 +22,7 @@
         <span class="bmi-error-toggle" data-expand="<?php esc_attr_e('Expand', 'backup-backup'); ?>" data-collapse="<?php esc_attr_e('Collapse', 'backup-backup'); ?>">
           <?php esc_html_e('Expand', 'backup-backup'); ?>
         </span> |
-        <span id="bmi-error-dismiss">
+        <span class="bmi-error-dismiss">
           <?php esc_html_e('Dismiss', 'backup-backup'); ?>
         </span>
       </div>

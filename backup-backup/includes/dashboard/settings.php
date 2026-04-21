@@ -234,7 +234,7 @@
   <?php require_once 'modals/backup-success-modal.php'; ?>
   <?php require_once 'modals/prenotice-modal.php'; ?>
   <?php require_once 'modals/pre-restore-modal.php'; ?>
-  <?php require_once 'modals/restore-parts-modal.php'; ?>
+  <?php require_once 'modals/simple-explorer-modal.php'; ?>
   <?php require_once 'modals/error-modal.php'; ?>
   <?php require_once 'modals/restore-progress-modal.php'; ?>
   <?php require_once 'modals/restore-success-modal.php'; ?>

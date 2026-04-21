@@ -61,6 +61,8 @@
       // File amount by default 0 later we replace it with scan
       $this->fileAmount = 0;
       $this->recent_export_seek = 0;
+      $this->fileRestoreSeek = 0;
+      $this->fileRestoreCategory = 0;
       $this->processData = [];
       $this->conversionStats = [];
 
@@ -115,6 +117,16 @@
       }
       if (isset($options['recent_export_seek'])) {
         $this->recent_export_seek = intval($options['recent_export_seek']);
+      }
+      if (isset($options['fileRestoreSeek'])) {
+        $this->fileRestoreSeek = intval($options['fileRestoreSeek']);
+      }
+      if (isset($options['fileRestoreCategory'])) {
+        $this->fileRestoreCategory = intval($options['fileRestoreCategory']);
+      }
+      $this->firstFileRestore = true;
+      if (isset($options['firstFileRestore'])) {
+        $this->firstFileRestore = (($options['firstFileRestore'] == 'false' || $options['firstFileRestore'] === false || $options['firstFileRestore'] === '0' || $options['firstFileRestore'] === 0) ? false : true);
       }
       if (isset($options['processData'])) {
         $this->processData = $options['processData'];
@@ -223,14 +235,10 @@
       $path .= DIRECTORY_SEPARATOR . 'wordpress' . $sub;
 
       // Handle only database backup
-      if (!file_exists($path)) return;
-
-      $rii = new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($path, \RecursiveDirectoryIterator::SKIP_DOTS), \RecursiveIteratorIterator::SELF_FIRST);
+      if (!file_exists($path)) return true;
 
       $clent = strlen($content);
       $sublen = strlen($path);
-      $files = [];
-      $dirs = [];
 
       $preventMoveFiles = [
         'wp-config.php',
@@ -239,57 +247,306 @@
         'php.ini',
         '.htaccess'
       ];
+      $catCounts = [0, 0, 0, 0, 0];
+      $catNames = ['WordPress core', 'Must-use plugins', 'Themes', 'Plugins', 'Other files'];
 
-      foreach ($rii as $file) {
-        if (!$file->isDir()) {
-          $files[] = substr($file->getPathname(), $sublen);
-        } else {
-          $dirs[] = substr($file->getPathname(), $sublen);
-        }
-      }
 
-      for ($i = 0; $i < sizeof($dirs); ++$i) {
-        $src = $path . $dirs[$i];
-        if (strpos($dirs[$i], $content) !== false) {
-          $dest = untrailingslashit($this->WP_CONTENT_DIR) . $sub . ltrim(substr($dirs[$i], $clent), DIRECTORY_SEPARATOR);
-        } else {
-          $dest = untrailingslashit($this->ABSPATH) . $sub . ltrim($dirs[$i], DIRECTORY_SEPARATOR);
-        }
+      // First batch: scan, create directories, categorize files into per-category scan files
+      if ($this->firstFileRestore) {
 
-        $dest = untrailingslashit($dest);
-        if (!(file_exists($dest) && is_dir($dest))) {
-          try { @mkdir($dest, 0755, true); }
-          catch (Exception $e) { /* Slience */ }
-          catch (Throwable $t) { /* Slience */ }
-        }
-      }
+        $this->migration->log(__("Scanning and categorizing files for restoration...", 'backup-backup'), 'STEP');
 
-      $max = sizeof($files);
-      for ($i = 0; $i < $max; ++$i) {
-        $src = $path . $files[$i];
-        if (strpos($files[$i], $content) !== false) {
-          $dest = untrailingslashit($this->WP_CONTENT_DIR) . $sub . substr($files[$i], $clent);
-        } else {
-          $dest = untrailingslashit($this->ABSPATH) . $sub . $files[$i];
+        // Category scan files:
+        // 0 = WordPress core, 1 = Must-use plugins, 2 = Themes, 3 = Plugins, 4 = Everything else
+        $catHandles = [];
+        for ($c = 0; $c < 5; $c++) {
+          $catHandles[$c] = fopen($this->getCategoryScanFile($c), 'w');
         }
 
-        if (file_exists($src)) {
-          $fileDest = BMP::fixSlashes($dest);
-          $srcFileName = basename($src);
+        $ds = DIRECTORY_SEPARATOR;
+        $muPluginsPrefix = $ds . 'mu-plugins' . $ds;
+        $muPluginsExact = $ds . 'mu-plugins';
+        $themesPrefix = $ds . 'themes' . $ds;
+        $themesExact = $ds . 'themes';
+        $pluginsPrefix = $ds . 'plugins' . $ds;
+        $pluginsExact = $ds . 'plugins';
 
-          if (!in_array($srcFileName, $preventMoveFiles)) {
-            rename($src, $fileDest);
+        $rii = new \RecursiveIteratorIterator(
+          new \RecursiveDirectoryIterator($path, \RecursiveDirectoryIterator::SKIP_DOTS),
+          \RecursiveIteratorIterator::SELF_FIRST
+        );
+
+        foreach ($rii as $fileEntry) {
+          if ($fileEntry->isDir()) {
+            $relPath = substr($fileEntry->getPathname(), $sublen);
+            if (strpos($relPath, $content) !== false) {
+              $dest = untrailingslashit($this->WP_CONTENT_DIR) . $sub . ltrim(substr($relPath, $clent), DIRECTORY_SEPARATOR);
+            } else {
+              $dest = untrailingslashit($this->ABSPATH) . $sub . ltrim($relPath, DIRECTORY_SEPARATOR);
+            }
+            $dest = untrailingslashit($dest);
+            if (!(file_exists($dest) && is_dir($dest))) {
+              try { @mkdir($dest, 0755, true); }
+              catch (\Exception $e) { /* Silence */ }
+              catch (\Throwable $t) { /* Silence */ }
+            }
+          } else {
+            $relPath = substr($fileEntry->getPathname(), $sublen);
+
+            // Categorize based on path
+            if (strpos($relPath, $content) === false) {
+              $cat = 0; // WordPress core (outside wp-content)
+            } else {
+              $afterContent = substr($relPath, strpos($relPath, $content) + strlen($content) - 1);
+              if (strpos($afterContent, $muPluginsPrefix) === 0 || $afterContent === $muPluginsExact) {
+                $cat = 1; // Must-use plugins
+              } elseif (strpos($afterContent, $themesPrefix) === 0 || $afterContent === $themesExact) {
+                $cat = 2; // Themes
+              } elseif (strpos($afterContent, $pluginsPrefix) === 0 || $afterContent === $pluginsExact) {
+                $cat = 3; // Plugins
+              } else {
+                $cat = 4; // Everything else (uploads, cache, languages, etc.)
+              }
+            }
+
+            fwrite($catHandles[$cat], $relPath . "\n");
+            $catCounts[$cat]++;
           }
         }
 
-        if ($i % 100 === 0 || ($i == ($max - 1))) {
-          $this->migration->progress(25 + intval((($i / $max) * 100) / 4));
-          if ($i != 0 && ($i % 500 === 0 || ($i == ($max - 1)))) {
-            if ($i == ($max - 1)) $i++;
-            $this->migration->log(sprintf(__('File replacement progress: %s/%s (%s%%)', 'backup-backup'), $i, $max, intval(($i / $max) * 100)));
+        for ($c = 0; $c < 5; $c++) {
+          fclose($catHandles[$c]);
+        }
+
+        for ($c = 0; $c < 5; $c++) {
+          if ($catCounts[$c] > 0) {
+            $this->migration->log($catNames[$c] . ': ' . $catCounts[$c] . __(' files', 'backup-backup'), 'INFO');
           }
         }
+
+        $this->migration->log(__("File categorization complete.", 'backup-backup'), 'SUCCESS');
+        $this->firstFileRestore = false;
+
+        if (!$this->isCLI) {
+          $this->migration->progress(26);
+          return 'repeat';
+        }
+
       }
+
+      // CLI mode: process all files at once (no batching needed)
+      if ($this->isCLI) {
+
+        $rii = new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($path, \RecursiveDirectoryIterator::SKIP_DOTS), \RecursiveIteratorIterator::SELF_FIRST);
+
+        $files = [];
+        foreach ($rii as $file) {
+          if (!$file->isDir()) {
+            $files[] = substr($file->getPathname(), $sublen);
+          }
+        }
+
+        $max = sizeof($files);
+        for ($i = 0; $i < $max; ++$i) {
+          $src = $path . $files[$i];
+          if (strpos($files[$i], $content) !== false) {
+            $dest = untrailingslashit($this->WP_CONTENT_DIR) . $sub . substr($files[$i], $clent);
+          } else {
+            $dest = untrailingslashit($this->ABSPATH) . $sub . $files[$i];
+          }
+
+          if (file_exists($src)) {
+            $fileDest = BMP::fixSlashes($dest);
+            $srcFileName = basename($src);
+
+            if (!in_array($srcFileName, $preventMoveFiles)) {
+              rename($src, $fileDest);
+            }
+          }
+
+          if ($i % 100 === 0 || ($i == ($max - 1))) {
+            $this->migration->progress(25 + intval((($i / $max) * 100) / 4));
+            if ($i != 0 && ($i % 500 === 0 || ($i == ($max - 1)))) {
+              if ($i == ($max - 1)) $i++;
+              $this->migration->log(sprintf(__('File replacement progress: %s/%s (%s%%)', 'backup-backup'), $i, $max, intval(($i / $max) * 100)));
+            }
+          }
+        }
+
+        // Cleanup category scan files created during the scan phase
+        for ($c = 0; $c < 5; $c++) {
+          $catFile = $this->getCategoryScanFile($c);
+          if (file_exists($catFile)) @unlink($catFile);
+        }
+
+        return true;
+
+      }
+
+      // Non-CLI: process categories sequentially
+      // Categories 0-3 (core, mu-plugins, themes, plugins) must each complete fully in a single request
+      // Category 4 (everything else) uses batched processing
+      $catNames = ['WordPress core', 'Must-use plugins', 'Themes', 'Plugins', 'Other files'];
+      $catProgressEnd = [31, 34, 37, 42, 50];
+
+      for ($cat = $this->fileRestoreCategory; $cat <= 4; $cat++) {
+        $catFile = $this->getCategoryScanFile($cat);
+
+        // Skip empty or missing categories
+        if (!file_exists($catFile) || filesize($catFile) === 0) {
+          if (file_exists($catFile)) @unlink($catFile);
+          continue;
+        }
+
+        if ($cat <= 3) {
+
+          // Categories 0-3: restore ALL files atomically via streaming (line-by-line)
+          $this->migration->log(__('Restoring: ', 'backup-backup') . $catNames[$cat], 'STEP');
+          $count = 0;
+          $fh = fopen($catFile, 'r');
+          if ($fh !== false) {
+            while (($line = fgets($fh)) !== false) {
+              $line = trim($line);
+              if ($line === '' || strlen($line) === 0) continue;
+
+              $src = $path . $line;
+              if (strpos($line, $content) !== false) {
+                $dest = untrailingslashit($this->WP_CONTENT_DIR) . $sub . substr($line, $clent);
+              } else {
+                $dest = untrailingslashit($this->ABSPATH) . $sub . $line;
+              }
+
+              if (file_exists($src)) {
+                $fileDest = BMP::fixSlashes($dest);
+                $srcFileName = basename($src);
+
+                if (!in_array($srcFileName, $preventMoveFiles)) {
+                  rename($src, $fileDest);
+                }
+              }
+
+              $count++;
+            }
+            fclose($fh);
+          }
+
+          @unlink($catFile);
+          $this->migration->log(sprintf(__('%s restored: %d files', 'backup-backup'), $catNames[$cat], $count), 'SUCCESS');
+          $this->migration->progress($catProgressEnd[$cat]);
+          $this->fileRestoreCategory = $cat + 1;
+          return 'repeat';
+
+        }
+
+        // Category 4: batched processing for remaining files
+        if ($this->fileRestoreSeek == 0) {
+          $this->migration->log(__('Restoring: ', 'backup-backup') . $catNames[$cat], 'STEP');
+        }
+
+        $file = new \SplFileObject($catFile);
+        $file->seek($file->getSize());
+        $total_lines = $file->key() + 1;
+
+        $last_seek = $this->fileRestoreSeek;
+
+        // Determine batch size based on total file count
+        $batch = 500;
+        if ($total_lines > 36000) $batch = 1000;
+        if ($total_lines > 50000) $batch = 2500;
+        if ($total_lines > 100000) $batch = 5000;
+        if ($total_lines > 150000) $batch = 10000;
+        if ($total_lines > 200000) $batch = 20000;
+
+        if (defined('BMI_MAX_FILE_RESTORE_LIMIT')) {
+          $definedSize = BMI_MAX_FILE_RESTORE_LIMIT;
+          if (is_numeric($definedSize) && $definedSize > 50 && $definedSize < 20000) {
+            $batch = intval($definedSize);
+          }
+        }
+
+        if ($this->fileRestoreSeek == 0) {
+          $this->migration->log(__("Preparing batching technique for file restoration...", 'backup-backup'), 'INFO');
+          $this->migration->log(__('Files restored per batch: ', 'backup-backup') . $batch, 'INFO');
+        }
+
+        $shouldRepeat = false;
+        $seek_count = 0;
+        $recent_seek = $last_seek;
+
+        for ($i = $last_seek; $i < $total_lines; ++$i) {
+
+          $file->seek($i);
+          $line = trim($file->current());
+
+          if ($line && strlen($line) > 0) {
+
+            $src = $path . $line;
+            if (strpos($line, $content) !== false) {
+              $dest = untrailingslashit($this->WP_CONTENT_DIR) . $sub . substr($line, $clent);
+            } else {
+              $dest = untrailingslashit($this->ABSPATH) . $sub . $line;
+            }
+
+            if (file_exists($src)) {
+              $fileDest = BMP::fixSlashes($dest);
+              $srcFileName = basename($src);
+
+              if (!in_array($srcFileName, $preventMoveFiles)) {
+                rename($src, $fileDest);
+              }
+            }
+
+          }
+
+          $seek_count++;
+          $recent_seek = $i;
+          if ($seek_count > $batch) {
+
+            $shouldRepeat = true;
+            break;
+
+          }
+
+        }
+
+        // Progress reporting
+        $progressIndex = $recent_seek + 1;
+        $progressBase = $catProgressEnd[3]; // 42
+        $progressRange = $catProgressEnd[4] - $progressBase; // 50 - 42 = 8
+        $milestone = $progressBase + intval(($progressIndex / $total_lines) * $progressRange);
+        $this->migration->progress($milestone);
+
+        $plus = -1;
+        if ($shouldRepeat != true) $plus = 0;
+
+        $this->migration->log(sprintf(__('File replacement progress: %s/%s (%s%%)', 'backup-backup'), ($progressIndex + $plus), $total_lines, number_format(($progressIndex / $total_lines) * 100, 2)));
+
+        if ($shouldRepeat === true) {
+
+          $this->fileRestoreSeek = $recent_seek;
+          $this->fileRestoreCategory = 4;
+          return 'repeat';
+
+        } else {
+
+          // Cleanup scan file
+          @unlink($catFile);
+
+          $this->migration->log(__('All files replaced successfully.', 'backup-backup'), 'SUCCESS');
+          return true;
+
+        }
+
+      }
+
+      // All categories done (all scan files were empty/missing)
+      $this->migration->log(__('All files replaced successfully.', 'backup-backup'), 'SUCCESS');
+      return true;
+
+    }
+
+    private function getCategoryScanFile($category) {
+      return BMI_TMP . DIRECTORY_SEPARATOR . '.restore_cat_' . $this->tmptime . '_' . $category;
     }
 
     public function removePreviousSelectionsIfDatabaseIncluded() {
@@ -337,20 +594,22 @@
       if (!(file_exists($tempTheme) && is_dir($tempTheme))) {
         @mkdir($tempTheme, 0755, true);
       }
+      if ($this->firstFileRestore) {
 
-      $visitLaterText = __('Site restoration in progress, please visit that website a bit later, thank you! :)', 'backup-backup');
-      file_put_contents($tempTheme . DIRECTORY_SEPARATOR . 'header.php', '<?php wp_head(); show_admin_bar(true);');
-      file_put_contents($tempTheme . DIRECTORY_SEPARATOR . 'footer.php', '<?php wp_footer(); get_footer();');
-      file_put_contents($tempTheme . DIRECTORY_SEPARATOR . 'index.php', '<?php get_header(); wp_body_open(); ?>' . $visitLaterText);
-      file_put_contents($tempTheme . DIRECTORY_SEPARATOR . '.previous_theme', get_option('template', ''));
-      file_put_contents($tempTheme . DIRECTORY_SEPARATOR . '.previous_stylesheet', get_option('stylesheet', ''));
-      file_put_contents($tempTheme . DIRECTORY_SEPARATOR . '.earlier_active_plugins', serialize(get_option('active_plugins')));
-
-      update_option('active_plugins', ['backup-backup/backup-backup.php']);
-      update_option('template', 'backup_migration_restoration_in_progress');
-      update_option('stylesheet', 'backup_migration_restoration_in_progress');
-
-      $this->replacePath($this->tmp, DIRECTORY_SEPARATOR, $content);
+        $visitLaterText = __('Site restoration in progress, please visit that website a bit later, thank you! :)', 'backup-backup');
+        file_put_contents($tempTheme . DIRECTORY_SEPARATOR . 'header.php', '<?php wp_head(); show_admin_bar(true);');
+        file_put_contents($tempTheme . DIRECTORY_SEPARATOR . 'footer.php', '<?php wp_footer(); get_footer();');
+        file_put_contents($tempTheme . DIRECTORY_SEPARATOR . 'index.php', '<?php get_header(); wp_body_open(); ?>' . $visitLaterText);
+        file_put_contents($tempTheme . DIRECTORY_SEPARATOR . '.previous_theme', get_option('template', ''));
+        file_put_contents($tempTheme . DIRECTORY_SEPARATOR . '.previous_stylesheet', get_option('stylesheet', ''));
+        file_put_contents($tempTheme . DIRECTORY_SEPARATOR . '.earlier_active_plugins', serialize(get_option('active_plugins')));
+        
+        update_option('active_plugins', ['backup-backup/backup-backup.php']);
+        update_option('template', 'backup_migration_restoration_in_progress');
+        update_option('stylesheet', 'backup_migration_restoration_in_progress');
+        
+      }
+      return $this->replacePath($this->tmp, DIRECTORY_SEPARATOR, $content);
 
     }
 
@@ -811,7 +1070,9 @@
     public function restoreBackupFromFiles($manifest) {
 
       $this->same_domain = untrailingslashit($manifest->dbdomain) == untrailingslashit($this->siteurl) ? true : false;
-      $this->migration->log(__('Restoring files (this process may take a while)...', 'backup-backup'), 'STEP');
+      if ($this->firstFileRestore) {
+        $this->migration->log(__('Restoring files (this process may take a while)...', 'backup-backup'), 'STEP');
+      }
       $contentDirectory = $this->WP_CONTENT_DIR;
       $pathtowp = DIRECTORY_SEPARATOR . 'wp-content';
       if (isset($manifest->config->WP_CONTENT_DIR) && isset($manifest->config->ABSPATH)) {
@@ -826,8 +1087,12 @@
         }
       }
 
-      $this->replaceAll($pathtowp);
-      $this->migration->log(__('All files restored successfully.', 'backup-backup'), 'SUCCESS');
+      $result = $this->replaceAll($pathtowp);
+      if ($result !== 'repeat') {
+        $this->migration->log(__('All files restored successfully.', 'backup-backup'), 'SUCCESS');
+      }
+
+      return $result;
 
     }
 
@@ -1630,25 +1895,27 @@
         if ($this->isCLI || $this->batchStep == 5) {
 
           // Get manifest
-          $manifest = $this->getCurrentManifest(true);
+          $manifest = $this->getCurrentManifest($this->firstFileRestore);
 
-          try {
+          if ($this->firstFileRestore){
+            try {
+              if (isset($manifest->version)) {
+                $this->migration->log(__('Backup Migration version used for that backup: ', 'backup-backup') . $manifest->version, 'INFO');
+              } else {
+                $this->migration->log(__('Backup was made with unknown version of Backup Migration plugin.', 'backup-backup'), 'INFO');
+              }
 
-            if (isset($manifest->version)) {
-              $this->migration->log(__('Backup Migration version used for that backup: ', 'backup-backup') . $manifest->version, 'INFO');
-            } else {
+            } catch (\Exception $e) {
+
               $this->migration->log(__('Backup was made with unknown version of Backup Migration plugin.', 'backup-backup'), 'INFO');
+
+            } catch (\Throwable $e) {
+
+              $this->migration->log(__('Backup was made with unknown version of Backup Migration plugin.', 'backup-backup'), 'INFO');
+
             }
-
-          } catch (\Exception $e) {
-
-            $this->migration->log(__('Backup was made with unknown version of Backup Migration plugin.', 'backup-backup'), 'INFO');
-
-          } catch (\Throwable $e) {
-
-            $this->migration->log(__('Backup was made with unknown version of Backup Migration plugin.', 'backup-backup'), 'INFO');
-
           }
+
 
           // Even remove extracted WP-config if it's different site.
           if (untrailingslashit($manifest->dbdomain) != untrailingslashit($this->siteurl)) {
@@ -1660,23 +1927,40 @@
           }
 
           // Restore files
-          $this->restoreBackupFromFiles($manifest);
+          $restoreResult = $this->restoreBackupFromFiles($manifest);
 
 
-          if (untrailingslashit($manifest->dbdomain) != untrailingslashit($this->siteurl)) {
+          if ($restoreResult !== 'repeat') {
+            if (untrailingslashit($manifest->dbdomain) != untrailingslashit($this->siteurl)) {
 
-            // Restore WP Config if it's different domain
-            $this->restoreOriginalWPConfig(false);
+              // Restore WP Config if it's different domain
+              $this->restoreOriginalWPConfig(false);
 
+            }
           }
 
           if (!$this->isCLI) {
+
+            $shouldRepeatRestore = false;
+            if ($restoreResult === 'repeat') {
+
+              $shouldRepeatRestore = true;
+
+            } else {
+
+              $shouldRepeatRestore = false;
+
+            }
 
             BMP::res(['status' => 'restore_ongoing', 'tmp' => $this->tmptime, 'secret' => $secret, 'options' => [
               'code' => $this->code,
               'start' => $this->start,
               'amount' => $this->fileAmount,
               'storage' => $this->backupStorage,
+              'fileRestoreSeek' => $this->fileRestoreSeek,
+              'fileRestoreCategory' => $this->fileRestoreCategory,
+              'repeat_restore' => $shouldRepeatRestore,
+              'firstFileRestore' => $this->firstFileRestore,
               'step' => 5
             ]]);
 

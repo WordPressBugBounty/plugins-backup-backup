@@ -14,7 +14,7 @@
     <a href="#" class="bmi-modal-close">×</a>
     <div class="bmi-modal-content">
 
-      <div class="mm60 f26 medium black"><?php esc_html_e('We noticed:', 'backup-backup') ?></div>
+      <div class="mm60 f26 medium black"><?php esc_html_e('Confirm Backup', 'backup-backup') ?></div>
       <div class="prenotices">
 
         <div class="prenotice red prenotic-1">
@@ -29,8 +29,7 @@
         </div>
         <div class="prenotice prenotic-3">
           <div class="text">
-            <?php esc_html_e('Based on your selections ', 'backup-backup') ?>
-            <span id="prenotice-size"></span><?php esc_html_e(' of data (unzipped) will be backed up.', 'backup-backup') ?>
+            <?php esc_html_e('You are about to create a new backup based on your current configuration settings.', 'backup-backup') ?>
           </div>
         </div>
         <div class="prenotice prenotic-4">

@@ -1,9 +1,9 @@
-=== BackupBliss – Backup & Migration with Free Cloud Storage ===
+=== Backup Migration ===
 Contributors: Migrate
 Tags: Migration, Backup, Staging, Migrate, Backups
 Requires at least: 4.6
 Tested up to: 6.9.4
-Stable tag: 2.1.4
+Stable tag: 2.1.5.1
 License: GPLv3
 Requires PHP: 5.6
 
@@ -177,6 +177,19 @@ Vietnamese: [Tạo sao lưu, khôi phục các bản sao lưu và di chuyển c�
 5. The plugin should be shown below the settings menu.
 
 == Changelog ==
+= 2.1.5 =
+
+* [FEATURE] Introduced file restoration in batches with progress and category logging.  
+* [FEATURE] Added conditional file restoration for first-time setup scenarios.  
+* [FEATURE] Implemented reconstruction of local staging site configurations.  
+* [ENHANCEMENT] Simplified batch size determination logic for file restoration.  
+* [FIX] Resolved conflict with wp-svg-icons affecting dashboard sections.  
+* [FIX] Updated dismiss button class for notices to ensure consistent behavior.  
+* [FIX] Corrected path calculation logic for accurate category detection during restore.  
+* [FIX] Updated pre-restore confirmation modal message and removed unnecessary size display.  
+* [FIX] Corrected log file naming for compatibility recommendations.  
+* [MISC] Various minor improvements and fixes across file explorer UI and restore processes.
+
 = 2.1.4 =
 
 * [FIX] Ensured restore success modal appears correctly after restore completion.
@@ -227,21 +240,6 @@ Vietnamese: [Tạo sao lưu, khôi phục các bản sao lưu và di chuyển c�
 * [FEATURE] Implemented authentication handshake for offline M2M connections.  
 * [FEATURE] Added extension and environment checks for S3, Wasabi, FTP, and cURL based storage integrations.  
 * [FEATURE] Added space requirement checks before showing upload issue notices.  
-* [FEATURE] Implemented wake lock request and release functionality to prevent interruptions during long operations.  
-* [FEATURE] Implemented backup search functionality with input handling.  
-* [FEATURE] Added plugin auto-update notice and update check functionality.  
-* [FEATURE] Added restore log filling logic to improve restore feedback and avoid false error responses.  
-* [FEATURE] Implemented a new database search and replace engine with progress tracking.
-* [FEATURE] Added affordable premium banner card with SVG icon.  
-* [ENHANCEMENT] Improved error handling and response validation across jQuery, AJAX, and offline endpoints.  
-* [ENHANCEMENT] Improved security by sanitizing output in templates and notices using proper WordPress escaping functions.  
-* [ENHANCEMENT] Improved database query handling and resolved PluginCheck and PHPCS security warnings.  
-* [ENHANCEMENT] Updated cron API endpoint to v2 for improved reliability.  
-* [ENHANCEMENT] Improved log message clarity and documentation for backup manifest handling.  
-* [ENHANCEMENT] Streamlined connection verification methods for Google Drive, FTP, and BackupBliss.  
-* [ENHANCEMENT] Improved backup and restore log handling using bmi-id for consistency and compatibility.  
-* [ENHANCEMENT] Improved backup locking and race condition handling to prevent overlapping operations.  
-* [ENHANCEMENT] Improved tooltip messaging and visual feedback for backup completion and storage icons.  
 * [... and more ...]
 
 = previous =
@@ -249,8 +247,16 @@ Old changelog has been removed due to WordPress limitation of 5000 characters.
 
 == Upgrade Notice ==
 
-= 2.1.4 =
-What's new in 2.1.4?
+= 2.1.5 =
+What's new in 2.1.5?
 
-* [FIX] Ensured restore success modal appears correctly after restore completion.
-* [FIX] Corrected SQL LIKE statement escaping for accurate query handling and improved security.
+* [FEATURE] Introduced file restoration in batches with progress and category logging.  
+* [FEATURE] Added conditional file restoration for first-time setup scenarios.  
+* [FEATURE] Implemented reconstruction of local staging site configurations.  
+* [ENHANCEMENT] Simplified batch size determination logic for file restoration.  
+* [FIX] Resolved conflict with wp-svg-icons affecting dashboard sections.  
+* [FIX] Updated dismiss button class for notices to ensure consistent behavior.  
+* [FIX] Corrected path calculation logic for accurate category detection during restore.  
+* [FIX] Updated pre-restore confirmation modal message and removed unnecessary size display.  
+* [FIX] Corrected log file naming for compatibility recommendations.  
+* [MISC] Various minor improvements and fixes across file explorer UI and restore processes.

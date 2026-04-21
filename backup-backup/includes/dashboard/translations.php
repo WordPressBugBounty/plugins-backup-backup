@@ -289,6 +289,27 @@
   <div id="direct-link-enabled-tooltip">
     <?php esc_html_e('Copy link to backup file for super-quick migration', 'backup-backup') ?>
   </div>
+  <div id="simple-explorer-for-restoring">
+    <?php esc_html_e('Restore Backup', 'backup-backup') ?>
+  </div>
+  <div id="simple-explorer-for-excluding">
+    <?php esc_html_e('Exclude from Backup', 'backup-backup') ?>
+  </div>
+  <div id="simple-explorer-confirm-for-restoring">
+    <?php esc_html_e('Start restoring!', 'backup-backup') ?>
+  </div>
+  <div id="simple-explorer-confirm-for-excluding">
+    <?php esc_html_e('Exclude selected', 'backup-backup') ?>
+  </div>
+  <div id="bmi-exclude-save-success">
+    <?php esc_html_e('Settings saved successfully.', 'backup-backup') ?>
+  </div>
+  <div id="bmi-empty-directory">
+    <?php esc_html_e('This directory is empty.', 'backup-backup') ?>
+  </div>
+  <div id="bmi-no-partial-exclude">
+    <?php esc_html_e('This type can only be fully backed up or fully excluded. Partial exclusion is not supported.', 'backup-backup') ?>
+  </div>
 
 
 

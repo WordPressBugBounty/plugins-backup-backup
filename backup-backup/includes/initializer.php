@@ -1195,6 +1195,9 @@
       // Enqueue the style
       wp_enqueue_style('backup-migration-style', $this->get_asset('css', 'bmi-plugin.min.css'), [], BMI_VERSION);
 
+
+      // Solve conflict with wp-svg-icons thats breaks the dashboard sections.
+      wp_dequeue_style('wp-svg-icons');
     }
 
     public function handle_after_actions() {

@@ -35,7 +35,7 @@ if (count($notices) == 0)
           <span class="bmi-error-toggle" data-expand="<?php esc_attr_e('Expand', 'backup-backup'); ?>" data-collapse="<?php esc_attr_e('Collapse', 'backup-backup'); ?>">
             <?php esc_html_e('Expand', 'backup-backup'); ?>
           </span> |
-          <span id="bmi-error-dismiss" issue-type="backupbliss" onclick="document.getElementById('backupbliss-issues').remove()">
+          <span class="bmi-error-dismiss" issue-type="backupbliss" onclick="document.getElementById('backupbliss-issues').remove()">
             <?php esc_html_e('Dismiss', 'backup-backup'); ?>
           </span>
         </div>

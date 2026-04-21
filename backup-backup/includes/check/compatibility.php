@@ -477,7 +477,7 @@ class Compatibility {
      * @return bool True if the the recommendation is added, false otherwise.
      */
     public function addRecommendation($verbose, $message) {
-        $file = dirname(BMI_BACKUPS) . DIRECTORY_SEPARATOR . 'backups' . DIRECTORY_SEPARATOR . 'latest' . ($this->for == 'backup' ? '' : '_migration') . '.log';
+        $file = dirname(BMI_BACKUPS) . DIRECTORY_SEPARATOR . 'backups' . DIRECTORY_SEPARATOR . 'latest' . ($this->for == 'backup' ? '.' : '_migration.') . BMI_LOGS_SUFFIX . '.log';
         $content = file_get_contents($file);
         $pattern = '#^\[VERBOSE\] \[[0-9-]+ [0-9:]+\] ' . $verbose . '#mi'; // e.g. [VERBOSE] [2021-12-31 23:59:59] missing space.
         if (preg_match($pattern, $content, $matches)) {

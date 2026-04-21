@@ -3110,6 +3110,7 @@
       if (defined('WP_SITEURL') && strlen(WP_SITEURL) > 8) $homeURL = WP_SITEURL;
 
       $migration->log(__("Site which will be restored: ", 'backup-backup') . $homeURL, 'info');
+      $migration->log(__("Backup file which will be restored: ", 'backup-backup') . esc_attr($this->post['file']), 'verbose');
       $migration->log(__("PHP Version: ", 'backup-backup') . PHP_VERSION, 'info');
       $migration->log(__("WP Version: ", 'backup-backup') . $wp_version, 'info');
       $migration->log(__("MySQL Version: ", 'backup-backup') . $GLOBALS['wpdb']->db_version(), 'info');
@@ -5651,6 +5652,10 @@
      * @return {array} with staging sites data
      */
     public function stagingSitesGetList() {
+      // Force reconstuct local staging sites configuration
+      require_once BMI_INCLUDES . '/staging/local.php';
+      $stagingLocal = new StagingLocal('..ajax..');
+      $stagingLocal->reconstructConfigurations();
 
       // Include local staging site controller
       require_once BMI_INCLUDES . '/staging/controller.php';

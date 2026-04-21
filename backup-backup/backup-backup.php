@@ -1,13 +1,13 @@
 <?php
 
   /**
-   * Plugin Name: BackupBliss – Backup & Migration with Free Cloud Storage
+   * Plugin Name: Backup Migration
    * Description: Backup, migrate, and create staging sites with free cloud storage and support.
    *      Author: Inisev
    *  Author URI: https://inisev.com
    *  Plugin URI: https://backupbliss.com
    * Text Domain: backup-backup
-   *     Version: 2.1.4
+   *     Version: 2.1.5.1
    * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
   // Exit on direct access
@@ -21,7 +21,7 @@
     define('BMI_DEBUG', false);
   }
   if (!defined('BMI_VERSION')) {
-    define('BMI_VERSION', '2.1.4');
+    define('BMI_VERSION', '2.1.5.1');
   }
   if (!defined('BMI_ROOT_DIR')) {
     define('BMI_ROOT_DIR', __DIR__);
