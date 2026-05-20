@@ -2,8 +2,8 @@
 Contributors: Migrate
 Tags: Migration, Backup, Staging, Migrate, Backups
 Requires at least: 4.6
-Tested up to: 6.9.4
-Stable tag: 2.1.5.1
+Tested up to: 7.0
+Stable tag: 2.1.5.2
 License: GPLv3
 Requires PHP: 5.6
 
@@ -177,6 +177,10 @@ Vietnamese: [Tạo sao lưu, khôi phục các bản sao lưu và di chuyển c�
 5. The plugin should be shown below the settings menu.
 
 == Changelog ==
+= 2.1.5.2 =
+* Tested with WordPress 7.0
+* [FIX] Sanitized backup file and URL arguments in AJAX requests to improve security and input validation.
+
 = 2.1.5 =
 
 * [FEATURE] Introduced file restoration in batches with progress and category logging.  
@@ -247,16 +251,7 @@ Old changelog has been removed due to WordPress limitation of 5000 characters.
 
 == Upgrade Notice ==
 
-= 2.1.5 =
-What's new in 2.1.5?
+= 2.1.5.2 =
+What's new in 2.1.5.2?
 
-* [FEATURE] Introduced file restoration in batches with progress and category logging.  
-* [FEATURE] Added conditional file restoration for first-time setup scenarios.  
-* [FEATURE] Implemented reconstruction of local staging site configurations.  
-* [ENHANCEMENT] Simplified batch size determination logic for file restoration.  
-* [FIX] Resolved conflict with wp-svg-icons affecting dashboard sections.  
-* [FIX] Updated dismiss button class for notices to ensure consistent behavior.  
-* [FIX] Corrected path calculation logic for accurate category detection during restore.  
-* [FIX] Updated pre-restore confirmation modal message and removed unnecessary size display.  
-* [FIX] Corrected log file naming for compatibility recommendations.  
-* [MISC] Various minor improvements and fixes across file explorer UI and restore processes.
+* [FIX] Sanitized backup file and URL arguments in AJAX requests to improve security and input validation.

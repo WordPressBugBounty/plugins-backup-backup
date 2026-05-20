@@ -3016,7 +3016,13 @@
         if ($cli_result !== false) {
 
           $cliHandler = trailingslashit(sanitize_text_field(BMI_INCLUDES)) . 'cli-handler.php';
-          $backupName = esc_attr($this->post['file']);
+          $backupName = escapeshellarg($this->post['file']);
+          if ( ! preg_match( '/^[A-Za-z0-9._-]+\.(zip|tar|tar\.gz)$/', $backupName ) ) {
+            return ['status' => 'msg', 'why' => __('Invalid backup file name.', 'backup-backup'), 'level' => 'error'];
+          }
+          if ( ! file_exists( BMI_BACKUPS . '/' . $backupName ) ) {
+            return ['status' => 'msg', 'why' => __('Backup not found.', 'backup-backup'), 'level' => 'error'];
+          }
           $remoteType = 'false';
           if ($this->post['remote'] == 'true' || $this->post['remote'] === true) $remoteType = 'true';
           if (file_exists($lock_cli_end)) @unlink($lock_cli_end);
@@ -3441,7 +3447,7 @@
           $cliHandler = trailingslashit(sanitize_text_field(BMI_INCLUDES)) . 'cli-handler.php';
 
           $res = null;
-          @exec(BMI_CLI_EXECUTABLE . ' -f "' . $cliHandler . '" bmi_quick_migration "' . $url . '" > /dev/null &', $res);
+          @exec(BMI_CLI_EXECUTABLE . ' -f "' . $cliHandler . '" bmi_quick_migration ' . escapeshellarg($url) . ' > /dev/null &', $res);
           $res = implode("\n", $res);
 
           sleep(2);
