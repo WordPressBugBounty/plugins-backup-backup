@@ -168,6 +168,7 @@
         
         $this->log(__('Getting MD5 of selected backup file...', 'backup-backup'), 'step');
         $this->log('Backup path: ' . $this->siteConfig['backupPath'], 'verbose');
+        // TODO: Make handshaking compatible with chained hash.
         $md5 = md5_file($this->siteConfig['backupPath']);
         $this->log('Calculated MD5 is: ' . $md5, 'verbose');
         $this->log(__('File MD5 checksum saved for future.', 'backup-backup'), 'success');

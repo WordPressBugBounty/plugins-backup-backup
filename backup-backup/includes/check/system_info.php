@@ -523,6 +523,12 @@ class System_Info {
       'mysql_version' => $wpdb->db_version(),
       'mysql_character_set' => $this->get_mysql_character_set(),
 
+      // Cron related information.
+      'cron_shared' => get_option('bmi_cron_new_domain_done', false) ? "shared" : "not_shared",
+      'cron_sk' => get_option('bmi_sk_keepalive', false) ? get_option('bmi_sk_keepalive', false) : "not_set",
+      'cron_last_ping_time' => get_option('bmi_cron_last_ping_time', false) ? get_option('bmi_cron_last_ping_time', false) : "not_set",
+      'cron_site_local_or_unreachable' => get_option('bmi_cron_site_local_or_unreachable', false) ? get_option('bmi_cron_site_local_or_unreachable', false) : "not_set",
+
       'curl_version' => isset($curl_version['version']) ? $curl_version['version'] : null,
       'curl_ssl_enabled' => isset($curl_version['features']) ? (bool) ($curl_version['features'] & 4) : false,
       'php_open_ssl_version_text' => isset($curl_version['ssl_version']) ? $curl_version['ssl_version'] : null,

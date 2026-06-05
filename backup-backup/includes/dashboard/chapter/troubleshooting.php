@@ -277,7 +277,7 @@
 
   <div class="mm mb f18 lh28">
     <?php esc_html_e("If your site is having issues with scheduled backups or uploading backups to remote storage, ", 'backup-backup'); ?>
-    <a href="#" class="hoverable secondary nodec" id="resync-with-ping-server"><?php esc_html_e("click here to resync with our ping server.", 'backup-backup'); ?></a><br>
+    <a href="#" class="hoverable secondary nodec resync-with-ping-server"><?php esc_html_e("click here to resync with our ping server.", 'backup-backup'); ?></a><br>
     <?php esc_html_e("If the issue persists, please contact support.", 'backup-backup'); ?>
   </div>
 </div>

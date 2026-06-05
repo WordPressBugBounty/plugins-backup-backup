@@ -65,6 +65,7 @@
     public $errorSent = false;
     public $statusSent = false;
     public $backupSize = 0;
+    public $isStreamed = false;
     
     public $_zip;
     public $_lib;
@@ -129,6 +130,9 @@
       $this->backupSize = 0;
       if (isset($remote_settings['backupSize']))
         $this->backupSize = $remote_settings['backupSize'];
+
+      if (isset($remote_settings['is_streamed']))
+        $this->isStreamed = $remote_settings['is_streamed'];
       
       $this->startOfBatch = time();
       if (isset($remote_settings['startOfBatch']))
@@ -199,6 +203,7 @@
       $this->remote_settings['dbitJustFinished'] = $this->dbitJustFinished;
       $this->remote_settings['startOfBatch'] = $this->startOfBatch;
       $this->remote_settings['backupSize'] = $this->backupSize;
+      $this->remote_settings['is_streamed'] = $this->isStreamed;
       
       if (file_exists($settings_path)) @unlink($settings_path);
       file_put_contents($settings_path, '<?php //' . json_encode($this->remote_settings));
@@ -328,7 +333,9 @@
           }
         }
 
-        curl_close($c);
+        if (is_resource($c)) {
+          curl_close($c);
+        }
         if (isset($this->output)) $this->output->end();
 
       } catch (\Exception $e) {
@@ -438,7 +445,7 @@
     }
 
     // Make error
-    public function send_error($reason = false, $abort = false) {
+    public function send_error($reason = false, $abort = false, $customEndCode = false) {
       
       if ($this->errorSent) return;
       $this->errorSent = true;
@@ -458,7 +465,8 @@
 
       // Abort step
       $this->output->log('Aborting backup... ', 'STEP');
-      if ($abort === false) $this->output->log('#002', 'END-CODE');
+      if ($customEndCode !== false) $this->output->log($customEndCode, 'END-CODE');
+      else if ($abort === false) $this->output->log('#002', 'END-CODE');
       else $this->output->log('#004', 'END-CODE');
       if (isset($this->output)) @$this->output->end();
 
@@ -599,7 +607,7 @@
       }
 
       if (file_exists(BMI_BACKUPS . '/.abort')) {
-        $this->send_error('Backup aborted manually by user.', true);
+        $this->send_error('Backup aborted manually by user.', true, '#003');
         return;
       }
 
@@ -1109,7 +1117,7 @@
       if (file_exists(BMI_BACKUPS . '/.abort')) {
         if (!isset($this->output)) $this->load_logger();
         $this->res = [ 'status' => 'error' ];
-        $this->send_error('Backup aborted manually by user.', true);
+        $this->send_error('Backup aborted manually by user.', true, '#003');
         return;
       }
 
@@ -1162,7 +1170,11 @@
           touch($this->identyfile . '-running');
           touch(BMI_BACKUPS . '/.running');
           $this->it += 1;
-          $this->zip_batch();
+          if ($this->isStreamed) {
+            do_action('bmip_streaming_backup_process_batch', $this);
+          } else {
+            $this->zip_batch();
+          }
         }
 
       } else {
@@ -1188,8 +1200,11 @@
             $this->output->log('Making archive...', 'STEP');
 
           } else {
-            
-            $this->zip_batch();
+            if ($this->isStreamed) {
+              do_action('bmip_streaming_backup_process_batch', $this);
+            } else {
+              $this->zip_batch();
+            }
             $this->it += 1;
             
           }
@@ -1359,6 +1374,7 @@
     public function actionsAfterProcess($success = false) {
       if ($success == true) {
         Logger::log("Backup file created successfully via backup-process.php");
+        set_transient('bmi_latest_backup_file', base64_encode($this->backupname), 30);
         BMP::handle_after_cron();
       } else {
         Logger::log("Backup file creation failed via backup-process.php");

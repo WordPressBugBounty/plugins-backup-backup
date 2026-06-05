@@ -10,6 +10,8 @@
   $ctl = __("Your account on Wordpress.org (where you open a new support thread) is different to the one you login to your WordPress dashboard (where you are now). If you don’t have a WordPress.org account yet, please sign up at the top right on the Support Forum page, and then scroll down on that page . It only takes a minute :) Thank you!", 'backup-backup');
   $reviewedBefore = get_option('bmi_review_clicked', false);
 
+  $backupStreamed = apply_filters('bmip_streaming_backup_is_enabled', false);
+  $providerLabel = apply_filters('bmip_streaming_backup_get_provider_label', false);
 ?>
 
 <div class="bmi-modal" id="backup-success-modal">
@@ -24,27 +26,63 @@
       </div>
 
       <div id="accessible-at-section" class="mm60">
-        <div class="mms mbl">
-          <div class="f18 mbll">
-            <?php esc_html_e('Your backup is now accessible at:', 'backup-backup') ?>
-          </div>
-          <div class="cf success-copy-input">
-            <input type="text" autocomplete="off" id="text-input-copy" readonly class="left f18">
-            <a href="#" class="btn inline btn-with-img btn-img-low-pad btn-pad left bmi-copper" data-copy="text-input-copy">
-              <div class="text">
-                <img src="<?php echo esc_url( $this->get_asset('images', 'copy-icon.png') ); ?>" alt="copy-img">
-                <div class="f18 semibold"><?php esc_html_e('Copy', 'backup-backup') ?></div>
-              </div>
-            </a>
-          </div>
-        </div>
+        <?php if ( $backupStreamed ) : ?>
 
-        <div class="mms f18 mtl lh30">
-          <?php $st1l = __('To migrate your site, just copy above link, install %a1our plugin%a2 on the target site, go to the', 'backup-backup'); ?>
-          <?php echo wp_kses_post( str_replace('%a2', '</a>', str_replace('%a1', '<a class="hoverable secondary" href="https://wordpress.org/plugins/backup-backup" target="_blank">', $st1l)) ); ?>
-          "<a href="#" class="hoverable secondary go-to-marbs"><?php esc_html_e('Manage & Restore Backups', 'backup-backup') ?></a>"
-          <?php esc_html_e('- tab, and paste the link there.', 'backup-backup') ?>
-        </div>
+          <input type="text" autocomplete="off" id="text-input-copy" readonly style="display:none;" aria-hidden="true">
+
+          <div class="mms mbl">
+            <div class="f18 lh30">
+              <?php
+                echo wp_kses_post( sprintf(
+                  __( 'Your backup has been securely stored in <strong>%s</strong>.', 'backup-backup' ),
+                  esc_html( $providerLabel ?: '' )
+                ) );
+              ?>
+            </div>
+
+            <div class="f18 lh30 mtl">
+              <?php esc_html_e( 'Backup name:', 'backup-backup' ); ?>
+              <strong class="mls"><span id="bmi-streamed-backup-name">&#8230;</span></strong>
+            </div>
+          </div>
+
+          <div class="mms f18 mtl lh30">
+            <?php
+              echo wp_kses_post( sprintf(
+                __( 'To restore this backup on another site, install %1$sour plugin%2$s, connect %3$s, then go to %4$s and click “Restore”.', 'backup-backup' ),
+                '<a class="hoverable secondary" href="https://wordpress.org/plugins/backup-backup" target="_blank">',
+                '</a>',
+                '<strong>' . esc_html( $providerLabel ?: '' ) . '</strong>',
+                '<a href="#" class="hoverable secondary go-to-marbs">' . esc_html__( 'Manage & Restore Backups', 'backup-backup' ) . '</a>'
+              ) );
+            ?>
+          </div>
+
+        <?php else : ?>
+
+          <div class="mms mbl">
+            <div class="f18 mbll">
+              <?php esc_html_e('Your backup is now accessible at:', 'backup-backup') ?>
+            </div>
+            <div class="cf success-copy-input">
+              <input type="text" autocomplete="off" id="text-input-copy" readonly class="left f18">
+              <a href="#" class="btn inline btn-with-img btn-img-low-pad btn-pad left bmi-copper" data-copy="text-input-copy">
+                <div class="text">
+                  <img src="<?php echo esc_url( $this->get_asset('images', 'copy-icon.png') ); ?>" alt="copy-img">
+                  <div class="f18 semibold"><?php esc_html_e('Copy', 'backup-backup') ?></div>
+                </div>
+              </a>
+            </div>
+          </div>
+
+          <div class="mms f18 mtl lh30">
+            <?php $st1l = __('To migrate your site, just copy above link, install %a1our plugin%a2 on the target site, go to the', 'backup-backup'); ?>
+            <?php echo wp_kses_post( str_replace('%a2', '</a>', str_replace('%a1', '<a class="hoverable secondary" href="https://wordpress.org/plugins/backup-backup" target="_blank">', $st1l)) ); ?>
+            "<a href="#" class="hoverable secondary go-to-marbs"><?php esc_html_e('Manage & Restore Backups', 'backup-backup') ?></a>"
+            <?php esc_html_e('- tab, and paste the link there.', 'backup-backup') ?>
+          </div>
+
+        <?php endif; ?>
       </div>
         <div class="bmi-ask-for-review" style="<?php echo $reviewedBefore ? 'display: none;' : ''; ?>">
           <div class="cf mm60">
@@ -86,7 +124,9 @@
 
       <div class="mms mtl flex-here lh50 mm60">
         <div class="f18 align-left">
-          <a href="#" class="nlink hoverable" id="download-backup-url" download><?php esc_html_e('Download backup', 'backup-backup') ?></a>
+          <?php if ( ! $backupStreamed ) : ?>
+            <a href="#" class="nlink hoverable" id="download-backup-url" download><?php esc_html_e('Download backup', 'backup-backup') ?></a>
+          <?php endif; ?>
         </div>
 
         <div class="center">

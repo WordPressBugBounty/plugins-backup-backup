@@ -8,6 +8,8 @@
   use BMI\Plugin\Zipper\BMI_Zipper AS Zipper;
   use BMI\Plugin\Zipper\Zip AS Zip;
   use BMI\Plugin\External\BMI_External_Storage as ExternalStorage;
+  use BMI\Plugin\Backup_Migration_Plugin as BMP;
+  use BMI\Plugin\Services\FileHasher;
 
   // Exit on direct access
   if (!defined('ABSPATH')) exit;
@@ -96,6 +98,7 @@
      * 6 => Cron Backup (bool)
      * 7 => MD5 Hash (string)
      * 8 => Domain (string)
+     * WARNING: Any change of the manifest structure should be reflected in the code that handles the manifest data.
      */
     public function getManifestFromZip($zip_path, &$zipper) {
 
@@ -168,6 +171,14 @@
       }
 
       if ($manifest) {
+        $backupWasStreamed = isset($manifest->is_streamed) && $manifest->is_streamed === true;
+        if ($backupWasStreamed) {
+          require_once BMI_INCLUDES . '/services/class-file-hasher.php';
+          $chunkSize = isset($manifest->chained_hash_chunk_size) ? $manifest->chained_hash_chunk_size : CHAINED_HASH_CHUNK_SIZE;
+          $chainedHash = FileHasher::compute($zip_path, FileHasher::CHAINED, $chunkSize);
+          $md5_file_path = BMI_BACKUPS . DIRECTORY_SEPARATOR. $chainedHash . '.json';
+          $zip_md5 = $chainedHash;
+        }
 
         $res[] = $manifest->name . '#%&' . $zip_name;
         $res[] = $manifest->date;

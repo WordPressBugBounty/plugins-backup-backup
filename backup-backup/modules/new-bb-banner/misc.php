@@ -131,7 +131,7 @@
        */
       private function _asset($file) {
 
-        echo esc_url($this->assets_url . $file);
+        return $this->assets_url . $file;
 
       }
 

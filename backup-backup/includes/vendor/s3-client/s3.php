@@ -2116,7 +2116,9 @@ final class S3Request
 				'resource' => $this->resource
 			);
 
-		@curl_close($curl);
+		if (is_resource($curl)) {
+			curl_close($curl);
+		}
 
 		// Parse body into XML
 		if ($this->response->error === false && isset($this->response->body))

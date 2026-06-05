@@ -260,3 +260,6 @@
   if(!defined('BMI_METHOD_BROWSER')) {
     define('BMI_METHOD_BROWSER', 'browser-method');
   }
+  if (!defined('CHAINED_HASH_CHUNK_SIZE')) {
+    define('CHAINED_HASH_CHUNK_SIZE',1024 * 1024);
+  }

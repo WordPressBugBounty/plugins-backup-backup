@@ -7,13 +7,15 @@ namespace BMI\Plugin\External;
 use BMI\Plugin\BMI_Logger as Logger;
 use BMI\Plugin\Scanner\BMI_BackupsScanner as Backups;
 use BMI\Plugin\Dashboard as Dashboard;
+use BMI\Plugin\External\Contracts\GetAvailableSpace as GetAvailableSpaceContract;
 
 // Exit on direct access
 if (!defined('ABSPATH')) {
   exit;
 }
 
-class BMI_External_BackupBliss
+require_once BMI_INCLUDES . DIRECTORY_SEPARATOR . 'external' . DIRECTORY_SEPARATOR . 'contracts' . DIRECTORY_SEPARATOR . 'interface-get-available-space.php';
+class BMI_External_BackupBliss implements GetAvailableSpaceContract
 {
 
   public function __construct()
@@ -34,6 +36,7 @@ class BMI_External_BackupBliss
     if ($action == "connect") {
       $ret = $this->getSecret($post['api_key']);
       if($ret[0] !== false) {
+        Dashboard\bmi_set_config('STORAGE::EXTERNAL::BACKUPBLISS', true);
         update_option("bmi_pro_backupbliss_key", $ret[1]);
         return ["status"=>'success']; 
       } else {
@@ -46,6 +49,7 @@ class BMI_External_BackupBliss
 
     if ($action == "disconnect") {
       $res = $this->_makeApiCall("plugin/disconnect", "POST", ["site_url"=>$uri]);
+      Dashboard\bmi_set_config('STORAGE::EXTERNAL::BACKUPBLISS', false);
       if ($res["status"])
         if ($res["response_data"]["status"]) {
           delete_option("bmi_pro_backupbliss_key");
@@ -311,6 +315,13 @@ class BMI_External_BackupBliss
     return false;
   }
 
+  public function getAvailableSpace()
+  {
+    $storage_info = $this->getStorageInfo();
+
+    return is_array($storage_info) && isset($storage_info["remaining_space"]) ? $storage_info["remaining_space"] : false;
+  }
+
   public function removeNotice($type)
   {
     // if (BMI_DEBUG) {
@@ -426,7 +437,9 @@ class BMI_External_BackupBliss
       return ["status" => false, "http_code" => $http_code, "response_data" => $response];
     }
 
-    curl_close($ch);
+    if (is_resource($ch)) {
+      curl_close($ch);
+    }
 
     if ($http_code >= 200 && $http_code <= 299) {
       $response_data = $custom_headers == null ? json_decode($response, true) : $response;
@@ -556,7 +569,7 @@ class BMI_External_BackupBliss
     $body = [
       'filename' => $file_name,
       'site_url' => $uri,
-      'file_size' => filesize($file_path)
+      'file_size' => file_exists($file_path) ? filesize($file_path) : 0
     ];
 
     $response = $this->_makeApiCall($url, "POST", $body);
@@ -569,12 +582,12 @@ class BMI_External_BackupBliss
         return false;
       }
     } else {
-      Logger::error("[BMI PRO][BackupBliss] Failed to create upload session: " . $response);
+      Logger::error("[BMI PRO][BackupBliss] Failed to create upload session: " . json_encode($response));
       return false;
     }
   }
 
-  private function uploadChunkWithSession($upload_session, $chunk_data, $start_byte, $end_byte, $total_size)
+  public function uploadChunkWithSession($upload_session, $chunk_data, $start_byte, $end_byte, $total_size)
   {
     if (BMI_DEBUG) {
       // Logger::error("[BMI PRO] BEFORE UPLOAD uploadChunkWithSession(" . $upload_session['uploadUrl'] . ", $start_byte, $end_byte, $total_size" . ")\n" . print_r($headers, true));
@@ -590,6 +603,14 @@ class BMI_External_BackupBliss
     }
 
     Logger::error("[BMI PRO] Failed to upload chunks. Start byte: $start_byte. End byte: $end_byte. Total Size: $total_size");
+    if (isset($response['http_code'])) {
+      if ($response['http_code'] == 429) {
+        $retryAfter = $this->parseRetryAfterError($response['response_data']);
+        Logger::error("[BMI PRO] Received 429 Too Many Requests. Retrying after $retryAfter seconds.");
+        $response['retry_after'] = $retryAfter;
+        return $response;
+      }
+    }
     return $response;
   }
 
@@ -609,7 +630,7 @@ class BMI_External_BackupBliss
 
   public function verifyConnection()
   {
-    $res = $this->getSecret() ? 'connected' : 'disconnected';
+    $res = $this->getSecret()[0] ? 'connected' : 'disconnected';
     return [ 'status' => 'success', 'result' => $res ];
   }
 
@@ -672,6 +693,15 @@ class BMI_External_BackupBliss
     return false;
   }
 
+  public function completeUpload($upload_id)
+  {
+    $response = $this->_makeApiCall('file/complete-upload', "POST", ['upload_id'=>$upload_id]);
+    if ($response["status"]) {
+      return $response["response_data"];
+    }
+
+    return false;
+  }
 
   public function uploadFile($uploadSession, $filePath, $manifestPath, $md5, $batch, $bytesPerRequest)
   {
@@ -736,6 +766,7 @@ class BMI_External_BackupBliss
       $toBeUploaded['current_upload'] = [];
       if (!isset($toBeUploaded['failed'])) $toBeUploaded['failed'] = [];
       if (isset($toBeUploaded['failed'][$task])) unset($toBeUploaded['failed'][$task]);
+      do_action('bmi_backup_upload_completed', $md5);
       update_option('bmip_to_be_uploaded', $toBeUploaded);
       return ['status' => 'success', 'data' => 'File verified successfully.'];
     }
@@ -893,4 +924,14 @@ class BMI_External_BackupBliss
     return ['status' => 'success', 'data' => $response];
   }
 
+
+  public function parseRetryAfterError($response)
+  {
+    $regex = 'after (\d+) seconds';
+    if (preg_match("/$regex/i", $response, $matches)) {
+      return intval($matches[1]);
+    } else {
+      return 60; //Default retry after time in seconds
+    }
+  }
 }

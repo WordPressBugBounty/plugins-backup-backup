@@ -400,12 +400,16 @@ class BMI_External_FTP
 
     if(curl_errno($ch)) {
         $error_message = curl_error($ch);
-        curl_close($ch);
+        if (is_resource($ch)) {
+          curl_close($ch);
+        }
         error_log('cURL error: ' . $error_message);
         return false;
     }
 
-    curl_close($ch);
+    if (is_resource($ch)) {
+      curl_close($ch);
+    }
 
     return ['status' => 'success', 'data' => $data];
   }
@@ -447,6 +451,8 @@ class BMI_External_FTP
         }
         $uploadedBackupStatus[$md5]['ftp'] = true;
         update_option('bmi_uploaded_backups_status', $uploadedBackupStatus);
+        do_action('bmi_backup_upload_completed', $md5);
+
       }
 
       $task = $toBeUploaded['current_upload']['task'];
@@ -537,6 +543,7 @@ class BMI_External_FTP
               }
               $uploadedBackupStatus[$md5]['ftp'] = true;
               update_option('bmi_uploaded_backups_status', $uploadedBackupStatus);
+              do_action('bmi_backup_upload_completed', $md5);
             }
 
             $task = $toBeUploaded['current_upload']['task'];

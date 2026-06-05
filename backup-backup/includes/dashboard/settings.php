@@ -64,11 +64,16 @@
   <!-- Error handling -->
   <?php require_once 'modules/email-errors.php'; ?>
   <?php require_once 'modules/security-plugins-warning.php'; ?>
+  <?php require_once 'modules/site-is-local-notice.php'; ?>
+  <?php require_once 'modules/ping-server-is-not-working-notice.php'; ?>
   <?php require_once 'modules/quota-errors.php'; ?>
   <?php has_action('bmi_premium_errors') ? do_action('bmi_premium_errors') : ''; ?>
   <?php has_action('bmi_external_errors') ? do_action('bmi_external_errors') : ''; ?>
   <?php require_once 'modules/before-update-backup-errors.php'; ?>
   <?php require_once 'modules/plugins-auto-update-notice.php'; ?>
+  <?php require_once 'modules/cloud-backup-notice.php'; ?>
+  <?php require_once 'modules/stream-backup-notice.php'; ?>
+
 
   <!-- @@TAB@@ Create backups(s) -->
   <div class="bmi-tab-wrapper" id="create-backup-wrapper">

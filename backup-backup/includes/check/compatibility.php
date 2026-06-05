@@ -454,7 +454,24 @@ class Compatibility {
                 $this->mainReasonFound = true;
             }
         }
+        $requireSpaceStream = get_option('bmi_required_space_stream', false);
+        if (is_numeric($requireSpaceStream) && intval($requireSpaceStream) > 0) {
+            $providerLabel = apply_filters('bmip_streaming_backup_get_provider_label', false);
+            $message = __("There is not enough free space on %s2 to stream the backup. Please secure more free space (%s1) in your cloud storage and then try to run the process again.", 'backup-backup');
+            $message = str_replace(
+                ['%s1', '%s2'],
+                [BMP::humanSize(intval($requireSpaceStream)), $providerLabel ? $providerLabel : 'the cloud storage'],
+                $message
+            );
+            if ($this->addRecommendation('not_enough_space_on_provider', $message)) {
+                delete_option('bmi_required_space_stream');
+                $this->mainReasonFound = true;
+            }
+        }
         if ($this->addRecommendation('error_during_downloading_backup', __("Please upload the backup file manually to this site and start a Restoration. You can download and upload backups on the plugin screen “Manage & Restore Backups”.", 'backup-backup'))) {
+            $this->mainReasonFound = true;
+        }
+        if ($this->addRecommendation('not_able_to_retrieve_space_for_provider', __("We are not able to retrieve the available space for your cloud storage provider, which might be caused by hitting the rate limit. Please wait for a while and then try again. If the issue persists, please contact support.", 'backup-backup'))) {
             $this->mainReasonFound = true;
         }
         if ($this->for == 'backup') {

@@ -313,6 +313,11 @@ class BMI_Ajax_Offline
       case "backupbliss": {
         $storageInfo = $this->backupbliss->getStorageInfo();
 
+        if ($storageInfo === false) {
+          Logger::error("[BMI] Couldn't fetch storage info from BackupBliss!");
+          return false;
+        }
+
         if ($storageInfo["used_space_percent"] > 80 && $storageInfo["used_space_percent"] <= 100) {
           $error_message_notice = 'It seems you already used more than 80% of your space. <a href="'.BMI_AUTHOR_URI . 'pricing'.'">Get more storage now.</a>';
     
@@ -623,6 +628,7 @@ class BMI_Ajax_Offline
             update_option('bmi_uploaded_backups_status', $uploadedBackupStatus);
             $toBeUploaded['current_upload'] = [];
             if (isset($toBeUploaded['failed']) && isset($toBeUploaded['failed'][$taskname])) unset($toBeUploaded['failed'][$taskname]);
+            do_action('bmi_backup_upload_completed', $md5);
             break;
           case 'error':
             Logger::error('[BMI PRO] Could not upload ' . $backupName . ' to Dropbox as an error occurred: ' . $result['error']);
@@ -736,6 +742,7 @@ class BMI_Ajax_Offline
             update_option('bmi_uploaded_backups_status', $uploadedBackupStatus);
             $toBeUploaded['current_upload'] = [];
             if (isset($toBeUploaded['failed']) && isset($toBeUploaded['failed'][$taskname])) unset($toBeUploaded['failed'][$taskname]);
+            do_action('bmi_backup_upload_completed', $md5);
             break;
           case 'error':
             Logger::error('[BMI PRO] Could not upload ' . $backupName . ' to AWS S3 as an error occurred: ' . $result['error']);
@@ -783,6 +790,7 @@ class BMI_Ajax_Offline
             update_option('bmi_uploaded_backups_status', $uploadedBackupStatus);
             $toBeUploaded['current_upload'] = [];
             if (isset($toBeUploaded['failed']) && isset($toBeUploaded['failed'][$taskname])) unset($toBeUploaded['failed'][$taskname]);
+            do_action('bmi_backup_upload_completed', $md5);
             break;
           case 'error':
             Logger::error('[BMI PRO] Could not upload ' . $backupName . ' to Wasabi as an error occurred: ' . $result['error']);

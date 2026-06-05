@@ -3,7 +3,7 @@ Contributors: Migrate
 Tags: Migration, Backup, Staging, Migrate, Backups
 Requires at least: 4.6
 Tested up to: 7.0
-Stable tag: 2.1.5.2
+Stable tag: 2.1.6
 License: GPLv3
 Requires PHP: 5.6
 
@@ -177,6 +177,42 @@ Vietnamese: [Tạo sao lưu, khôi phục các bản sao lưu và di chuyển c�
 5. The plugin should be shown below the settings menu.
 
 == Changelog ==
+= 2.1.6 =
+* [FEATURE] Added direct-to-cloud streaming configuration, notices, and validation checks.
+* [FEATURE] Added file integrity verification with chained hash calculation for streamed backups.
+* [FEATURE] Added manifest-based MD5 verification support for enhanced backup validation.
+* [FEATURE] Added streaming support to the backup process with manifest integration.
+* [FEATURE] Added available cloud storage space detection and validation for BackupBliss storage.
+* [FEATURE] Added streaming space requirement checks with compatibility recommendations.
+* [FEATURE] Added lock status information to backup manifests based on cron state.
+* [FEATURE] Added cron-related information to system information reports.
+* [FEATURE] Added transient storage of the latest backup file for improved retrieval and tracking.
+* [FEATURE] Added streamed backup name display in the backup success modal.
+* [FEATURE] Enhanced cloud backup validation and response handling for storage strategy checks.
+* [FEATURE] Standardized external storage provider identification across all supported cloud storage providers.
+* [ENHANCEMENT] Increased chained hash chunk size to 50MB for improved hashing performance.
+* [ENHANCEMENT] Enhanced backup file name validation and security hardening.
+* [ENHANCEMENT] Improved cron diagnostics, overdue detection logic, and troubleshooting information.
+* [ENHANCEMENT] Improved dashboard tooltips, notifications, and backup method descriptions.
+* [ENHANCEMENT] Improved handling of upload rate limiting with automatic retry support for HTTP 429 responses.
+* [ENHANCEMENT] Refactored file hashing into a dedicated service for improved maintainability.
+* [ENHANCEMENT] Improved BackupBliss storage integration, configuration management, and upload handling.
+* [FIX] Prevented early exit when saving backup configuration settings.
+* [FIX] Sanitized backup file and URL arguments for improved security.
+* [FIX] Resolved cURL deprecation warnings and improved resource validation before closing handles.
+* [FIX] Corrected chained hash chunk size constant value.
+* [FIX] Corrected storage strategy handling throughout backup processing.
+* [FIX] Improved file size retrieval handling with existence checks.
+* [FIX] Improved notifications for local site and ping server issues.
+* [FIX] Updated troubleshooting selectors and resync functionality for improved user experience.
+* [FIX] Improved plugin deactivation and uninstall cleanup for scheduled tasks.
+* [FIX] Improved BackupBliss upload session failure logging and storage information retrieval.
+* [FIX] Removed unnecessary modal state classes after backup completion.
+* [FIX] Prevented fatal errors when checking active plugins.
+* [FIX] Improved handling of backup progress status responses.
+* [STYLE] Updated review banner markup and cloud backup notice styling for improved consistency.
+* [MISC] Various UX improvements, internal optimizations, text refinements, and stability enhancements throughout the plugin.
+
 = 2.1.5.2 =
 * Tested with WordPress 7.0
 * [FIX] Sanitized backup file and URL arguments in AJAX requests to improve security and input validation.
@@ -205,45 +241,6 @@ Vietnamese: [Tạo sao lưu, khôi phục các bản sao lưu và di chuyển c�
 * [FEATURE] Added delayed banner display after 5 minutes of initialization.  
 * [FEATURE] Implemented dynamic arrow positioning updates on DOM mutations for the banner.  
 * [FEATURE] Added menu item checks for accurate banner positioning and behavior.  
-* [FEATURE] Limited banner overlay to admin items only when triggered.  
-* [FEATURE] Enabled new database export engine option in settings.
-* [FIX] Preserved POST `f` value during AJAX handler initialization.  
-* [FIX] Ensured menu item is correctly referenced when hiding the banner.
-
-= 2.1.2 =
-
-* Tested with WordPress 6.9.4
-* [FEATURE] Implemented new database export engine with support for unbuffered queries.  
-* [FEATURE] Added dual storage backend with file-based fallback for improved reliability.  
-* [FEATURE] Added backup banner with dismiss functionality and updated assets.  
-* [FEATURE] Introduced log file suffix configuration for improved log management.  
-* [ENHANCEMENT] Increased default search/replace limits and enabled new search/replace engine.  
-* [ENHANCEMENT] Enhanced fetchRows method to support unbuffered queries for better performance.  
-* [ENHANCEMENT] Improved banner responsiveness, text wrapping, and installation link handling.  
-* [ENHANCEMENT] Improved responsive design of feature cards and dashboard banners.  
-* [ENHANCEMENT] Simplified restore success modal logic for better user feedback.  
-* [ENHANCEMENT] Streamlined exclusion logic and error handling in database export process.  
-* [FIX] Prevented frequent cron job execution for improved stability.  
-* [REFACTOR] Kept legacy database engine as primary while introducing new engine as alternative.  
-* [REFACTOR] Simplified banner dismiss logic and improved redirect behavior.  
-* [REFACTOR] Removed unnecessary database prepare calls.  
-* [DOCS] Added warning about unbuffered query behavior in database export documentation.  
-* [MISC] Various internal improvements, optimizations, and minor fixes across the plugin.
-
-= 2.1.1 =
-
-* Tested with WordPress 6.9.1
-* [ENHANCEMENT] Optimized restore log retrieval to reduce unnecessary HTTP requests and improve performance.
-* [STYLE] Improved modal UI with refined button and container padding, font sizes, and color adjustments for better visual consistency.
-
-= 2.1.0 =
-
-* Tested with WordPress 6.9
-* [FEATURE] Introduced restoration of local plugin configuration after migration to preserve site-specific settings.  
-* [FEATURE] Added resync functionality with ping server for improved offline and recovery scenarios.  
-* [FEATURE] Implemented authentication handshake for offline M2M connections.  
-* [FEATURE] Added extension and environment checks for S3, Wasabi, FTP, and cURL based storage integrations.  
-* [FEATURE] Added space requirement checks before showing upload issue notices.  
 * [... and more ...]
 
 = previous =
@@ -251,7 +248,40 @@ Old changelog has been removed due to WordPress limitation of 5000 characters.
 
 == Upgrade Notice ==
 
-= 2.1.5.2 =
-What's new in 2.1.5.2?
+= 2.1.6 =
+What's new in 2.1.6?
 
-* [FIX] Sanitized backup file and URL arguments in AJAX requests to improve security and input validation.
+* [FEATURE] Added direct-to-cloud streaming configuration, notices, and validation checks.
+* [FEATURE] Added file integrity verification with chained hash calculation for streamed backups.
+* [FEATURE] Added manifest-based MD5 verification support for enhanced backup validation.
+* [FEATURE] Added streaming support to the backup process with manifest integration.
+* [FEATURE] Added available cloud storage space detection and validation for BackupBliss storage.
+* [FEATURE] Added streaming space requirement checks with compatibility recommendations.
+* [FEATURE] Added lock status information to backup manifests based on cron state.
+* [FEATURE] Added cron-related information to system information reports.
+* [FEATURE] Added transient storage of the latest backup file for improved retrieval and tracking.
+* [FEATURE] Added streamed backup name display in the backup success modal.
+* [FEATURE] Enhanced cloud backup validation and response handling for storage strategy checks.
+* [FEATURE] Standardized external storage provider identification across all supported cloud storage providers.
+* [ENHANCEMENT] Increased chained hash chunk size to 50MB for improved hashing performance.
+* [ENHANCEMENT] Enhanced backup file name validation and security hardening.
+* [ENHANCEMENT] Improved cron diagnostics, overdue detection logic, and troubleshooting information.
+* [ENHANCEMENT] Improved dashboard tooltips, notifications, and backup method descriptions.
+* [ENHANCEMENT] Improved handling of upload rate limiting with automatic retry support for HTTP 429 responses.
+* [ENHANCEMENT] Refactored file hashing into a dedicated service for improved maintainability.
+* [ENHANCEMENT] Improved BackupBliss storage integration, configuration management, and upload handling.
+* [FIX] Prevented early exit when saving backup configuration settings.
+* [FIX] Sanitized backup file and URL arguments for improved security.
+* [FIX] Resolved cURL deprecation warnings and improved resource validation before closing handles.
+* [FIX] Corrected chained hash chunk size constant value.
+* [FIX] Corrected storage strategy handling throughout backup processing.
+* [FIX] Improved file size retrieval handling with existence checks.
+* [FIX] Improved notifications for local site and ping server issues.
+* [FIX] Updated troubleshooting selectors and resync functionality for improved user experience.
+* [FIX] Improved plugin deactivation and uninstall cleanup for scheduled tasks.
+* [FIX] Improved BackupBliss upload session failure logging and storage information retrieval.
+* [FIX] Removed unnecessary modal state classes after backup completion.
+* [FIX] Prevented fatal errors when checking active plugins.
+* [FIX] Improved handling of backup progress status responses.
+* [STYLE] Updated review banner markup and cloud backup notice styling for improved consistency.
+* [MISC] Various UX improvements, internal optimizations, text refinements, and stability enhancements throughout the plugin.

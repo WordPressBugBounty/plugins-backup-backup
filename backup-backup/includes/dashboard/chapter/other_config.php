@@ -20,7 +20,7 @@
   $experimental_info = __('It will change some fundamental logics of the plugin', 'backup-backup');
   $experimental_info_1 = __('Use this option if you have full access to your server and you know how to make basic configuration of the server. Wrong configuration may give you hick-ups without error due to e.g. web server server timeout (for small sites below 300 MB this is the best option).', 'backup-backup');
   $experimental_info_2 = __('Use this option before the third one. It should work fine on SSD/NVMe hosting, even for large backups — but it may still time out if you are running on a slow drive with high I/O.', 'backup-backup');
-  $experimental_info_3 = __('This option will require you to not close the backup window since it will use your connection to keep the backup in parts, it will disable automatic backups. Use this only if all of the above does not work. Recommended for huge sites +100k files / 5+ GB.', 'backup-backup');
+  $experimental_info_3 = __('This option will require you to keep the backup creation screen active, as it will use your connection to keep the backup in parts. Use this only if other methods do not work. Recommended for huge sites +100k files / 5+ GB.', 'backup-backup');
   $db_query_info = __('Lower value means slower process but more stable restore, higher value means quicker backup and restore but it may be unstable (depends on database server performance). Default value: 300.', 'backup-backup');
   $sqlsplitting = __('This will split the SQL files (before migration or restore) into parts, which should make the process more stable and also allows to track the progress more precisely.', 'backup-backup');
   $deprecatedsinglefile = __('It will force to use V1 engine (first export function of this plugin), it is usually much quicker but search & replace may not work well for recursively santisized data - but may be recommended for not complex sites.', 'backup-backup');
@@ -340,11 +340,12 @@
   <hr>
 
   <!--  -->
-  <div class="mm mbl mtl">
+  <div class="mbl mtl">
     <div class="mm fo-title bold mbll">
-      <?php esc_html_e("Change functionality of the plugin", 'backup-backup'); ?> (#3)
+      <?php esc_html_e("Change the backup creation method", 'backup-backup'); ?> (#3)
     </div>
-    <div class="mm mm-border">
+    <div class="mm">
+      <div class="mm mm-border">
       <div>
         <span class="relative">
           <?php esc_html_e("Some", 'backup-backup'); ?> <b><?php esc_html_e("experimental", 'backup-backup'); ?></b> <?php esc_html_e("features", 'backup-backup'); ?>:
@@ -356,7 +357,7 @@
         <label for="normal-timeout" class="container-radio">
           <input type="radio" name="experimental_features" id="normal-timeout"<?php bmi_try_checked('OTHER:USE:TIMEOUT:NORMAL'); ?> />
           <span class="f18">
-            <?php esc_html_e("Method 1 - Do not change the default plugin functions - it may require adjusting your server for stable backup.", 'backup-backup'); ?>
+            <?php esc_html_e("Method 1 - Default backup creation - it may require adjusting your server for a stable backup creation.", 'backup-backup'); ?>
             &nbsp;<span class="bmi-info-icon tooltip" tooltip="<?php echo esc_attr( $experimental_info_1 ); ?>"></span>
           </span>
           <span class="checkmark-radio" style="margin-top: 2px;"></span>
@@ -381,11 +382,12 @@
         <label for="experimental-hard-timeout" class="container-radio">
           <input type="radio" name="experimental_features" id="experimental-hard-timeout"<?php bmi_try_checked('OTHER:EXPERIMENT:TIMEOUT:HARD'); ?> />
           <span class="f18">
-            <?php esc_html_e("Method 3 - Bypass the web server limits - it will disable automatic backup and the possibility of running it in the background.", 'backup-backup'); ?>
+            <?php esc_html_e("Method 3 - Bypass the web server limits - it will disable the possibility of running the process in the background. Automatic backups will still be made with Method 2.", 'backup-backup'); ?>
             &nbsp;<span class="bmi-info-icon tooltip" tooltip="<?php echo esc_attr( $experimental_info_3 ); ?>"></span>
           </span>
           <span class="checkmark-radio" style="margin-top: 2px;"></span>
         </label>
+      </div>
       </div>
     </div>
   </div>

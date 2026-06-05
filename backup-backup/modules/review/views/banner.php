@@ -15,7 +15,7 @@
 
 ?>
 
-<section class="nri-nice-review-wrapper" id="nri-slug-wrapper" data-slug="<?php echo esc_html($this->slug); ?>">
+<div class="nri-nice-review-wrapper" id="nri-slug-wrapper" data-slug="<?php echo esc_html($this->slug); ?>">
   <div class="nri-nice-review nri-CDP" id="nri-sub-wrapper">
     <img src="<?php $this->_asset('imgs/background-pattern.svg'); ?>" alt="Background with stars" class="nri-background-pattern">
     <img src="<?php $this->_asset('imgs/BM-background.svg'); ?>" alt="Background Image" class="nri-BM-background">
@@ -62,4 +62,4 @@
       </div>
     </div>
   </div>
-</section>
+</div>

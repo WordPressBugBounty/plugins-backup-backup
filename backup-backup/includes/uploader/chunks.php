@@ -79,7 +79,8 @@ function completed($newfile, $noextname, $ext) {
 
 }
 
-clearstatcache($afterfile);
+clearstatcache(true, $afterfile);
+
 if (is_file($afterfile) && ($size == filesize($afterfile))) {
 
   jsonMsg(3, 'File already exists.', $url);

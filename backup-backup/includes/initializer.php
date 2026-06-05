@@ -20,13 +20,7 @@
   use BMI\Plugin\Zipper\BMI_Zipper as Zipper;
   use BMI\Plugin\Staging\BMI_Staging as Staging;
   use BMI\Plugin\External\BMI_External_BackupBliss as BackupBliss;
-
-  // Uninstallator
-  if (!function_exists('bmi_uninstall_handler')) {
-    function bmi_uninstall_handler() {
-      require_once BMI_ROOT_DIR . '/uninstall.php';
-    }
-  }
+  use BMI\Plugin\Services\FileHasher;
 
   /**
    * Backup Migration Main Class
@@ -111,7 +105,8 @@
 
       // Hooks
       register_deactivation_hook(BMI_ROOT_FILE, [&$this, 'deactivation']);
-      register_uninstall_hook(BMI_ROOT_FILE, 'bmi_uninstall_handler');
+      require_once BMI_INCLUDES . '/cron/bootstrap.php';
+      \BMI\Plugin\CRON\TaskManager::boot();
 
       // File downloading
       add_action('wp_loaded', [&$this, 'handle_downloading']);
@@ -126,6 +121,9 @@
       add_action('wp_loaded', [&$this, 'handle_crons']);
       add_action('wp_loaded', [&$this, 'include_offline']);
       add_action('admin_notices', [&$this, 'incompatibility_notices']);
+      add_action('bmip_fire_action', [&$this, 'fireBMIPAction'], 10, 4);
+      add_action('bmi_backup_upload_completed', [&$this, 'handleUploadComplete']);
+      add_action('bmi_backup_upload_completed', [&$this, 'handle_after_cron']);
       
       // Return if CRON time
       if (function_exists('wp_doing_cron') && wp_doing_cron()) return;
@@ -296,6 +294,14 @@
 
       $current_patch = get_option('bmi_hotfixes', array());
 
+      if (!in_array('BMI_D1_M6_26', $current_patch)) {
+        require_once BMI_INCLUDES . '/external/backupbliss.php';
+        $backupbliss = new BackupBliss();
+        $connectionStatus = $backupbliss->verifyConnection();
+        if ($connectionStatus['result'] == 'connected') {
+          Dashboard\bmi_set_config('STORAGE::EXTERNAL::BACKUPBLISS', true);
+        }
+      }
       if (!in_array('BMI_D17_M1_26', $current_patch)) {
         $baseurl = home_url();
         if (substr($baseurl, 0, 4) != 'http') {
@@ -775,7 +781,7 @@
       Logger::log('Sending notification about backup being late');
       $email = Dashboard\bmi_get_config('OTHER:EMAIL') != false ? Dashboard\bmi_get_config('OTHER:EMAIL') : get_bloginfo('admin_email');
       $subject = Dashboard\bmi_get_config('OTHER:EMAIL:TITLE');
-      $message = __("Automatic backup was not on time because there was no traffic on the site.", 'backup-backup') . "\n";
+      $message = __("Automatic backup was not on time because the connection to the ping server was interrupted, and WP Cron was late, as there was no traffic on the site.", 'backup-backup') . "\n";
       $message .= __("Backup was made on: ", 'backup-backup') . date('Y-m-d H:i:s') . __(', but should be on: ', 'backup-backup') . date('Y-m-d H:i:s', $should_time);
       $message .= ' ' . __("(server time)", 'backup-backup');
 
@@ -1614,8 +1620,21 @@
     }
 
     public function deactivation() {
-      Logger::log(__("Plugin has been deactivated", 'backup-backup'));
+      // auto deactivate pro version if exists
+      if (function_exists('deactivate_plugins')) {
+        $plugin = 'backup-backup-pro/backup-backup-pro.php';
+        if (is_plugin_active($plugin)) {
+          add_action('update_option_active_plugins', function () {
+            $plugin = 'backup-backup-pro/backup-backup-pro.php';
+            deactivate_plugins($plugin);
+          });
+        }
+      }
       $this->revertLitespeed();
+      require_once BMI_INCLUDES . '/cron/bootstrap.php';
+      \BMI\Plugin\CRON\TaskManager::boot();
+      \BMI\Plugin\CRON\TaskManager::on_deactivation();
+      Logger::log(__("Plugin has been deactivated", 'backup-backup'));
     }
 
     public static function res($array) {
@@ -1966,4 +1985,74 @@
         }
         return '`' . str_replace('`', '``', $identifier) . '`';
     }
+
+    public function fireBMIPAction($action, $actionParams = [], $executionParams = [], $executionType = 'INITIATOR_URL') {
+      if (!defined('BMI_PRO_INC') || !file_exists(BMI_PRO_INC . DIRECTORY_SEPARATOR . 'services' . DIRECTORY_SEPARATOR . 'class-bmi-pro-action-initiator.php')) {
+        return;
+      }
+
+      try {
+        require_once BMI_PRO_INC . DIRECTORY_SEPARATOR . 'services' . DIRECTORY_SEPARATOR . 'class-bmi-pro-action-initiator.php';
+        $actionInitiator = new \BMI\Plugin\Services\ActionInitiator($action, $actionParams, Dashboard\bmi_get_config('REQUEST:SECRET'));
+        $actionInitiator->execute($executionType, $executionParams);
+      } catch (\Exception $e) {
+        Logger::error(__('Error firing BMI Pro action: ', 'backup-backup') . $action . '|' . $e->getMessage());
+      } catch (\Throwable $t) {
+        Logger::error(__('Error firing BMI Pro action: ', 'backup-backup') . $action . '|' . $t->getMessage());
+      }
+    }
+
+    public function handleUploadComplete($md5) {
+
+      do_action('bmip_fire_action', 'HANDLE_BACKUP_UPLOADED_COMPLETE', ['md5' => $md5], ['timeout' => 0.01 , 'async' => false]);
+
+    }
+
+    /**
+     * verifyFileMd5 - Verifies if the file has the same md5 as the one provided, can be used for integrity checks before restore downloaded backup
+     * 
+     * @param {string} $filePath - Path to the file which md5 should be checked
+     * @param {string} $expectedMd5 - Expected md5 hash of the file
+     * @return bool - True if the file's md5 matches the expected md5, false otherwise
+     */
+    public static function verifyFileMd5($filePath, $expectedMd5) {
+      if (!file_exists($filePath)) {
+        Logger::error("File for MD5 verification does not exist: " . $filePath);
+        return false;
+      }
+      require_once BMI_INCLUDES . '/services/class-file-hasher.php';
+      $fileMd5 = FileHasher::compute($filePath);
+
+      if ($fileMd5 === $expectedMd5) {
+        return true;
+      } else {
+        $manifestPath = BMI_BACKUPS . DIRECTORY_SEPARATOR . $expectedMd5 . '.json';
+        if (file_exists($manifestPath)) {
+          $manifestContent = file_get_contents($manifestPath);
+          if ($manifestContent !== false) {
+            $manifestData = json_decode($manifestContent, true);
+            if (json_last_error() === JSON_ERROR_NONE && isset($manifestData['chained_hash_chunk_size'])) {
+              $chunkSize = $manifestData['chained_hash_chunk_size'];
+              $chainedHash = FileHasher::compute($filePath, FileHasher::CHAINED, $chunkSize);
+              if ($chainedHash === $expectedMd5) {
+                return true;
+              } else {
+                Logger::error("MD5 mismatch for file: " . $filePath . " using chained hash with chunk size " . $chunkSize . ".");
+                return false;
+              }
+            } else {
+              Logger::error("Invalid manifest JSON for MD5 verification: " . $manifestPath);
+              return false;
+            }
+          } else {
+            Logger::error("Failed to read manifest file for MD5 verification: " . $manifestPath);
+            return false;
+          }
+        } else {
+          Logger::error("Manifest file for MD5 verification does not exist: " . $manifestPath);
+          return false;
+        }
+      }
+    }
+
   }

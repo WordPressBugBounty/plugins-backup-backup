@@ -289,7 +289,9 @@ class BMI_External_GDrive  {
     }
 
     // Close the cURL session
-    curl_close($ch);
+    if (is_resource($ch)) {
+      curl_close($ch);
+    }
 
     if ($range != false) return $response;
     else return json_decode($response);
@@ -704,6 +706,8 @@ class BMI_External_GDrive  {
         $toBeUploaded['current_upload'] = [];
         if (!isset($toBeUploaded['failed'])) $toBeUploaded['failed'] = [];
         if (isset($toBeUploaded['failed'][$task])) unset($toBeUploaded['failed'][$task]);
+        do_action('bmi_backup_upload_completed', $md5);
+
 
         update_option('bmip_to_be_uploaded', $toBeUploaded);
 

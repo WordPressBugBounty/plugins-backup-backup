@@ -13,6 +13,13 @@
   $backupType = $backupTypeBase . __('%sUpgrade to %sPremium%s today%s%s%sWe made it really affordable!%s', 'backup-backup');
   $backupType = sprintf($backupType, '<div class="bmi-center-text">', '<br>', '<a href="' . BMI_AUTHOR_URI . '" target="_blank">', '<span class="bmi-premium-bg-stars">', '</span>', '</a>', '<br>', '<b>', '</b>', '</div>');
 
+  $storageType = bmi_get_config('STORAGE:STRATEGY');
+
+  if (defined('BMI_BACKUP_PRO') && BMI_BACKUP_PRO == 1) {
+    $pros = true;
+  } else {
+    $pros = false;
+  }
 ?>
 
 <div class="mm mt mbl">
@@ -71,6 +78,99 @@
 
 </div>
 
+<hr>
+
+<div class="mm mbl mtl">
+
+  <div class="lh30 mbll" style="display:flex; justify-content: flex-start;">
+    <div class="fo-title semibold"><?php esc_html_e("Local vs. cloud storage of backups", 'backup-backup'); ?></div>
+    <span class="bmi-info-icon tooltip"
+      tooltip="<?php esc_html_e('Please note that backups will in all cases be created locally and in cases of Option #2 and Option #3 removed after the upload to the Cloud. Therefore you will still need free disk space on the server for the backup creation.', "backup-backup"); ?>"
+      style="top:8px;left:5px;"></span>
+  </div>
+  <div class="mm mm-border">
+  <?php if (has_action('bmip_storage_strategy_options')) { ?>
+  <?php do_action('bmip_storage_strategy_options'); ?>
+  <?php } else { ?>
+
+    <div class="lh40">
+      <label for="storage-local-cloud" class="container-radio">
+        <span class="f18">
+          <?php esc_html_e("Store all backups locally and on all connected cloud storage(s)", 'backup-backup'); ?>
+        </span>
+        <input type="radio" name="backup_storage_strategy" id="storage-local-cloud" checked value="local_and_cloud" />
+        <span class="checkmark-radio"></span>
+      </label>
+    </div>
+
+    <div class="lh40">
+    <span class="cf premium-wrapper" tooltip="<?php echo esc_attr($backupType); ?>">
+      <label class="left container-radio not-allowed">
+        <span class="f18">
+          <?php esc_html_e("Store all backups only on connected cloud storage(s)", 'backup-backup'); ?>
+        </span>
+        <input type="radio" disabled name="backup_storage_strategy" />
+        <span class="checkmark-radio"></span>
+      </label>
+      <span class="left premium premium-img premium-nt5"></span>
+    </span>
+    </div>
+
+    <div class="lh40">
+      <span class="cf premium-wrapper" tooltip="<?php echo esc_attr($backupType); ?>">
+      <label class="left container-radio not-allowed">
+        <span class="f18">
+          <?php esc_html_e("Store automatic (scheduled) backups only on cloud storage and store manually created backups locally", 'backup-backup'); ?>
+        </span>  
+        <input type="radio" disabled name="backup_storage_strategy" />
+        <span class="checkmark-radio"></span>
+      </label>
+      <span class="left premium premium-img premium-nt5"></span>
+      </span>
+    </div>
+  <?php } ?>
+
+  </div>
+</div>
+
+<hr>
+
+<div class="mm mtl mbl<?php echo ($pros) ? '' : ' overlayed'; ?>">
+
+  <?php if (!$pros) { include BMI_INCLUDES . '/dashboard/templates/premium-function-overlay.php'; } ?>
+
+  <?php if (has_action('bmip_direct_cloud_streaming_settings')) { ?>
+    <?php do_action('bmip_direct_cloud_streaming_settings'); ?>
+  <?php }else { ?>
+  <div class="lh30 mbll">
+    <div class="fo-title semibold">
+      <span class="cf premium-function">
+        <div class="left"><?php esc_html_e("Experimental: direct-to-cloud backup streaming", 'backup-backup'); ?></div>
+        <span class="left premium premium-img"></span>
+      </span>
+    </div>
+    <div class="f20">
+      <?php esc_html_e("Stream backups directly to supported cloud storage providers without creating a local archive on your server.", 'backup-backup'); ?>
+    </div>
+  </div>
+
+  <div class="mm mm-border f20">
+    <div class="lh30">
+      <label class="bmi-checkbox-label">
+        <input type="checkbox" id="direct-cloud-streaming" class="bmi_will_collapse"
+          data-if-checked="direct_cloud_streaming_options" />
+        <span class="relative">
+          <?php esc_html_e("Enable direct-to-cloud streaming", 'backup-backup'); ?>&nbsp;
+          <span class="bmi-info-icon tooltip"
+            tooltip="<?php esc_html_e('This reduces required disk space to near zero and is ideal for environments with limited storage. This feature is experimental and currently available only for selected providers.', 'backup-backup'); ?>"></span>
+        </span>
+      </label>
+    </div>
+  </div>
+
+  <?php } ?>
+
+</div>
 <hr>
 
 <div class="mm mbl mtl">

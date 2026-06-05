@@ -589,18 +589,12 @@
       rename($backupDestinationPath, str_replace('.crdownload', '', $backupDestinationPath));
       $backupDestinationPath = str_replace('.crdownload', '', $backupDestinationPath);
 
-      $local_md5 = md5_file($backupDestinationPath);
-      if (file_exists($backupDestinationPath) && $local_md5 == $md5) {
-
-
-        $migration->log('Downloaded MD5: ' . $local_md5, 'INFO');
-        $migration->log('Expected MD5: ' . $md5, 'INFO');
+      $isDownloadedFileVerified = BMP::verifyFileMd5($backupDestinationPath, $md5);
+      if ($isDownloadedFileVerified) {
         $migration->log('File MD5 checksum is correct!', 'SUCCESS');
       } else {
 
         $migration->log('File MD5 checksum is NOT correct!', 'ERROR');
-        $migration->log('Downloaded MD5: ' . $local_md5, 'ERROR');
-        $migration->log('Expected MD5: ' . $md5, 'ERROR');
         $migration->log('Downloaded file path: ' . $backupDestinationPath, 'ERROR');
         $migration->log('File exist?: ' . (file_exists($backupDestinationPath) ? "Yes" : "No?"), 'ERROR');
         $migration->log('For security reasons, I will remove the file and stop the process...', 'ERROR');
@@ -1113,10 +1107,24 @@
    */
   private function shareDomainForAutoCron($force = false)
   {
+    if (!$force && get_transient('bmi_cron_share_attempted')) {
+      return ['status' => 'success'];
+    }
 
     $cron_shared = get_option('bmi_cron_new_domain_done', false);
-    if (($cron_shared || get_transient('bmi_cron_share_attempted')) && !$force) return ['status' => 'success'];
+    $last_ping_time = (int) get_option('bmi_cron_last_ping_time', 0);
+      
+    // 2. Overdue Check: Has it been more than 1 hour since the last ping?
+    $is_ping_overdue = $last_ping_time === 0 || (current_time('timestamp') - $last_ping_time) > (HOUR_IN_SECONDS);
+
+    // 3. Early Exit: If already shared, ping is NOT overdue, and we aren't forcing it.
+    if ($cron_shared && !$is_ping_overdue && !$force) {
+      return ['status' => 'success'];
+    }
+
+    // 4. Lock the attempt window immediately for the next hour
     set_transient('bmi_cron_share_attempted', true, HOUR_IN_SECONDS);
+
     $baseurl = home_url();
     if (substr($baseurl, 0, 4) != 'http') {
       if (is_ssl()) $baseurl = 'https://' . home_url();
@@ -1139,25 +1147,38 @@
       'body' => array('site' => $baseurl, 'sk' => $sk)
     ));
 
-    if (!is_wp_error($response)) {
-      $response = json_decode($response['body'], true);
-      if (isset($response['status']) && $response['status'] === 'success') {
-        update_option('bmi_cron_new_domain_done', true);
-        return ['status' => 'success'];
-      } elseif (isset($response['status']) && $response['status'] === 'error' && $response['message']=== 'Handshake failed - Invalid SK or Site unreachable') {
-        Logger::error('Site is locally hosted or could not be reached by Backup & Migration API for cron verification. Cron jobs might not work as expected.');
-        update_option('bmi_cron_new_domain_done', true);
-        return ['status' => 'error', 'msg' => 'Site is locally hosted or could not be reached by Backup & Migration API for cron verification. Cron jobs might not work as expected.'];
-      } else {
-        Logger::error('Unknown error occurred during cron domain sharing.');
-        $responseMsg = isset($response['message']) ? $response['message'] : 'Unknown error occurred during cron domain sharing.';
-        Logger::error('Response message: ' . $responseMsg);
-        return ['status' => 'error', 'msg' => $responseMsg];
-      }
+    // Handle WP_Error (Network issues, DNS failures, etc.)
+    if (is_wp_error($response)) {
+        $error_message = $response->get_error_message();
+        Logger::error('WP_Error occurred during cron domain sharing: ' . $error_message);
+        return ['status' => 'error', 'msg' => $error_message];
     }
-    Logger::error('Unknown error occurred during cron domain sharing.');
-    $responseMsg = wp_remote_retrieve_response_message($response) ? wp_remote_retrieve_response_message($response) : 'Unknown error occurred during cron domain sharing.';
-    Logger::error('Response message: ' . $responseMsg);
+
+    $body = wp_remote_retrieve_body($response);
+    $decoded_response = json_decode($body, true);
+
+    // Ensure we actually got valid JSON back before trying to access array keys
+    if (json_last_error() === JSON_ERROR_NONE && is_array($decoded_response)) {
+      if (isset($decoded_response['status']) && $decoded_response['status'] === 'success') {
+        update_option('bmi_cron_new_domain_done', true);
+        update_option('bmi_cron_last_ping_time', current_time('timestamp'));
+        delete_option('bmi_cron_site_local_or_unreachable');
+        return ['status' => 'success'];
+      } 
+      
+      if (isset($decoded_response['status']) && $decoded_response['status'] === 'error' && isset($decoded_response['message']) && $decoded_response['message'] === 'Handshake failed - Invalid SK or Site unreachable') {
+        Logger::error('Site is locally hosted or could not be reached by Backup & Migration API for cron verification. Cron jobs might not work as expected.');
+        update_option('bmi_cron_site_local_or_unreachable', true);
+        return ['status' => 'error', 'msg' => 'Site is locally hosted or could not be reached by Backup & Migration API for cron verification. Cron jobs might not work as expected.'];
+      } 
+      $responseMsg = isset($decoded_response['message']) ? $decoded_response['message'] : 'Unknown error from BackupBliss API.';
+      Logger::error('Cron API responded with: ' . $responseMsg);
+      return ['status' => 'error', 'msg' => $responseMsg];
+    }
+
+    // Fallback for malformed or non-JSON responses (e.g., 500 Server Error HTML page)
+    $responseMsg = wp_remote_retrieve_response_message($response) ?: 'Unknown or malformed response from cron server.';
+    Logger::error('Malformed response message: ' . $responseMsg);
     return ['status' => 'error', 'msg' => $responseMsg];
   }
 
@@ -1296,17 +1317,12 @@
         $backupDestinationPath = str_replace('.crdownload', '', $backupDestinationPath);
   
 
-        $local_md5 = hash_file('md5', $backupDestinationPath);
-        if (file_exists($backupDestinationPath) && $local_md5 == $md5) {
-
-          $migration->log('Downloaded MD5: ' . $local_md5, 'INFO');
-          $migration->log('Expected MD5: ' . $md5, 'INFO');
+        $isDownloadedFileVerified = BMP::verifyFileMd5($backupDestinationPath, $md5);
+        if ($isDownloadedFileVerified) {
           $migration->log('File MD5 checksum is correct!', 'SUCCESS');
         } else {
 
           $migration->log('File MD5 checksum is NOT correct!', 'ERROR');
-          $migration->log('Downloaded MD5: ' . $local_md5, 'ERROR');
-          $migration->log('Expected MD5: ' . $md5, 'ERROR');
           $migration->log('Downloaded file path: ' . $backupDestinationPath, 'ERROR');
           $migration->log('File exist?: ' . (file_exists($backupDestinationPath) ? "Yes" : "No?"), 'ERROR');
           $migration->log('For security reasons, I will remove the file and stop the process...', 'ERROR');
@@ -1485,17 +1501,12 @@
         $backupDestinationPath = str_replace('.crdownload', '', $backupDestinationPath);
   
 
-        $local_md5 = md5_file($backupDestinationPath);
-        if (file_exists($backupDestinationPath) && $local_md5 == $md5) {
-
-          $migration->log('Downloaded MD5: ' . $local_md5, 'INFO');
-          $migration->log('Expected MD5: ' . $md5, 'INFO');
+        $isDownloadedFileVerified = BMP::verifyFileMd5($backupDestinationPath, $md5);
+        if ($isDownloadedFileVerified) {
           $migration->log('File MD5 checksum is correct!', 'SUCCESS');
         } else {
 
           $migration->log('File MD5 checksum is NOT correct!', 'ERROR');
-          $migration->log('Downloaded MD5: ' . $local_md5, 'ERROR');
-          $migration->log('Expected MD5: ' . $md5, 'ERROR');
           $migration->log('Downloaded file path: ' . $backupDestinationPath, 'ERROR');
           $migration->log('File exist?: ' . (file_exists($backupDestinationPath) ? "Yes" : "No?"), 'ERROR');
           $migration->log('For security reasons, I will remove the file and stop the process...', 'ERROR');
@@ -1674,17 +1685,12 @@
         rename($backupDestinationPath, str_replace('.crdownload', '', $backupDestinationPath));
         $backupDestinationPath = str_replace('.crdownload', '', $backupDestinationPath);  
 
-        $local_md5 = md5_file($backupDestinationPath);
-        if (file_exists($backupDestinationPath) && $local_md5 == $md5) {
-
-          $migration->log('Downloaded MD5: ' . $local_md5, 'INFO');
-          $migration->log('Expected MD5: ' . $md5, 'INFO');
+        $isDownloadedFileVerified = BMP::verifyFileMd5($backupDestinationPath, $md5);
+        if ($isDownloadedFileVerified) {
           $migration->log('File MD5 checksum is correct!', 'SUCCESS');
         } else {
 
           $migration->log('File MD5 checksum is NOT correct!', 'ERROR');
-          $migration->log('Downloaded MD5: ' . $local_md5, 'ERROR');
-          $migration->log('Expected MD5: ' . $md5, 'ERROR');
           $migration->log('Downloaded file path: ' . $backupDestinationPath, 'ERROR');
           $migration->log('File exist?: ' . (file_exists($backupDestinationPath) ? "Yes" : "No?"), 'ERROR');
           $migration->log('For security reasons, I will remove the file and stop the process...', 'ERROR');
@@ -1856,15 +1862,11 @@
           rename($backupDestinationPath, str_replace('.crdownload', '', $backupDestinationPath));
           $backupDestinationPath = str_replace('.crdownload', '', $backupDestinationPath);
   
-          $local_md5 = md5_file($backupDestinationPath);
-          if (file_exists($backupDestinationPath) && $local_md5 == $md5) {
-              $migration->log('Downloaded MD5: ' . $local_md5, 'INFO');
-              $migration->log('Expected MD5: ' . $md5, 'INFO');
+          $isDownloadedFileVerified = BMP::verifyFileMd5($backupDestinationPath, $md5);
+          if ($isDownloadedFileVerified) {
               $migration->log('File MD5 checksum is correct!', 'SUCCESS');
           } else {
               $migration->log('File MD5 checksum is NOT correct!', 'ERROR');
-              $migration->log('Downloaded MD5: ' . $local_md5, 'ERROR');
-              $migration->log('Expected MD5: ' . $md5, 'ERROR');
               $migration->log('Downloaded file path: ' . $backupDestinationPath, 'ERROR');
               $migration->log('File exist?: ' . (file_exists($backupDestinationPath) ? "Yes" : "No?"), 'ERROR');
               $migration->log('For security reasons, I will remove the file and stop the process...', 'ERROR');
@@ -2639,59 +2641,47 @@
       $zip_progress->log("Total size of excluded files (bytes): " . $this->total_excluded_size_for_backup, 'verbose');
 
       // Check if there is enough space
-      $bytes = intval($this->total_size_for_backup * 1.4);
-      update_option('bmi_required_space', $bytes);
-      $zip_progress->log(__("Checking free space, reserving...", 'backup-backup'), 'step');
-      if ($this->total_size_for_backup_in_mb >= BMI_REV * 1000 && get_option('bmip_last', false) != '1') {
+      if (apply_filters('bmip_streaming_backup_is_enabled', false)) {
+        $streamingSpaceSucceeded = apply_filters('bmip_streaming_backup_space_check', $this->total_size_for_backup, $zip_progress);
+        if (!$streamingSpaceSucceeded) {
+            // Close backup
+            if (file_exists(BMI_BACKUPS . '/.running')) @unlink(BMI_BACKUPS . '/.running');
+            if (file_exists(BMI_BACKUPS . '/.abort')) @unlink(BMI_BACKUPS . '/.abort');
+            if ($isCLI === true && file_exists($cli_lock)) @unlink($cli_lock);
 
-        // Abort backup
-        $zip_progress->log(__("Aborting backup...", 'backup-backup'), 'step');
-        $zip_progress->log(str_replace('%s', BMI_REV, __("Site weights more than %s GB.", 'backup-backup')), 'error');
-        if (isset($this->post['f'])) {
-          $zip_progress->log('Function: ' . print_r($this->post['f'], true), 'verbose');
+            // Log and close log
+            $zip_progress->log('#002', 'END-CODE');
+            $zip_progress->end();
+
+            if ($isCLI === true) touch($cli_lock_end);
+            $this->actionsAfterProcess();
+
+            // Return error
+            if (file_exists($triggerLock)) @unlink($triggerLock);
+            if ($cron == true) return ['status' => 'msg', 'why' => __('There is not enough space for backup, please free up ' . round($this->total_size_for_backup / 1024 / 1024, 2) . ' MB of space.', 'backup-backup')];
+            else return ['status' => 'error'];
         }
-
-        if (isset($_SERVER)) {
-          $zip_progress->log('REQUEST_URI: ' . $_SERVER['REQUEST_URI'], 'verbose');
-          $zip_progress->log('REQUEST_METHOD: ' . $_SERVER['REQUEST_METHOD'], 'verbose');
-        }
-
-        if (!empty($this->post)) {
-          $zip_progress->log(print_r($this->post, true), 'verbose');
-        }
-
-        // Close backup
-        if (file_exists(BMI_BACKUPS . '/.running')) @unlink(BMI_BACKUPS . '/.running');
-        if (file_exists(BMI_BACKUPS . '/.abort')) @unlink(BMI_BACKUPS . '/.abort');
-        if ($isCLI === true && file_exists($cli_lock)) @unlink($cli_lock);
-
-        // Log and close log
-        $zip_progress->log('#100', 'END-CODE');
-        $zip_progress->end();
-
-        if ($isCLI === true) touch($cli_lock_end);
-        $this->actionsAfterProcess();
-
-        // Return error
-        if (file_exists($triggerLock)) @unlink($triggerLock);
-        return ['status' => 'error', 'bfs' => true];
-      }
-
-      $isSpaceCheckDisabled = Dashboard\bmi_get_config('OTHER:BACKUP:SPACE:CHECKING');
-
-      if ($isSpaceCheckDisabled) {
-
-        $zip_progress->log(__("Free space checking is disabled by user in settings...", 'backup-backup'), 'warn');
-        $zip_progress->log(__("Backup will continue, trusting there is enough space...", 'backup-backup'), 'warn');
-
       } else {
-
-        if (!$checker->check_free_space($bytes)) {
+        $bytes = intval($this->total_size_for_backup * 1.4);
+        update_option('bmi_required_space', $bytes);
+        $zip_progress->log(__("Checking free space, reserving...", 'backup-backup'), 'step');
+        if ($this->total_size_for_backup_in_mb >= BMI_REV * 1000 && get_option('bmip_last', false) != '1') {
 
           // Abort backup
           $zip_progress->log(__("Aborting backup...", 'backup-backup'), 'step');
-          $zip_progress->log(__("There is no space for that backup, checked: ", 'backup-backup') . ($bytes) . __(" bytes", 'backup-backup'), 'error');
-          $zip_progress->log('not_enough_space', 'verbose');
+          $zip_progress->log(str_replace('%s', BMI_REV, __("Site weights more than %s GB.", 'backup-backup')), 'error');
+          if (isset($this->post['f'])) {
+            $zip_progress->log('Function: ' . print_r($this->post['f'], true), 'verbose');
+          }
+
+          if (isset($_SERVER)) {
+            $zip_progress->log('REQUEST_URI: ' . $_SERVER['REQUEST_URI'], 'verbose');
+            $zip_progress->log('REQUEST_METHOD: ' . $_SERVER['REQUEST_METHOD'], 'verbose');
+          }
+
+          if (!empty($this->post)) {
+            $zip_progress->log(print_r($this->post, true), 'verbose');
+          }
 
           // Close backup
           if (file_exists(BMI_BACKUPS . '/.running')) @unlink(BMI_BACKUPS . '/.running');
@@ -2699,7 +2689,7 @@
           if ($isCLI === true && file_exists($cli_lock)) @unlink($cli_lock);
 
           // Log and close log
-          $zip_progress->log('#002', 'END-CODE');
+          $zip_progress->log('#100', 'END-CODE');
           $zip_progress->end();
 
           if ($isCLI === true) touch($cli_lock_end);
@@ -2707,13 +2697,47 @@
 
           // Return error
           if (file_exists($triggerLock)) @unlink($triggerLock);
-          if ($cron == true) return ['status' => 'msg', 'why' => __('There is not enough space for backup, please free up ' . round($bytes / 1024 / 1024, 2) . ' MB of space.', 'backup-backup')];
-          else return ['status' => 'error'];
-        } else {
-          $zip_progress->log(__("Confirmed, there is more than enough space, checked: ", 'backup-backup') . ($bytes) . __(" bytes", 'backup-backup'), 'success');
-          $zip_progress->bytes = $this->total_size_for_backup;
+          return ['status' => 'error', 'bfs' => true];
         }
 
+        $isSpaceCheckDisabled = Dashboard\bmi_get_config('OTHER:BACKUP:SPACE:CHECKING');
+
+        if ($isSpaceCheckDisabled) {
+
+          $zip_progress->log(__("Free space checking is disabled by user in settings...", 'backup-backup'), 'warn');
+          $zip_progress->log(__("Backup will continue, trusting there is enough space...", 'backup-backup'), 'warn');
+
+        } else {
+
+          if (!$checker->check_free_space($bytes)) {
+
+            // Abort backup
+            $zip_progress->log(__("Aborting backup...", 'backup-backup'), 'step');
+            $zip_progress->log(__("There is no space for that backup, checked: ", 'backup-backup') . ($bytes) . __(" bytes", 'backup-backup'), 'error');
+            $zip_progress->log('not_enough_space', 'verbose');
+
+            // Close backup
+            if (file_exists(BMI_BACKUPS . '/.running')) @unlink(BMI_BACKUPS . '/.running');
+            if (file_exists(BMI_BACKUPS . '/.abort')) @unlink(BMI_BACKUPS . '/.abort');
+            if ($isCLI === true && file_exists($cli_lock)) @unlink($cli_lock);
+
+            // Log and close log
+            $zip_progress->log('#002', 'END-CODE');
+            $zip_progress->end();
+
+            if ($isCLI === true) touch($cli_lock_end);
+            $this->actionsAfterProcess();
+
+            // Return error
+            if (file_exists($triggerLock)) @unlink($triggerLock);
+            if ($cron == true) return ['status' => 'msg', 'why' => __('There is not enough space for backup, please free up ' . round($bytes / 1024 / 1024, 2) . ' MB of space.', 'backup-backup')];
+            else return ['status' => 'error'];
+          } else {
+            $zip_progress->log(__("Confirmed, there is more than enough space, checked: ", 'backup-backup') . ($bytes) . __(" bytes", 'backup-backup'), 'success');
+            $zip_progress->bytes = $this->total_size_for_backup;
+          }
+
+        }
       }
 
       if (Dashboard\bmi_get_config('BACKUP:DATABASE') != 'true') {
@@ -2790,6 +2814,7 @@
       }
 
       // Initialized
+      $zip_progress->log('backup_initialized', 'verbose');
       $zip_progress->log(__("Archive system initialized...", 'backup-backup'), 'success');
 
       // Make ZIP
@@ -2838,7 +2863,7 @@
 
         // Log and close log
         $zip_progress->log(__("Backup process aborted.", 'backup-backup'), 'warn');
-        $zip_progress->log('#002', 'END-CODE');
+        $zip_progress->log('#003', 'END-CODE');
         $zip_progress->end();
 
         if ($isCLI === true) touch($cli_lock_end);
@@ -3384,7 +3409,9 @@
         }
       }
 
-      curl_close($ch);
+      if (is_resource($ch)) {
+        curl_close($ch);
+      }
       fclose($fp);
 
       if ($error_msg) {
@@ -3697,12 +3724,6 @@
         $created = @mkdir($dir_path, 0755, true);
       }
 
-      if (isset($this->post['backupbliss'])) {
-        $backupblissenabled = $this->post['backupbliss'];
-        if (!Dashboard\bmi_set_config('STORAGE::EXTERNAL::backupbliss', $backupblissenabled)) {
-          $errors++;
-        }
-      }
 
       if (isset($this->post['dropbox'])) {
         $dropboxenabled = $this->post['dropbox'];
@@ -4131,6 +4152,19 @@
       $name = trim($this->post['name']); // BACKUP:NAME
       $extensionType = trim($this->post['extension']); // BACKUP:EXTENSION:TYPE
 
+      // Validate % character usage
+      $allowed_percent_vars = ['%Y', '%M', '%D', '%d', '%j', '%m', '%n', '%y', '%a', '%A', '%B', '%g', '%G', '%h', '%H', '%i', '%s', '%hash', '%domain'];
+      if (strpos($name, '%') !== false) {
+        $temp_name = $name;
+        foreach ($allowed_percent_vars as $var) {
+          $temp_name = str_replace($var, '', $temp_name);
+        }
+        if (strpos($temp_name, '%') !== false) {
+          return ['status' => 'msg', 'why' => __('Invalid % character used. Only these are allowed: %Y, %M, %D, %d, %j, %m, %n, %y, %a, %A, %B, %g, %G, %h, %H, %i, %s, %hash, %domain', 'backup-backup'), 'level' => 'warning'];
+        }
+      }
+
+
       if (strlen($name) == 0) {
         return ['status' => 'msg', 'why' => $name_empty, 'level' => 'warning'];
       }
@@ -4157,20 +4191,55 @@
         }
       }
 
-      $error = 0;
       if (!Dashboard\bmi_set_config('BACKUP:NAME', $name)) {
         Logger::error('Backup Name Error');
-        $error++;
+        return ['status' => 'msg', 'why' => __('Failed to save backup name.', 'backup-backup'), 'level' => 'error'];
       }
       
       if (defined('BMI_BACKUP_PRO') && BMI_BACKUP_PRO == 1) {
         if (!Dashboard\bmi_set_config('BACKUP:EXTENSION:TYPE', $extensionType)) {
           Logger::error('Backup Extension Type Error');
-          $error++;
+          return ['status' => 'msg', 'why' => __('Failed to save backup extension type.', 'backup-backup'), 'level' => 'error'];
         }
       }
 
-      return ['status' => 'success', 'errors' => $error];
+      $storageStrategy = isset($this->post['storage_strategy']) ? $this->post['storage_strategy'] : 'local_and_cloud';
+
+      if (!in_array($storageStrategy, ['local_and_cloud', 'cloud_only', 'hybrid'])) {
+        return ['status' => 'msg', 'why' => __('Invalid storage strategy selected.', 'backup-backup'), 'level' => 'warning'];
+      }
+
+      // Handle local_and_cloud strategy
+      if ($storageStrategy === 'local_and_cloud') {
+        if (!Dashboard\bmi_set_config('STORAGE:STRATEGY', 'local_and_cloud')) {
+          Logger::error('Backup Storage Type Local And Cloud Error');
+          return ['status' => 'msg', 'why' => __('Failed to save backup storage type.', 'backup-backup'), 'level' => 'error'];
+        }
+      }
+
+      $response = ['status' => 'success', 'errors' => 0];      
+      if (( $storageStrategy === 'cloud_only' || $storageStrategy === 'hybrid' )) {
+        // Cloud-only and hybrid strategies require premium
+        if (!defined('BMI_BACKUP_PRO') || BMI_BACKUP_PRO != 1) {
+          return ['status' => 'msg', 'why' => __('To use Cloud or Hybrid backup storage type, you need to use our premium extension.', 'backup-backup'), 'level' => 'error'];
+        }
+        $response = apply_filters('bmi_premium_store_config', $response, $storageStrategy);
+      }
+
+      if ($response['status'] === 'msg') {
+        return $response;
+      }
+
+      $direct_cloud_streaming = isset($this->post['direct_cloud_streaming']) && $this->post['direct_cloud_streaming'] === 'true' ? true : false;
+      $direct_cloud_provider = isset($this->post['direct_cloud_provider']) ? $this->post['direct_cloud_provider'] : '';
+
+      $response = apply_filters('bmi_premium_store_streaming_configuration', $response, $direct_cloud_streaming, $direct_cloud_provider);
+      if ($response['status'] === 'msg') {
+        return $response;
+      }
+
+      return $response;
+
     }
 
     public function saveFilesConfig() {
@@ -4979,10 +5048,33 @@
             file_put_contents($file, $time);
           }
         }
+        $siteIsLocalOrUnreachable = false;
+        $pingIsWorkingWell = true;
+
+        if (get_option('bmi_cron_new_domain_done', false)) {
+          $this->shareDomainForAutoCron(true);
+        }
+          
+        if (function_exists('wp_load_alloptions')) {
+          wp_load_alloptions(true);
+        }
+
+        // If the site is local or unreachable
+        if (get_option('bmi_cron_site_local_or_unreachable', false)) {
+          $siteIsLocalOrUnreachable = true;
+        }
+
+        //  is local no need to check ping server as it won't work for locals
+        if (!$siteIsLocalOrUnreachable && get_option('bmi_cron_last_ping_time', false) && (abs(current_time('timestamp') - get_option('bmi_cron_last_ping_time', 0)) > HOUR_IN_SECONDS)) {
+          $pingIsWorkingWell = false;
+        }
+
 
         return [
           'status' => 'success',
           'data' => date('Y-m-d H:i:s', $time),
+          'local_site' => $siteIsLocalOrUnreachable,
+          'ping_working' => $pingIsWorkingWell,
           'currdata' => date('Y-m-d H:i:s')
         ];
       } else {
@@ -5033,6 +5125,16 @@
           break;
         case 'security-plugin-warning':
           update_option('bmi_security_warning_dismiss', true);
+          break;
+        case 'ping-server-issues':
+          update_option('bmi_ping_server_dismiss_issue', true);
+          break;
+        case 'site-local-unreachable-notice':
+          update_option('bmi_site_local_unreachable_dismiss_issue', true);
+          break;
+        case 'cloud-strategy-issue':
+          update_option('bmi_storage_fallback_dismissed', true);
+          break;
         default:
             break;
       }
@@ -5135,6 +5237,13 @@
       $filesToBeRemoved[] = BMI_TMP . DIRECTORY_SEPARATOR . 'bmi_backup_manifest.json';
       $filesToBeRemoved[] = BMI_TMP . DIRECTORY_SEPARATOR . 'files_latest.list';
       $filesToBeRemoved[] = BMI_TMP . DIRECTORY_SEPARATOR . 'currentBackupConfig.php';
+
+      $currentlyRunningBackupName = file_get_contents(BMI_BACKUPS . DIRECTORY_SEPARATOR . '.running');
+      if ($currentlyRunningBackupName) {
+          foreach (glob(BMI_BACKUPS . DIRECTORY_SEPARATOR . $currentlyRunningBackupName . '*') as $filename) {
+            $filesToBeRemoved[] = $filename;
+          }
+      }
 
       if (is_array($filesToBeRemoved) || is_object($filesToBeRemoved)) {
         foreach ((array) $filesToBeRemoved as $file) {
@@ -5500,7 +5609,9 @@
     }
 
     public function getLatestBackupFile() {
-
+      if (get_transient('bmi_latest_backup_file') !== false) {
+        return base64_decode(get_transient('bmi_latest_backup_file'));
+      }
       $dir = BMI_BACKUPS;
       $backupdir = array_diff(scandir($dir), ['..', '.']);
       $backups = [];

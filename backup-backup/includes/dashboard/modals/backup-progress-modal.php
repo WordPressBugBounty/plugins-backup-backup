@@ -43,15 +43,15 @@
         <div class="log-wrapper">
           <pre></pre>
         </div>
-        <div class="f16 semibold secondary hoverable pointer">
+        <div class="f16 semibold secondary pointer">
           <a href="<?php echo esc_url( get_site_url() . '/?backup-migration=PROGRESS_LOGS&progress-id=latest.log&bmi-id=current&t=' . time() . '&sk=' . bmi_get_config('REQUEST:SECRET') ); ?>"
-             download="backup_live_logs.txt" class="nlink">
+             download="backup_live_logs.txt" class="nlink hoverable">
             <?php esc_html_e('Download live log', 'backup-backup') ?>
           </a>
           <span>&nbsp;|&nbsp;</span>
-          <div class="f16 bmi-modal-closer inline" data-close="backup-progress-modal" id="backup-stop">
+          <a class="f16 hoverable under disabled" id="backup-stop">
             <?php esc_html_e('Stop the process', 'backup-backup') ?>
-          </div>
+          </a>
         </div>
 
       </div>

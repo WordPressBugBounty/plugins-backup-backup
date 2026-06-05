@@ -102,7 +102,9 @@ class BMI_External_Dropbox
         $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         $retryAfter = BMP::getRetryAfterIfAvailable($ch, $response);
 
-        curl_close($ch);
+        if (is_resource($ch)) {
+            curl_close($ch);
+        }
 
         $data = array(
             'response' => $response,

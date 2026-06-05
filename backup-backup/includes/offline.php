@@ -136,6 +136,8 @@
             return false;
         }
 
+        update_option('bmi_cron_last_ping_time', current_time('timestamp'));
+
         return true;
     }
 

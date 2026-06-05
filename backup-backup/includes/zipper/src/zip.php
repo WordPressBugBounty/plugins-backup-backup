@@ -435,6 +435,7 @@ class Zip {
           'final_made' => false,
           'final_batch' => false,
           'dbitJustFinished' => false,
+          'is_streamed' => apply_filters('bmip_streaming_backup_is_enabled', false),
           'useragent' => isset($_SERVER['HTTP_USER_AGENT']) ? $_SERVER['HTTP_USER_AGENT'] : 'WordPress.org Site Self Request'
         ];
         $fix = true;
@@ -791,7 +792,7 @@ class Zip {
 
       if (file_exists(BMI_BACKUPS . DIRECTORY_SEPARATOR . '.abort')) {
 
-        $this->zip_progress->log('#002', 'END-CODE');
+        $this->zip_progress->log(' Backup process was aborted by user, cleaning up...', 'WARN');
         
         if (file_exists($database_file_dir . 'bmi_backup_manifest.json')) {
           @unlink($database_file_dir . 'bmi_backup_manifest.json');

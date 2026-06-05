@@ -131,6 +131,13 @@
   <div id="bmi-cron-updated">
     <?php esc_html_e('Settings updated successfully', 'backup-backup') ?>
   </div>
+  <div id="bmi-cron-local-site">
+      <?php esc_html_e('Your site appears to be running locally or is not publicly accessible. As a result, scheduled backups may not run reliably.', 'backup-backup') ?>
+  </div>
+
+  <div id="bmi-cron-ping-server">
+      <?php esc_html_e('Our ping service is currently unable to reach your site. Scheduled backups may not run reliably. Please verify your site’s accessibility and server configuration.', 'backup-backup') ?>
+  </div>
   <div id="bmi-cron-updated-fail">
     <?php esc_html_e('Could not update CRON setting now, please check the logs.', 'backup-backup') ?>
   </div>
@@ -309,6 +316,9 @@
   </div>
   <div id="bmi-no-partial-exclude">
     <?php esc_html_e('This type can only be fully backed up or fully excluded. Partial exclusion is not supported.', 'backup-backup') ?>
+  </div>
+  <div id="bmi-direct-cloud-allowed-only-with-cloud-strategy">
+    <?php esc_html_e('You can only enable this option if you have selected all backups to be stored only on the cloud, in the section above.', 'backup-backup') ?>
   </div>
 
 

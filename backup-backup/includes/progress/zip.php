@@ -61,6 +61,9 @@
 
       global $table_prefix;
 
+      $isBackupStreamed = apply_filters('bmip_streaming_backup_is_enabled', false);
+
+
       $manifest = array(
         'name' => $this->name,
         'date' => $this->date,
@@ -100,6 +103,12 @@
           'table_prefix' => $table_prefix
         )
       );
+
+      if ($isBackupStreamed) {
+        $manifest['is_streamed'] = true;
+        $manifest['chained_hash_chunk_size'] = (defined('CHAINED_HASH_CHUNK_SIZE') ? CHAINED_HASH_CHUNK_SIZE : 5 * 10485760); // 50MB by default
+        $manifest['is_locked'] = $this->cron ? 'unlocked' : 'locked';
+      }
 
       return json_encode($manifest);
 
