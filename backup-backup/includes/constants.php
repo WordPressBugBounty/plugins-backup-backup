@@ -24,14 +24,8 @@
   if (!defined('BMI_SUPPORT_EMAIL')) {
     define('BMI_SUPPORT_EMAIL', 'support@backupbliss.com');
   }
-  if (!defined('BMI_BACKUPS_DEFAULT')) {
-    define('BMI_BACKUPS_DEFAULT', WP_CONTENT_DIR . DIRECTORY_SEPARATOR . 'backup-migration');
-  }
   if (!defined('BMI_CONFIG_DEFAULT')) {
     define('BMI_CONFIG_DEFAULT', BMI_INCLUDES . DIRECTORY_SEPARATOR . 'htaccess' . DIRECTORY_SEPARATOR . 'default.json');
-  }
-  if (!defined('BMI_STATIC_PHP_CONFIG')) {
-    define('BMI_STATIC_PHP_CONFIG', WP_CONTENT_DIR . DIRECTORY_SEPARATOR . 'backup-migration-config.php');
   }
   if (!defined('BMI_REV')) {
     define('BMI_REV', 4);
@@ -134,16 +128,22 @@
     define('BMI_ASSETS', plugin_dir_url(BMI_ROOT_FILE) . 'admin');
   }
   if (!defined('BMI_BACKUPS_ROOT')) {
-    define('BMI_BACKUPS_ROOT', WP_CONTENT_DIR . DIRECTORY_SEPARATOR . 'backup-migration');
+    define('BMI_BACKUPS_ROOT', Dashboard\bmi_get_config('STORAGE::LOCAL::PATH'));
+  }
+  if (!defined('BMI_CONFIG_DIR')) {
+    define('BMI_CONFIG_DIR', Dashboard\bmi_get_config('STORAGE::LOCAL::PATH'));
   }
   if (!defined('BMI_TMP')) {
     define('BMI_TMP', BMI_BACKUPS_ROOT . DIRECTORY_SEPARATOR . 'tmp');
   }
   if (!defined('BMI_BACKUPS')) {
-    define('BMI_BACKUPS', WP_CONTENT_DIR . DIRECTORY_SEPARATOR . 'backup-migration' . DIRECTORY_SEPARATOR . 'backups');
+    define('BMI_BACKUPS', BMI_BACKUPS_ROOT . DIRECTORY_SEPARATOR . 'backups');
   }
   if (!defined('BMI_STAGING')) {
-    define('BMI_STAGING', WP_CONTENT_DIR . DIRECTORY_SEPARATOR . 'backup-migration' . DIRECTORY_SEPARATOR . 'staging');
+    define('BMI_STAGING', BMI_BACKUPS_ROOT . DIRECTORY_SEPARATOR . 'staging');
+  }
+  if (!defined('BMI_LOGS_SUFFIX')) {
+    define('BMI_LOGS_SUFFIX', Dashboard\bmi_get_config('STORAGE::LOCAL::LOGS::SUFFIX'));
   }
 
   // Fill folders if not removed (security)

@@ -98,7 +98,7 @@ class BMI_Ajax_Offline
     $this->backupbliss = new BackupBliss();
 
     if (is_user_logged_in() && current_user_can('manage_options')) {
-        if ($this->post['f'] == 'check-not-uploaded-backups') {
+        if (isset($this->post['f']) && $this->post['f'] == 'check-not-uploaded-backups') {
 
           $this->checkForBackupsToUpload();
 
@@ -109,7 +109,7 @@ class BMI_Ajax_Offline
         }
     }
 
-    if ($this->post['f'] == 'refresh') {
+    if (isset($this->post['f']) && $this->post['f'] == 'refresh') {
         BMP::res($this->keepAliveUnAuthorizedRefresh());
     }
     
@@ -219,7 +219,7 @@ class BMI_Ajax_Offline
     if (isset($toBeUploaded['failed'])) {
       // Local Backups
       require_once BMI_INCLUDES . DIRECTORY_SEPARATOR . 'scanner' . DIRECTORY_SEPARATOR . 'backups.php';
-      $backups = new Backups();
+      $backups = Backups::getInstance();
       $backupsAvailable = $backups->getAvailableBackups("local");
       $localBackups = $backupsAvailable['local'];
       $localBackups = array_reverse($localBackups);
@@ -264,15 +264,43 @@ class BMI_Ajax_Offline
         if (BMI_DEBUG)
           Logger::error("Lock acquired.");
 
+        if (isset($this->proajax)) {
+          $ret = $this->proajax->keepAliveDueToBackup();
+          if ($ret === true) {
+            $this->proajax->executeKeepAliveBatch();
+            flock($fp, LOCK_UN);
+            fclose($fp);
+            return ['status' => 'success'];
+          }
+        }
         $ret = $this->keepAliveUnAuthorizedRefreshExec();
 
         // Release the lock
-        flock($fp, LOCK_UN);
         if (BMI_DEBUG)
           Logger::error("Lock released.");
+        $this->maybeScheduleKeepAliveCron($ret);
+        flock($fp, LOCK_UN);
+        fclose($fp);
+
         return $ret;
     } else {
-        return ['status' => 'success']; // Lock is already held
+        $ret = ['status' => 'success']; // Lock is already held
+        $this->maybeScheduleKeepAliveCron($ret);
+        fclose($fp);
+        return $ret;
+    }
+  }
+
+  private function maybeScheduleKeepAliveCron($res)
+  {
+    if (is_array($res) && isset($res['status']) && $res['status'] === 'success') {
+      $delay = 15;
+
+      if (!wp_next_scheduled('bmip_keepalive_cron')) {
+        wp_schedule_single_event(time() + $delay, 'bmip_keepalive_cron');
+      }
+    } elseif (is_array($res) && isset($res['status']) && $res['status'] === 'no_tasks') {
+      wp_clear_scheduled_hook('bmip_keepalive_cron');
     }
   }
 

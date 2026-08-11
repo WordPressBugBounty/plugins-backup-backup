@@ -23,22 +23,19 @@
 
   $reviewedBefore = get_option('bmi_review_clicked', false);
 
+  $isPro = defined('BMI_BACKUP_PRO') && BMI_BACKUP_PRO;
 ?>
 
 <div class="bmi-modal bmi-modal-no-close" id="restore-success-modal">
 
-  <div class="bmi-modal-wrapper no-hpad" style="max-width: 900px; max-width: min(900px, 80vw)">
+  <div class="bmi-modal-wrapper no-hpad" style="max-width: 900px; max-width: min(<?php echo ($isPro && $reviewedBefore && bmi_get_config('CRON:ENABLED') == 'false') ? 650 : 900; ?>px, 80vw)">
     <div class="bmi-modal-content center">
 
       <img class="mtl" src="<?php echo esc_url( $this->get_asset('images', 'happy-smile.png') ); ?>" alt="success">
       <div class="mm60 f35 bold black mbl mtll"><?php esc_html_e('Restore successful!', 'backup-backup') ?></div>
 
-      <div class="mbl f20 lh30">
-        <?php esc_html_e("Liked how easy it was? Then PLEASE support the further", 'backup-backup'); ?><br>
-        <?php esc_html_e("development of our plugins by doing the following:", 'backup-backup'); ?>
-      </div>
+    <?php if (!$isPro): ?>
 
-      <?php if (!defined('BMI_BACKUP_PRO')): ?>
       <div class="cf mb inline center block suc-buttns">
         <div class="left a1">
           <a href="https://wordpress.org/support/plugin/backup-backup/reviews/#new-post" target="_blank" class="btn lime">
@@ -70,6 +67,12 @@
       </div>
 
       <?php else: ?>
+        <?php if (!$reviewedBefore && $isPro): ?>
+        <div class="mbl f20 lh30">
+          <?php esc_html_e("Liked how easy it was? Then PLEASE support the further", 'backup-backup'); ?><br>
+          <?php esc_html_e("development of our plugins by doing the following:", 'backup-backup'); ?>
+        </div>
+        <?php endif; ?>
       <div class="bmi-ask-for-review" style="<?php echo $reviewedBefore ? 'display: none;' : ''; ?>">
         <div class="cf mm60">
           <div class="left bmi-positive-wrapper">
@@ -101,9 +104,11 @@
       </div>
       <?php endif; ?>
 
+      <?php if (!$isPro): ?>
       <div class="mb f28 secondary center semibold">
         <?php esc_html_e("Thank you!!", 'backup-backup'); ?>
       </div>
+      <?php endif; ?>
 
       <?php if(bmi_get_config('CRON:ENABLED')) :?>
 

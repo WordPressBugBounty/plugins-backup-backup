@@ -86,11 +86,6 @@
       <div class="left f20">
         <?php esc_html_e('Configuration options', 'backup-backup') ?>
       </div>
-      <div class="right f18 secondary premium-wrapper" tooltip="<?php echo esc_attr( $configu_sets ); ?>">
-        <div class="premium premium-img">
-          <?php esc_html_e('+ Add / manage configuration set(s)​', 'backup-backup') ?>
-        </div>
-      </div>
     </div>
 
     <!-- CONFIGURATION SECTION 1 -->
@@ -251,6 +246,7 @@
   <?php require_once 'modals/staging-error-modal.php'; ?>
   <?php require_once 'modals/staging-prenotice-modal.php'; ?>
   <?php require_once 'modals/delete-confirm-modal.php'; ?>
+  <?php require_once 'modals/delete-progress-modal.php'; ?>
   <?php require_once 'modals/staging-delete-confirm-modal.php'; ?>
   <?php require_once 'modals/staging-rename-modal.php'; ?>
   <?php require_once 'modals/reset-confirm-modal.php'; ?>
@@ -262,6 +258,8 @@
   <?php //require_once 'modals/logs-sharing-ask.php'; ?>
   <?php require_once 'modals/supportive-restore-success-cont.php'; ?>
   <?php require_once 'modals/supportive-restore-success-modal.php'; ?>
+  <?php require_once 'modals/password-request-modal.php';?>
+  <?php require_once 'modals/encrypt-decrypt-progress-modal.php';?>
   <?php do_action('bmi_load_premium_modals'); ?>
 
   <!-- Other modules -->

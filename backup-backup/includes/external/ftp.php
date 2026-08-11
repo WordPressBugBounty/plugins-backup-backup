@@ -12,16 +12,18 @@ use BMI\Plugin\Progress\BMI_MigrationProgress as MigrationProgress;
 use BMI\Plugin\Scanner\BMI_BackupsScanner as Backups;
 use BMI\Plugin\Dashboard as Dashboard;
 use function BMI\Plugin\Dashboard\bmi_get_config;
+use BMI\Plugin\External\Contracts\DeleteBackup;
 
-// Exit on direct access
 if (!defined('ABSPATH')) {
   exit;
 }
 
+require_once BMI_INCLUDES . DIRECTORY_SEPARATOR . 'external' . DIRECTORY_SEPARATOR . 'contracts' . DIRECTORY_SEPARATOR . 'interface-delete-backup.php';
+
 /**
  * BMI_External_FTP
  */
-class BMI_External_FTP
+class BMI_External_FTP implements DeleteBackup
 {
   private $ftp_access_username = false;
   private $ftp_access_password = false;
@@ -39,7 +41,7 @@ class BMI_External_FTP
     $this->ftp_access_port = get_option('bmi_pro_ftp_port');
 
     // Delete files
-    add_action('bmi_premium_remove_backup_file', [&$this, 'deleteFtpDriveBackup']);
+    add_action('bmi_premium_remove_backup_file', [&$this, 'deleteBackup']);
     add_action('bmi_premium_remove_backup_json_file', [&$this, 'deleteFtpJson']);
   }
 
@@ -165,7 +167,7 @@ class BMI_External_FTP
     ]);
 
     // Local Backups
-    $backups = new Backups();
+    $backups = Backups::getInstance();
     $backupsAvailable = $backups->getAvailableBackups("local");
     $localBackups = $backupsAvailable['local'];
     $localBackups = array_reverse($localBackups);
@@ -328,38 +330,35 @@ class BMI_External_FTP
   }
   
   /**
-   * deleteFtpDriveBackup - Deletes Backup from FTP
-   *
-   * @return bool status
+   * @inheritDoc
    */
-  public function deleteFtpDriveBackup($md5)
+  public function deleteBackup($md5)
   {
-    $files = $this->getFtpBackups();
-
-    if (isset($files['status']) && $files['status'] === 'success') {
-      $files = $files['data'];
-      foreach ($files as $index => $file) {
-        if ($file['name'] === $md5 . '.json') {
-          $content =  $this->getFtpFileContents($file['name']);
-          if (!$content['data']) {
-            return false;
-          }
-
-          $data =  json_decode($content['data']);
-          if (!isset($data->name)) {
-            return false;
-          }
-
-          $this->deleteFileFtp($data->name);
-        }
-      }
+    $manifestFile = $md5 . '.json';
+    if (file_exists(BMI_BACKUPS . DIRECTORY_SEPARATOR . $manifestFile)) {
+        $manifestContent = json_decode(file_get_contents(BMI_BACKUPS . DIRECTORY_SEPARATOR . $manifestFile));
+    } else {
+        $manifestContent = json_decode($this->getFtpFileContents($manifestFile)['data']);
+    }
+    $backupName = $manifestContent->name;
+    $deleteBackup = $this->deleteFileFtp($backupName);
+    $deleteManifest = $this->deleteFileFtp($md5 . '.json');
+    if ($deleteBackup && $deleteManifest) {
       return true;
     }
-    return false;
+    return false;    
+  }
+
+  /**
+   * @deprecated Use deleteBackup() instead.
+   */
+  public function deleteFtpDriveBackup($md5) {
+      return $this->deleteBackup($md5);
   }
 
   /**
    * deleteFtpJson - Deletes JSON manifest from FTP
+   * @deprecated Use deleteBackup() instead.
    *
    * @return bool status
    */

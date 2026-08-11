@@ -441,6 +441,28 @@ class Compatibility {
     public function addMoreRecommendations() {
         // e.g.
         // $this->addRecommendation('missing space.', __("The disk space is not enough. Please free up some space.", 'backup-backup'));
+        if ($this->addRecommendation(
+            'manually_aborted',
+            __('The backup process was interrupted because it was manually aborted.', 'backup-backup')
+        )) {
+            $this->mainReasonFound = true;
+        }
+        
+        if ($this->addRecommendation(
+            'max_execution_time_exceeded',
+            __('The backup process was interrupted because it took longer than the server allows. Please increase the PHP execution time limit or run the backup using PHP CLI.', 'backup-backup')
+        )) {
+            $this->mainReasonFound = true;
+        }
+
+        if ($this->addRecommendation(
+            'memory_size_exhausted',
+            __('The backup process ran out of available PHP memory. Please increase the PHP memory limit and try again.', 'backup-backup')
+        )) {
+            $this->mainReasonFound = true;
+        }
+
+        
         $requiredSpace = get_option('bmi_required_space', false);
         if (is_numeric($requiredSpace) && intval($requiredSpace) > 0) {
             $message = __("There is not enough free space on the server. Please secure more free space (%s1) and then try to run the process again.", 'backup-backup');
@@ -472,6 +494,12 @@ class Compatibility {
             $this->mainReasonFound = true;
         }
         if ($this->addRecommendation('not_able_to_retrieve_space_for_provider', __("We are not able to retrieve the available space for your cloud storage provider, which might be caused by hitting the rate limit. Please wait for a while and then try again. If the issue persists, please contact support.", 'backup-backup'))) {
+            $this->mainReasonFound = true;
+        }
+        if ($this->addRecommendation('single_site_backup_on_multisite', __("This backup was created on a single site installation and cannot be restored correctly on a multisite installation. Please restore it on a single site installation instead.", 'backup-backup'))) {
+            $this->mainReasonFound = true;
+        }
+        if ($this->addRecommendation('multisite_backup_on_single_site', __("This backup was created on a multisite installation and cannot be restored correctly on a single site installation. Please restore it on a multisite installation instead.", 'backup-backup'))) {
             $this->mainReasonFound = true;
         }
         if ($this->for == 'backup') {

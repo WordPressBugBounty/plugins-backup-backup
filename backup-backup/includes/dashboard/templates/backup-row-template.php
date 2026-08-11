@@ -111,6 +111,17 @@ $clouds["BACKUPBLISS"]["enabled"] = true; //BB Storage always enabled
             tooltip="<?php esc_attr_e('Download log file which was created at time of backup', 'backup-backup') ?>"
             src="<?php echo esc_url( $this->get_asset('images', 'log-min.svg') ); ?>" alt="image">
         </a>
+        <?php if (defined('BMI_BACKUP_PRO') && BMI_BACKUP_PRO === 1): ?>
+        <a href="#" class="tooltip bc-encrypt-btn hoverable nodec untab" tabindex="-1" title="<?php esc_attr_e('Encrypt backup', 'backup-backup') ?>">
+          <img class="tooltip bc-encrypt-btn hoverable" tooltip="<?php esc_attr_e('Encrypt backup', 'backup-backup') ?>"
+            src="<?php echo esc_url( $this->get_asset('images', 'key.svg') ); ?>" alt="image" style="display: none;">
+        </a>
+        <a href="#" class="tooltip bc-decrypt-btn hoverable nodec untab" tabindex="-1" title="<?php esc_attr_e('Decrypt backup', 'backup-backup') ?>">
+          <img class="tooltip bc-decrypt-btn hoverable" tooltip="<?php esc_attr_e('Decrypt backup', 'backup-backup') ?>"
+            src="<?php echo esc_url( $this->get_asset('images', 'key-decrypted.svg') ); ?>" alt="image" style="display: none;">
+        </a>
+        <?php endif; ?>
+
       </div>
     </td>
     <td>

@@ -8,6 +8,7 @@ use BMI\Plugin\BMI_Logger as Logger;
 use BMI\Plugin\Scanner\BMI_BackupsScanner as Backups;
 use BMI\Plugin\Dashboard as Dashboard;
 use BMI\Plugin\External\Contracts\GetAvailableSpace as GetAvailableSpaceContract;
+use BMI\Plugin\External\Contracts\DeleteBackup as DeleteBackupContract;
 
 // Exit on direct access
 if (!defined('ABSPATH')) {
@@ -15,7 +16,8 @@ if (!defined('ABSPATH')) {
 }
 
 require_once BMI_INCLUDES . DIRECTORY_SEPARATOR . 'external' . DIRECTORY_SEPARATOR . 'contracts' . DIRECTORY_SEPARATOR . 'interface-get-available-space.php';
-class BMI_External_BackupBliss implements GetAvailableSpaceContract
+require_once BMI_INCLUDES . DIRECTORY_SEPARATOR . 'external' . DIRECTORY_SEPARATOR . 'contracts' . DIRECTORY_SEPARATOR . 'interface-delete-backup.php';
+class BMI_External_BackupBliss implements GetAvailableSpaceContract, DeleteBackupContract
 {
 
   public function __construct()
@@ -86,7 +88,7 @@ class BMI_External_BackupBliss implements GetAvailableSpaceContract
 
     // Local Backups
     require_once BMI_INCLUDES . DIRECTORY_SEPARATOR . 'scanner' . DIRECTORY_SEPARATOR . 'backups.php';
-    $backups = new Backups();
+    $backups = Backups::getInstance();
     $backupsAvailable = $backups->getAvailableBackups("local");
     $localBackups = $backupsAvailable['local'];
     $localBackups = array_reverse($localBackups);
@@ -507,6 +509,9 @@ class BMI_External_BackupBliss implements GetAvailableSpaceContract
     }
   }
 
+  /**
+   * @inheritDoc
+   */
   public function deleteBackup($md5)
   {
 
@@ -516,8 +521,14 @@ class BMI_External_BackupBliss implements GetAvailableSpaceContract
 
     $manifest = $this->getManifest($md5);
     if ($manifest) {
-      $this->deleteFile($manifest->name);
+      $deleteBackup = $this->deleteFile($manifest->name); // BB delete the backup and the related manifest file as well
+
+      if ($deleteBackup) {
+        return true;
+      }
+      return false;
     }
+    return false;
   }
 
   public function getManifest($md5)
@@ -540,6 +551,9 @@ class BMI_External_BackupBliss implements GetAvailableSpaceContract
     return $manifest;
   }
 
+  /**
+   * @deprecated Use deleteBackup() instead.
+   */
   public function deleteBackupManifest($md5_json)
   {
     if (BMI_DEBUG) {

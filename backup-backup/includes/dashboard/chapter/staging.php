@@ -16,8 +16,28 @@
 
 </div>
 
-<?php if (!file_exists(ABSPATH . '.bmi_staging')): ?>
+<?php if (is_multisite()): ?>
+  <style media="screen">
+  .stg-restore-btn { display: none !important; }
+  </style>
+  <div class="bmi-stg-creation-box shadow bmi-stg-creation-box-local">
+      <div class="bmi-stg-creation-title">
+        <?php esc_html_e('Multisite staging sites are currently not supported.', 'backup-backup'); ?>
+      </div>
+      <div class="bmi-stg-creation-content">
+        <div class="bmi-stg-creation-description">
+          <br />
+          <br />
+          <i>
+            <?php esc_html_e('Staging is currently not supported for WordPress Multisite installations.', 'backup-backup'); ?><br />
+            <?php esc_html_e('We\'re actively working on Multisite staging support and plan to make it available in a future release.', 'backup-backup'); ?>
+          </i>
+        </div>
+      </div>
+  </div>
 
+  
+  <?php elseif (!file_exists(ABSPATH . '.bmi_staging'))  : ?>
 <!-- STAGING SITES: MODE SELECTOR HEADING -->
 <div class="staging-heading">
   <?php echo wp_kses_post( __('Create a <b>staging site</b> on:', 'backup-backup') ); ?>
@@ -186,9 +206,8 @@
       </div>
     </div>
 
-  </div>
+    </div>
 </div>
-
 <?php else: ?>
 
 <!-- ON STAGING SITE -->

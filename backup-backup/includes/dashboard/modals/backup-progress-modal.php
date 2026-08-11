@@ -44,7 +44,7 @@
           <pre></pre>
         </div>
         <div class="f16 semibold secondary pointer">
-          <a href="<?php echo esc_url( get_site_url() . '/?backup-migration=PROGRESS_LOGS&progress-id=latest.log&bmi-id=current&t=' . time() . '&sk=' . bmi_get_config('REQUEST:SECRET') ); ?>"
+          <a href="<?php echo esc_url( get_site_url() . '/?backup-migration=PROGRESS_LOGS&progress-id=latest.log&bmi-id=current&t=' . time() . '&sk=' . wp_create_nonce('bmi_download_nonce') ); ?>"
              download="backup_live_logs.txt" class="nlink hoverable">
             <?php esc_html_e('Download live log', 'backup-backup') ?>
           </a>

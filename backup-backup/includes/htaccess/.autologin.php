@@ -31,6 +31,8 @@ class BMI_Passwordless_Login {
   private $userID = '%%user_id%%';
   private $secretPassword = '%%secret_password%%';
   /* AUTH DETAILS END */
+  
+  private $permalinkStructure = null;
 
   /**
    * __construct - Integration Initializer
@@ -54,6 +56,7 @@ class BMI_Passwordless_Login {
   public function refreshPermalink() {
 
     global $wp_rewrite;
+    $this->permalinkStructure = get_option('permalink_structure');
     $wp_rewrite->set_permalink_structure('');
     update_option('rewrite_rules', false);
     $wp_rewrite->flush_rules(true);
@@ -94,6 +97,7 @@ class BMI_Passwordless_Login {
 
     if (is_user_logged_in() && $pagenow == 'wp-login.php' && empty($_GET['action'])) {
       wp_safe_redirect(admin_url());
+      unlink(__FILE__);
       exit;
     }
 
@@ -136,9 +140,18 @@ class BMI_Passwordless_Login {
     wp_set_auth_cookie($userid, true);
 
     wp_safe_redirect(admin_url());
-
+    $this->revertPermalink();
     unlink(__FILE__);
     exit;
+
+  }
+
+  public function revertPermalink() {
+    if (empty($this->permalinkStructure)) return;
+    global $wp_rewrite;
+    $wp_rewrite->set_permalink_structure($this->permalinkStructure);
+    update_option('rewrite_rules', false);
+    $wp_rewrite->flush_rules(true);
 
   }
 

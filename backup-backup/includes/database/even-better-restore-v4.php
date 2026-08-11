@@ -591,55 +591,50 @@ class BMI_Even_Better_Database_Restore {
     
     $default_headers = array( 'wp'  => 'Requires at least', 'php' => 'Requires PHP' );
     
-    $wp = false;
-    $php = false;
-    
-    $detectedwp = '0.0.0';
-    $detectedphp = '0.0.0';
-    
     try {
     
       $plugin_file = BMP::fixSlashes(WP_PLUGIN_DIR . '/' . $plugin);
+      if (!file_exists($plugin_file)) {
+        return false;
+      }
+
       $plugin_readme = BMP::fixSlashes(WP_PLUGIN_DIR . '/' . dirname($plugin) . '/readme.txt');
       if (!file_exists($plugin_readme)) $plugin_readme = BMP::fixSlashes(WP_PLUGIN_DIR . '/' . dirname($plugin) . '/README.txt');
       
-      if (file_exists($plugin_file)) {
-        $plugin_data = get_file_data($plugin_file, $default_headers, 'plugin');
-        if (!empty($plugin_data['wp']) && version_compare($plugin_data['wp'], $wp_version, '<=')) {
-          $detectedwp = $plugin_data['wp'];
-          $wp = true;
-        }
-        if (!empty($plugin_data['php']) && version_compare($plugin_data['php'], PHP_VERSION, '<=')) {
-          $detectedphp = $plugin_data['php'];
-          $php = true;
-        }
+      $wp = true;
+      $php = true;
+      $detectedwp = 'none';
+      $detectedphp = 'none';
+      
+      $plugin_data = get_file_data($plugin_file, $default_headers, 'plugin');
+      if (!empty($plugin_data['wp'])) {
+        $detectedwp = $plugin_data['wp'];
+        $wp = version_compare($plugin_data['wp'], $wp_version, '<=');
+      }
+      if (!empty($plugin_data['php'])) {
+        $detectedphp = $plugin_data['php'];
+        $php = version_compare($plugin_data['php'], PHP_VERSION, '<=');
       }
       
       if (file_exists($plugin_readme)) {
         $readme_data = get_file_data($plugin_readme, $default_headers, 'plugin');
-        if (!empty($readme_data['wp']) && version_compare($readme_data['wp'], $wp_version, '<=')) {
+        if (!empty($readme_data['wp'])) {
           $detectedwp = $readme_data['wp'];
-          $wp = true;
+          $wp = version_compare($readme_data['wp'], $wp_version, '<=');
         }
-        
-        if (!empty($readme_data['php']) && version_compare($readme_data['php'], PHP_VERSION, '<=')) {
+        if (!empty($readme_data['php'])) {
           $detectedphp = $readme_data['php'];
-          $php = true;
+          $php = version_compare($readme_data['php'], PHP_VERSION, '<=');
         }
       }
       
       $this->logger->log(sprintf('Detected version WP/PHP for plugin: %s, is (%s/%s)', $plugin, $detectedwp, $detectedphp), 'VERBOSE');
       
-      if ($plugin == 'hello.php') return true;
-      if ($php && $wp) return true;
-      else return false;
+      return $wp && $php;
           
-    } catch (Error $e) {
+    } catch (\Throwable $e) {
       return false;
     }
-    
-    return false;
-    
   }
 
   private function try_activate_plugins($plugins, $sucstr_source, $failstr_source, $failed_plugins = []) {
@@ -647,7 +642,6 @@ class BMI_Even_Better_Database_Restore {
     $plugins_copy = array_values($plugins);
     $should_continue = false;
     $activated_plugins = [];
-    $failed_plugins = $failed_plugins;
     $disallowed_plugins = [
       'bluehost-wordpress-plugin/bluehost-wordpress-plugin.php',
       'sg-cachepress/sg-cachepress.php',
@@ -686,11 +680,25 @@ class BMI_Even_Better_Database_Restore {
 
             $resultWP = activate_plugin($plugin_name, '', true, true);
 
-            $this->logger->log($sucstr, 'INFO');
-            $activated_plugins[] = $plugin_name;
+            if (is_wp_error($resultWP)) {
+              if (!in_array($plugin_name, $failed_plugins)) {
+                $failed_plugins[] = $plugin_name;
+                $this->logger->log(
+                  sprintf(
+                    __('Failed to enable plugin %s due to error: %s', 'backup-backup'),
+                    $plugin_name,
+                    $resultWP->get_error_message()
+                  ),
+                  'ERROR'
+                );
+              }
+            } else {
+              $this->logger->log($sucstr, 'INFO');
+              $activated_plugins[] = $plugin_name;
 
-            $should_continue = true;
-            break;
+              $should_continue = true;
+              break;
+            }
 
           } else {
 
@@ -699,25 +707,18 @@ class BMI_Even_Better_Database_Restore {
             }
 
           }
-
-        } catch (\Exception $e) {
-
-          if (!in_array($plugin_name, $failed_plugins)) {
-
-            $failed_plugins[] = $plugin_name;
-            error_log(strval($e));
-
-          }
-
         } catch (\Throwable $e) {
 
           if (!in_array($plugin_name, $failed_plugins)) {
 
             $msg = $e->getMessage();
-            if (strpos($msg, 'add_rule()') != false || strpos($msg, 'rewrite.php:143') != false) {
+            if (strpos($msg, 'add_rule()') !== false || strpos($msg, 'rewrite.php:143') !== false) {
 
               $activated_plugins[] = $plugin_name;
               error_log(strval($e));
+              
+              $should_continue = true;
+              break;
 
             } else {
 

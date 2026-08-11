@@ -418,7 +418,7 @@
           $parsedBackups[$md5][] = $manifest->files;
           $parsedBackups[$md5][] = $manifest->manifest;
           $parsedBackups[$md5][] = $files["backups"][$backupFileName]["size"];
-          $parsedBackups[$md5][] = $manifest->is_locked;
+          $parsedBackups[$md5][] = isset($manifest->is_locked) ? $manifest->is_locked : false;
           $parsedBackups[$md5][] = $manifest->cron;
           $parsedBackups[$md5][] = $md5;
           $parsedBackups[$md5][] = $backupFileName;

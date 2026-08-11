@@ -32,3 +32,10 @@ require_once __DIR__ . '/class-abstract-task.php';
 require_once __DIR__ . '/class-task-manager.php';
 
 // ── Task registration ─────────────────────────────────────────────────────────
+
+use BMI\Plugin\CRON\TaskManager;
+use BMI\Plugin\CRON\Tasks\ScheduleKeepaliveTask;
+
+require_once __DIR__ . '/tasks/class-schedule-keepalive-task.php';
+
+TaskManager::register(new ScheduleKeepaliveTask());

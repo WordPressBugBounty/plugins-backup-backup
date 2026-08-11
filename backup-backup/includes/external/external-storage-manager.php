@@ -362,4 +362,19 @@ class BMI_External_Storage_Manager {
     return false;
   }
 
+  /**
+   * Delete a backup across all configured external storages
+   * 
+   * @param string $hash The backup hash/md5
+   */
+  public function deleteBackup($hash) {
+    $storages = $this->getConfiguredStorages();
+    foreach ($storages as $serviceName) {
+      $instance = $this->getStorageInstance($serviceName['name']);
+      if ($instance instanceof \BMI\Plugin\External\Contracts\DeleteBackup) {
+        $instance->deleteBackup($hash);
+      }
+    }
+  }
+
 }

@@ -44,7 +44,7 @@
         </div>
 
         <div class="f16 semibold secondary hoverable pointer">
-          <a href="<?php echo esc_url( get_site_url() . '/?backup-migration=PROGRESS_LOGS&progress-id=latest_staging.log&bmi-id=current&t=' . time() . '&sk=' . bmi_get_config('REQUEST:SECRET') ); ?>"
+          <a href="<?php echo esc_url( get_site_url() . '/?backup-migration=PROGRESS_LOGS&progress-id=latest_staging.log&bmi-id=current&t=' . time() . '&sk=' . wp_create_nonce('bmi_download_nonce') ); ?>"
              download="staging_live_log.txt" class="nlink">
             <?php esc_html_e('Download live log', 'backup-backup') ?>
           </a>

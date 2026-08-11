@@ -265,6 +265,8 @@ class Zip {
     $database_file = BMP::fixSlashes(BMI_TMP . DIRECTORY_SEPARATOR . $dbbackupname);
     $database_file_dir = BMP::fixSlashes((dirname($database_file))) . DIRECTORY_SEPARATOR;
     $better_database_files_dir = $database_file_dir . 'db_tables';
+    $encryptionEnabled = defined('BMI_BACKUP_PRO') && BMI_BACKUP_PRO === 1 && Dashboard\bmi_get_config('ENCRYPTION:ENABLED');
+    $encryptionPassword = $encryptionEnabled ? Dashboard\bmi_get_config('ENCRYPTION:PASSWORD') : false;
 
     // force usage of specific lib (for testing purposes)
     if ($force_lib === 2) {
@@ -386,9 +388,18 @@ class Zip {
         $this->zip_progress->log(__("Using PclZip module to create the backup", 'backup-backup'), 'INFO');
       }
       if (!$legacyVersion) {
-        $this->zip_progress->log(__("Legacy setting: Using server-sided script and cURL based loop for better capabilities", 'backup-backup'), 'INFO');
+        if ($cron && Dashboard\bmi_get_config('CRON:REMOTE_PING') && defined('BMI_BACKUPS_PRO') && BMI_BACKUPS_PRO){
+          $this->zip_progress->log(__("Setting: Relying on remote cron ping to keep the backup alive", 'backup-backup'), 'INFO');
+        } else {
+          $this->zip_progress->log(__("Legacy setting: Using server-sided script and cURL based loop for better capabilities", 'backup-backup'), 'INFO');
+        }
       } elseif (!$legacyHardVersion) {
-        $this->zip_progress->log(__("Legacy setting: Using user browser as middleware for full capabilities", 'backup-backup'), 'INFO');
+        if ($cron && Dashboard\bmi_get_config('CRON:REMOTE_PING') && defined('BMI_BACKUPS_PRO') && BMI_BACKUPS_PRO){
+          $this->zip_progress->log(__("Setting: Relying on remote cron ping to keep the backup alive", 'backup-backup'), 'INFO');
+        } else {
+          if ($cron) $this->zip_progress->log(__("Legacy setting: Using server-sided script and cURL based loop for better capabilities", 'backup-backup'), 'INFO');
+          else $this->zip_progress->log(__("Legacy setting: Using user browser as middleware for full capabilities", 'backup-backup'), 'INFO');
+        }
       } else {
 
         $this->zip_progress->log(__("Legacy setting: Using default modules depending on user server", 'backup-backup'), 'INFO');
@@ -552,6 +563,10 @@ class Zip {
         else $zip->open($this->new_file_path, \ZipArchive::CREATE);
         
         $this->zip_progress->log('Using ZipArchive extension for this backup process.', 'INFO');
+        if ($encryptionEnabled && $encryptionPassword) {
+          $this->zip_progress->log('Encryption is enabled, setting password for the archive.', 'INFO');
+          $zip->setPassword($encryptionPassword);
+        }
         
       }
 
@@ -611,6 +626,9 @@ class Zip {
                   $zip->addEmptyDir($this->cutDir($files[$i]));
                 } else {
                   $zip->addFile($files[$i], $this->cutDir($files[$i]));
+                  if ($encryptionEnabled) {
+                    $zip->setEncryptionName($this->cutDir($files[$i]), \ZipArchive::EM_AES_256);
+                  }
                 }
                 
               }
@@ -623,6 +641,9 @@ class Zip {
               
               }
               $zip->open($this->new_file_path);
+              if ($encryptionEnabled && $encryptionPassword) {
+                $zip->setPassword($encryptionPassword);
+              }
             } else {
               $dbback = $lib->add($files, PCLZIP_OPT_REMOVE_PATH, $database_file_dir, PCLZIP_OPT_TEMP_FILE_THRESHOLD, $safe_limit);
 
@@ -722,6 +743,9 @@ class Zip {
                   $zip->addEmptyDir($path);
                 } else {
                   $zip->addFile($chunk[$j], $path);
+                  if ($encryptionEnabled && $encryptionPassword) {
+                    $zip->setEncryptionName($path, \ZipArchive::EM_AES_256);
+                  }
                 }
                 
               }
@@ -734,6 +758,9 @@ class Zip {
               
               }
               $zip->open($this->new_file_path);
+              if ($encryptionEnabled && $encryptionPassword) {
+                $zip->setPassword($encryptionPassword);
+              }
             } else {
             
               if ($needManipulation) {
@@ -800,6 +827,9 @@ class Zip {
         if (file_exists($database_file_dir . 'bmi_logs_this_backup.log')) {
           @unlink($database_file_dir . 'bmi_logs_this_backup.log');
         }
+        if (file_exists($database_file_dir . '.backup_name')) {
+          @unlink($database_file_dir . '.backup_name');
+        }
 
       } else {
 
@@ -815,18 +845,25 @@ class Zip {
 
         file_put_contents($database_file_dir . 'bmi_backup_manifest.json', $this->zip_progress->createManifest($dbBackupEngine));
         file_put_contents($database_file_dir . 'bmi_logs_this_backup.log', file_get_contents(BMI_BACKUPS . DIRECTORY_SEPARATOR . 'latest.' . BMI_LOGS_SUFFIX . '.log'));
+
+        $backupName = $database_file_dir . '.backup_name';
+        file_put_contents($backupName, $this->backupname);
         
         sleep(1);
 
         $files = [];
 
-        if (file_exists($database_file_dir . 'bmi_logs_this_backup.log')) $files[] = $database_file_dir . 'bmi_logs_this_backup.log';
-        if (file_exists($database_file_dir . 'bmi_backup_manifest.json')) $files[] = $database_file_dir . 'bmi_backup_manifest.json';
-        else {
-
+        if (file_exists($database_file_dir . 'bmi_logs_this_backup.log')) {
+          $files[] = $database_file_dir . 'bmi_logs_this_backup.log';
+        }
+        if (file_exists($database_file_dir . 'bmi_backup_manifest.json')) {
+          $files[] = $database_file_dir . 'bmi_backup_manifest.json';
+        } else {
           $this->zip_failed('Manifest file could not be added, manifest does not exist.');
           return false;
-
+        }
+        if (file_exists($database_file_dir . '.backup_name')) {
+          $files[] = $database_file_dir . '.backup_name';
         }
         
         $this->zip_progress->log(__("Adding manifest...", 'backup-backup'), 'INFO');
@@ -840,6 +877,9 @@ class Zip {
                 $zip->addEmptyDir($this->cutDir($files[$i]));
               } else {
                 $zip->addFile($files[$i], $this->cutDir($files[$i]));
+                if ($encryptionEnabled && $encryptionPassword !== false && basename($files[$i]) === '.backup_name') {
+                  $zip->setEncryptionName($this->cutDir($files[$i]), \ZipArchive::EM_AES_256);
+                }
               }
               
             }
@@ -877,6 +917,9 @@ class Zip {
         }
         if (file_exists($database_file_dir . 'bmi_logs_this_backup.log')) {
           @unlink($database_file_dir . 'bmi_logs_this_backup.log');
+        }
+        if (file_exists($database_file_dir . '.backup_name')) {
+          @unlink($database_file_dir . '.backup_name');
         }
 
         $this->zip_progress->progress($max . '/' . $max);
@@ -922,7 +965,7 @@ class Zip {
     return $this->zip_end();
   }
 
-  public function unzip_file($file_path, $target_dir = null, &$zip_progress = null) {
+  public function unzip_file($file_path, $target_dir = null, &$zip_progress = null, $password = null) {
 
     // Progress
     $this->zip_progress = $zip_progress;
@@ -934,18 +977,17 @@ class Zip {
 
     $this->extr_file = $file_path;
 
-    // if (class_exists("ZipArchive")) $this->lib = 1;
-    // else $this->lib = 2;
-    $this->lib = 2;
+    if (class_exists("ZipArchive")) $this->lib = 1;
+    else $this->lib = 2;
 
     if ($target_dir !== null) {
-      return $this->unzip_to($target_dir);
+      return $this->unzip_to($target_dir, $password);
     } else {
       return true;
     }
   }
 
-  public function extract_files($zip_path, $files, $target_dir = null, &$zip_progress = null, $isFirstExtract = true) {
+  public function extract_files($zip_path, $files, $target_dir = null, &$zip_progress = null, $isFirstExtract = true, $password = null) {
 
     $this->zip_progress = $zip_progress;
 
@@ -968,6 +1010,10 @@ class Zip {
 
       if ($res === true) {
 
+        if ($password !== null) {
+          $zip->setPassword($password);
+        }
+
         if ($isFirstExtract) {
           $this->zip_progress->log(__("Using ZipArchive, omiting memory limit calculations...", 'backup-backup'), 'INFO');
         }
@@ -987,6 +1033,11 @@ class Zip {
 
       if ($isFirstExtract) {
         $this->zip_progress->log(__("ZipArchive is not available, using PclZIP.", 'backup-backup'), 'INFO');
+        if ($password !== null) {
+          $this->zip_progress->log(__("PclZIP does not support passwords, please enable ZipArchive to be able to restore the backup.", 'backup-backup'), 'ERROR');
+          $this->restore_failed('PHP-ZIPv2: PclZIP does not support passwords, please enable ZipArchive to be able to restore the backup.');
+          return false;
+        }
       }
 
       $safe_limit = $this->smartMemory($isFirstExtract);
@@ -1066,7 +1117,7 @@ class Zip {
 
   }
 
-  public function unzip_to($target_dir) {
+  public function unzip_to($target_dir, $password = null) {
 
         // validations -- start //
     if ($this->lib === 0 && $this->extr_file === 0) {
@@ -1082,6 +1133,10 @@ class Zip {
         throw new \Exception("PHP-ZIP: Directory not found, and unable to create it");
       }
     }
+
+    if ($password !== null && $this->lib === 2) {
+      throw new \Exception("PHP-ZIP: Password is not supported for PCLZip, please enable ZipArchive in your PHP installation to extract encrypted backups.");
+    }
     // validations -- end //
 
     // Target Directory
@@ -1093,16 +1148,17 @@ class Zip {
     // Extract msg
     $this->zip_progress->log(__('Extracting files into temporary directory (this process can take some time)...', 'backup_migration'), 'STEP');
 
-    // Force PCL Zip
-    $this->lib = 2;
+    if (class_exists("ZipArchive")) $this->lib = 1;
+    else $this->lib = 2;
 
     // extract using ZipArchive
-    // if($this->lib === 1) {
-    // 	$lib = new \ZipArchive;
-    // 	if(!$lib->open($this->extr_file)) throw new \Exception("PHP-ZIP: Unable to open the zip file");
-    // 	if(!$lib->extractTo($this->extr_dirc)) throw new \Exception("PHP-ZIP: Unable to extract files");
-    // 	$lib->close();
-    // }
+    if($this->lib === 1) {
+    	$lib = new \ZipArchive;
+    	if(!$lib->open($this->extr_file)) throw new \Exception("PHP-ZIP: Unable to open the zip file");
+      if ($password !== null) $lib->setPassword($password);
+    	if(!$lib->extractTo($this->extr_dirc)) throw new \Exception("PHP-ZIP: Unable to extract files");
+    	$lib->close();
+    }
 
     // extarct using PclZip
     if ($this->lib === 2) {

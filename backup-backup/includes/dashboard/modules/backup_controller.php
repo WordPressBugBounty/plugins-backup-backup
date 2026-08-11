@@ -25,6 +25,11 @@
 
   }
 
+  $remotePing = __('This option makes the backup process rely on our External Keep-Alive Server instead of internal loopback requests. It is ideal for sites that block loopback requests or experience timeout issues.', 'backup-backup');
+  $upgradeToPremiumTooltip = __('%sUpgrade to %sPremium%s today%s%s%sWe made it really affordable!%s', 'backup-backup');
+  $upgradeToPremiumTooltip = sprintf($upgradeToPremiumTooltip, '<a href="' . BMI_AUTHOR_URI . '" target="_blank">', '<span class="bmi-premium-bg-stars">', '</span>', '</a>', '<br>', '<b>', '</b>', '<br>');
+
+
 ?>
 
 <div class="backup-creator cf section-bmi" id="bmi-section--cron">
@@ -139,6 +144,26 @@
             </table>
           </div>
 
+        <?php if(has_action('bmip_backup_methods')): ?>
+          <?php do_action('bmip_backup_methods'); ?>
+        <?php else: ?>
+
+          <div class="cron-ping-wrap" style="margin-left: 35px; margin-top: 15px;">
+            <label for="remote-ping" class="not-allowed">
+              <input type="checkbox" class="not-allowed" id="remote-ping" name="backup-method" disabled>
+              <span>
+                <?php esc_html_e('Use remote server assistance for scheduled backups', 'backup-backup'); ?>
+                &nbsp;<span class="bmi-info-icon tooltip not-allowed" tooltip="<?php echo esc_attr($remotePing); ?>"></span>
+
+              </span>
+              <span class="inline premium-wrapper is-pro" tooltip="<?php echo esc_attr($upgradeToPremiumTooltip); ?>" >
+                <span class="premium premium-img premium-ntt"></span>
+              </span>
+            </label>
+          </div>
+
+        <?php endif; ?>
+
           <div class="cron-c cf">
             <table class="left ooo-to-pad" style="max-width: calc(100% - 110px);">
               <tbody>
@@ -148,7 +173,7 @@
                   </td>
                   <td>
                     <select id="cron-keep-backups" data-parent="#bmi-section--cron" data-def="<?php echo esc_attr(sanitize_text_field(bmi_get_config('CRON:KEEP'))); ?>">
-                      <?php for ($i = 0; $i < 20; ++$i): ?>
+                      <?php for ($i = 0; $i < 30; ++$i): ?>
                         <option value="<?php echo esc_attr($i+1); ?>"><?php echo esc_html($i+1); ?></option>
                       <?php endfor; ?>
                     </select>
@@ -176,16 +201,6 @@
       <?php esc_html_e("Above times are", 'backup-backup'); ?>
       <b><?php esc_html_e("server times", 'backup-backup'); ?></b>
       (<?php esc_html_e("time now:", 'backup-backup'); ?> <span id="server-time-auto" data-time="<?php echo esc_attr(time()); ?>"></span>)
-    </li>
-    <li>
-      <?php esc_html_e("For Automatic backups in the free plugin version, there needs to be", 'backup-backup'); ?>
-      <b><?php esc_html_e("at least one visitor", 'backup-backup'); ?></b>
-      <?php esc_html_e("so that the backup process gets triggered, as it relies on WordPress' native ", 'backup-backup'); ?>
-      <a href="https://developer.wordpress.org/plugins/cron/" target="_blank" class="secondary hoverable"><?php esc_html_e("WP-Cron", 'backup-backup'); ?></a>.
-      <?php esc_html_e("The ", 'backup-backup'); ?>
-      <a href="https://backupbliss.com/" target="_blank" class="secondary hoverable">
-      <?php esc_html_e("premium plugin", 'backup-backup'); ?></a>
-      <?php esc_html_e("uses BackupBliss server trigger, so Automatic backups are always on time.", 'backup-backup'); ?>
     </li>
     <li>
       <?php esc_html_e("We suggest", 'backup-backup'); ?>

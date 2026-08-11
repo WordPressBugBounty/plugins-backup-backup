@@ -62,6 +62,7 @@
       global $table_prefix;
 
       $isBackupStreamed = apply_filters('bmip_streaming_backup_is_enabled', false);
+      $isEncrypted = apply_filters('bmip_is_backup_encrypted', false);
 
 
       $manifest = array(
@@ -81,6 +82,7 @@
         'source_query_output' => (defined('BMI_DB_MAX_ROWS_PER_QUERY') ? BMI_DB_MAX_ROWS_PER_QUERY : ''),
         'db_backup_engine' => $dbBackupEngine,
         'multisite' => (defined('MULTISITE') ? MULTISITE : 'false'),
+        'is_encrypted' => $isEncrypted,
         'config' => array(
           'ABSPATH' => ABSPATH,
           'DB_NAME' => (defined('DB_NAME') ? DB_NAME : ''),
@@ -123,14 +125,23 @@
     public function log($log = '', $level = 'INFO') {
 
       if (!$this->muted) {
-        $this->file = fopen($this->latest, 'a');
+        if (!is_resource($this->file)) {
+          $this->file = @fopen($this->latest, 'a');
+        }
+
         if (defined('BMI_USING_CLI_FUNCTIONALITY') && BMI_USING_CLI_FUNCTIONALITY === true) {
           $log_string = '[' . strtoupper($level) . '] [' . date('Y-m-d H:i:s') . '] [CLI] ' . $log . "\n";
         } else {
           $log_string = '[' . strtoupper($level) . '] [' . date('Y-m-d H:i:s') . '] ' . $log . "\n";
         }
-        fwrite($this->file, $log_string);
-        fclose($this->file);
+
+        if (is_resource($this->file)) {
+          @fwrite($this->file, $log_string);
+          @fflush($this->file);
+        } else {
+          @file_put_contents($this->latest, $log_string, FILE_APPEND);
+        }
+
         if (defined('BMI_USING_CLI_FUNCTIONALITY') && BMI_USING_CLI_FUNCTIONALITY === true) {
           echo esc_html( $log_string );
         }
@@ -140,15 +151,26 @@
 
     public function progress($progress = '0') {
 
-      $this->progress = fopen($this->latest_progress, 'w') or die(esc_html__("Unable to open file!", 'backup-backup'));
-      fwrite($this->progress, $progress);
-      fclose($this->progress);
+      if (!is_resource($this->progress)) {
+        $this->progress = @fopen($this->latest_progress, 'c+');
+      }
+
+      if (is_resource($this->progress)) {
+        @rewind($this->progress);
+        @fwrite($this->progress, $progress);
+        @ftruncate($this->progress, strlen($progress));
+        @fflush($this->progress);
+      } else {
+        @file_put_contents($this->latest_progress, $progress);
+      }
 
     }
 
     public function removeAllEndCodes() {
       
+      if (!file_exists($this->latest)) return;
       $logs = file_get_contents($this->latest);
+      if ($logs === false) return;
       $logs = explode("\n", $logs);
       
       foreach ($logs as $line => $string) {
@@ -164,10 +186,33 @@
       
     }
 
+    /**
+     * Close open file handles safely.
+     */
+    public function closeFiles() {
+
+      if (is_resource($this->file)) {
+        @fflush($this->file);
+        @fclose($this->file);
+        $this->file = null;
+      }
+
+      if (is_resource($this->progress)) {
+        @fflush($this->progress);
+        @fclose($this->progress);
+        $this->progress = null;
+      }
+
+    }
+
     public function end() {
 
       // fclose($this->file);
 
+    }
+
+    public function __destruct() {
+      $this->closeFiles();
     }
 
   }

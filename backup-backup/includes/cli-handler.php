@@ -54,7 +54,8 @@
     echo " – php -f cli-handler.php bmi_backup\n";
     echo " – php -f cli-handler.php bmi_backup BMI_12-12-12_nameOfMySite_nameOfBackup.zip\n";
     echo " – php -f cli-handler.php bmi_restore BMI_12-12-12_nameOfMySite_nameOfBackup.zip\n";
-    echo " – php -f cli-handler.php bmi_quick_migration \"http://localhost/site/linkToMyBackup.zip\"\n";
+    echo " – php -f cli-handler.php bmi_restore BMI_12-12-12_nameOfMySite_nameOfBackup.zip \"PASSWORD-IF-ANY\"\n";
+    echo " – php -f cli-handler.php bmi_quick_migration \"http://localhost/site/linkToMyBackup.zip\" \"PASSWORD-IF-ANY\"\n";
     echo "\n========= BACKUP MIGRATION PLUGIN =========\n\n";
     exit();
 

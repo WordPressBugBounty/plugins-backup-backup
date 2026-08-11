@@ -122,8 +122,8 @@
       add_action('wp_loaded', [&$this, 'include_offline']);
       add_action('admin_notices', [&$this, 'incompatibility_notices']);
       add_action('bmip_fire_action', [&$this, 'fireBMIPAction'], 10, 4);
-      add_action('bmi_backup_upload_completed', [&$this, 'handleUploadComplete']);
       add_action('bmi_backup_upload_completed', [&$this, 'handle_after_cron']);
+      add_action('bmi_watchdog_cron', [$this, 'handleWatchDogCron']);
       
       // Return if CRON time
       if (function_exists('wp_doing_cron') && wp_doing_cron()) return;
@@ -181,12 +181,20 @@
 
       // Actions
       add_action('admin_init', [&$this, 'admin_init_hook']);
-      add_action('admin_menu', [&$this, 'submenu']);
+      if (function_exists('is_multisite') && is_multisite()) {
+        add_action('network_admin_menu', [&$this, 'submenu']);
+      } else {
+        add_action('admin_menu', [&$this, 'submenu']);
+      }
       add_action('admin_notices', [&$this, 'admin_notices']);
 
 
       // Settings action
-      add_filter('plugin_action_links_' . plugin_basename(BMI_ROOT_FILE), [&$this, 'settings_action']);
+      if (function_exists('is_multisite') && is_multisite()) {
+        add_filter('network_admin_plugin_action_links_' . plugin_basename(BMI_ROOT_FILE), [&$this, 'settings_action']);
+      } else {
+        add_filter('plugin_action_links_' . plugin_basename(BMI_ROOT_FILE), [&$this, 'settings_action']);
+      }
 
       // Whitelist configuration files for Security Ninja
       add_filter('securityninja_whitelist', [&$this, 'securityninja_whitelist_config_files']);
@@ -294,6 +302,12 @@
 
       $current_patch = get_option('bmi_hotfixes', array());
 
+      if (!in_array('BMI_D15_M6_26', $current_patch)) {
+        if (file_exists(BMI_BACKUPS . '/md5summary.php')) {
+          unlink(BMI_BACKUPS . '/md5summary.php');
+        }
+        $current_patch[] = 'BMI_D15_M6_26';
+      }
       if (!in_array('BMI_D1_M6_26', $current_patch)) {
         require_once BMI_INCLUDES . '/external/backupbliss.php';
         $backupbliss = new BackupBliss();
@@ -301,6 +315,7 @@
         if ($connectionStatus['result'] == 'connected') {
           Dashboard\bmi_set_config('STORAGE::EXTERNAL::BACKUPBLISS', true);
         }
+        $current_patch[] = 'BMI_D1_M6_26';
       }
       if (!in_array('BMI_D17_M1_26', $current_patch)) {
         $baseurl = home_url();
@@ -491,6 +506,15 @@
     public function execution_shutdown() {
       $err = error_get_last();
 
+      if ($err === null || !empty($GLOBALS['bmi_error_handled'])) {
+          return;
+      }
+
+      $msg = $err['message'];
+      $file = $err['file'];
+      $line = $err['line'];
+      $type = $err['type'];
+
       if (defined('BMI_USING_CLI_FUNCTIONALITY') && BMI_USING_CLI_FUNCTIONALITY === true) {
         $lock_cli = BMI_BACKUPS . '/.migration_lock_cli';
         $lock_cli_end = BMI_BACKUPS . '/.migration_lock_ended';
@@ -503,95 +527,98 @@
         if (file_exists($lock_cli_end_backup)) @touch($lock_cli_end_backup);
       }
 
-      if ($err != null) {
+      $fatal_levels = [E_ERROR, E_CORE_ERROR, E_COMPILE_ERROR, E_USER_ERROR, E_RECOVERABLE_ERROR, E_PARSE];
+      $action = '';
+      if (isset($_POST['f'])) {
+        $action = $_POST['f'];
+      } elseif (isset($GLOBALS['bmi_current_action'])) {
+        $action = $GLOBALS['bmi_current_action'];
+      }
 
-        $msg = $err['message'];
-        $file = $err['file'];
-        $line = $err['line'];
-        $type = $err['type'];
+      $is_our_plugin = strpos($file, 'backup-backup') !== false;
 
-        if ($type != '1' && ($type != E_ERROR && $type != E_CORE_ERROR && $type != E_COMPILE_ERROR && $type != E_USER_ERROR && $type != E_RECOVERABLE_ERROR)) {
-          Logger::error(__('There was an error before request shutdown (but it was not logged to backup/restore log)', 'backup-backup'));
-          Logger::error(__('Error message: ', 'backup-backup') . $msg);
-          Logger::error(__('Error file/line: ', 'backup-backup') . $file . '|' . $line);
-          Logger::error(__('Error handler: ', 'backup-backup') . 'init#01' . '|' . $type);
-          return;
+      if (!in_array($type, $fatal_levels)) {
+        if ($is_our_plugin) {
+          Logger::error(__("A non-fatal error occurred within the Backup Migration plugin, which may have affected the request.", 'backup-backup'));
+          Logger::error(sprintf(__('Message: %s | File: %s:%s', 'backup-backup'), $msg, $file, $line));
         }
+        return;
+      }
 
-        if (isset($GLOBALS['bmi_error_handled']) && $GLOBALS['bmi_error_handled']) return;
-        if ($_POST['f'] == 'create-backup') {
-          Logger::error(__('There was an error during backup', 'backup-backup'));
-          Logger::error(__('Error message: ', 'backup-backup') . $msg);
-          Logger::error(__('Error file/line: ', 'backup-backup') . $file . '|' . $line);
-          Logger::error(__('Error handler: ', 'backup-backup') . 'init#02' . '|' . $type);
-          $progress = &$GLOBALS['bmi_backup_progress'];
+
+      if (!$is_our_plugin) {
+          Logger::error(__("A fatal error occurred outside of Backup Migration, but caused the request to crash.", 'backup-backup'));
+      } else {
+          Logger::error(__("A fatal error occurred within the Backup Migration plugin.", 'backup-backup'));
+      }
+
+      Logger::error(sprintf(__('Message: %s | File: %s:%s', 'backup-backup'), $msg, $file, $line));
+
+      if ($action === 'create-backup') {
+          $progress = isset($GLOBALS['bmi_backup_progress']) ? $GLOBALS['bmi_backup_progress'] : null;
           if ($progress) {
-            $progress->log(__('Error message: ', 'backup-backup') . $msg, 'error');
-            $progress->log(__('You can get more pieces of information in troubleshooting log file.', 'backup-backup'), 'error');
+              $progress->log(sprintf(__('Fatal Error: %s', 'backup-backup'), $msg), 'error');
+              $progress->log($this->fetchFatalErrorVerbose($msg), 'verbose');
+              $progress->log(__('More information is available in the troubleshooting log file.', 'backup-backup'), 'error');
           }
+          
           $this->handleErrorDuringBackup($msg, $file, $line, $progress);
 
           $fullPath = BMI_TMP . DIRECTORY_SEPARATOR;
-          array_map('unlink', glob($fullPath . '*.tmp'));
-          array_map('unlink', glob($fullPath . '*.gz'));
-        }
+          $tmp_files = glob($fullPath . '*.{tmp,gz,zip}', GLOB_BRACE);
+          if (is_array($tmp_files)) {
+              foreach ($tmp_files as $t_file) {
+                  @unlink($t_file);
+              }
+          }
+      }
 
-        if ($_POST['f'] == 'restore-backup') {
-          Logger::error(__('There was an error during restore process', 'backup-backup'));
-          Logger::error(__('Error message: ', 'backup-backup') . $msg);
-          Logger::error(__('Error file/line: ', 'backup-backup') . $file . '|' . $line);
-          Logger::error(__('Error handler: ', 'backup-backup') . 'init#03' . '|' . $type);
-          $progress = &$GLOBALS['bmi_migration_progress'];
+      if ($action === 'restore-backup') {
+          $progress = isset($GLOBALS['bmi_migration_progress']) ? $GLOBALS['bmi_migration_progress'] : null;
           if ($progress) {
-            $progress->log(__('Error message: ', 'backup-backup') . $msg, 'error');
-            $progress->log(__('You can get more pieces of information in troubleshooting log file.', 'backup-backup'), 'error');
+              $progress->log(sprintf(__('Fatal Error: %s', 'backup-backup'), $msg), 'error');
+              $progress->log($this->fetchFatalErrorVerbose($msg), 'verbose');
+              $progress->log(__('More information is available in the troubleshooting log file.', 'backup-backup'), 'error');
           }
           $this->handleErrorDuringRestore($msg, $file, $line, $progress);
-        }
-
-        $this->res(['status' => 'error', 'error' => $err]);
-        exit;
       }
+
+      $this->res(['status' => 'error', 'error' => $err]);
+      exit;
     }
 
     public function handleErrorDuringBackup($msg, $file, $line, &$progress) {
-      $backup = $GLOBALS['bmi_current_backup_name'];
-
       Logger::log('Due to fatal error backup handled correctly (closed and removed).');
+      Logger::log('Error message: ' . $msg);
+      Logger::log('Error file/line: ' . $file . ':' . $line);
       if ($progress) {
         $progress->log(__('Something bad happened on PHP side.', 'backup-backup'), 'error');
         $progress->log(__('Unfortunately we had to remove the backup (if partly created).', 'backup-backup'), 'error');
         $progress->log(__('Error message: ', 'backup-backup') . $msg, 'error');
-        $progress->log(__('Error file/line: ', 'backup-backup') . $file . '|' . $line, 'error');
+        $progress->log(__('Error file/line: ', 'backup-backup') . $file . ':' . $line, 'error');
         if (strpos($msg, 'execution time') !== false) {
           $progress->log(__('Probably we could not increase the execution time, please edit your php.ini manually', 'backup-backup'), 'error');
         }
       }
-
-      $backup_path = BMI_BACKUPS . DIRECTORY_SEPARATOR . $backup;
-      $partial_backup_path = glob( BMI_BACKUPS . DIRECTORY_SEPARATOR . $backup . '.??????');
-      if (is_array($partial_backup_path) && count($partial_backup_path) > 0) {
-        foreach ($partial_backup_path as $key => $value) {
-          @unlink($value);
-        }
-      }
-      if (file_exists($backup_path)) @unlink($backup_path);
-      if (file_exists(BMI_BACKUPS . DIRECTORY_SEPARATOR . '.running')) @unlink(BMI_BACKUPS . DIRECTORY_SEPARATOR . '.running');
-      if (file_exists(BMI_BACKUPS . DIRECTORY_SEPARATOR . '.abort')) @unlink(BMI_BACKUPS . DIRECTORY_SEPARATOR . '.abort');
 
       if ($progress) {
         $progress->log(__("Aborting backup...", 'backup-backup'), 'step');
         $progress->log('#002', 'END-CODE');
         $progress->end();
       }
+
+      BMI_Ajax::forceBackupToStop();
     }
+
 
     public function handleErrorDuringRestore($msg, $file, $line, &$progress) {
       Logger::log('There was fatal error during restore.');
+      Logger::log('Error message: ' . $msg);
+      Logger::log('Error file/line: ' . $file . ':' . $line);
       if ($progress) {
         $progress->log(__('Something bad happened on PHP side.', 'backup-backup'), 'error');
         $progress->log(__('Error message: ', 'backup-backup') . $msg, 'error');
-        $progress->log(__('Error file/line: ', 'backup-backup') . $file . '|' . $line, 'error');
+        $progress->log(__('Error file/line: ', 'backup-backup') . $file . ':' . $line, 'error');
       }
       if (file_exists(BMI_BACKUPS . DIRECTORY_SEPARATOR . '.migration_lock')) @unlink(BMI_BACKUPS . DIRECTORY_SEPARATOR . '.migration_lock');
       if ($progress) {
@@ -601,6 +628,7 @@
 
       $lock = BMI_BACKUPS . '/.migration_lock';
       if (file_exists($lock)) @unlink($lock);
+      BMI_Ajax::forceRestoreToStop();
     }
 
     public function submenu() {
@@ -623,8 +651,14 @@
     }
 
     public function settings_action($links) {
+      if (function_exists('is_multisite') && is_multisite()) {
+        $url = network_admin_url('/admin.php?page=backup-migration');
+      } else {
+        $url = admin_url('/admin.php?page=backup-migration');
+      }
+
       $text = __('Manage', 'backup-backup');
-      $links['bmi-settings-link'] = '<a href="' . admin_url('/admin.php?page=backup-migration') . '">' . $text . '</a>';
+      $links['bmi-settings-link'] = '<a href="' . $url . '">' . $text . '</a>';
 
       return $links;
     }
@@ -639,30 +673,14 @@
      * @param array $whitelist Existing whitelist array from Security Ninja
      * @return array Modified whitelist array with our configuration files added
      */
-    public function securityninja_whitelist_config_files($whitelist = array()) {
-      if (!is_array($whitelist)) {
-        $whitelist = array();
-      }
+    public function securityninja_whitelist_config_files($whitelist = []) {
+      if (!is_array($whitelist)) $whitelist = [];
 
       // Add all configuration files to the whitelist
-      $config_files = array(
-        BMI_CONFIG_DEFAULT,
-        BMI_STATIC_PHP_CONFIG,
-        BMI_INCLUDES . DIRECTORY_SEPARATOR . 'htaccess' . DIRECTORY_SEPARATOR . '*'
-      );
-
-      // Add config directory if defined
-      if (defined('BMI_CONFIG_DIR') && BMI_CONFIG_DIR) {
-        $config_files[] = BMI_CONFIG_DIR . DIRECTORY_SEPARATOR . '*';
-      }
-
-      // Add config path if defined
-      if (defined('BMI_CONFIG_PATH') && BMI_CONFIG_PATH) {
-        $config_files[] = BMI_CONFIG_PATH;
-      }
-
-      // Merge with existing whitelist and remove duplicates
-      $whitelist = array_unique(array_merge($whitelist, $config_files));
+      $whitelist[] = BMI_CONFIG_DEFAULT;
+      $whitelist[] = BMI_INCLUDES . DIRECTORY_SEPARATOR . 'htaccess' . DIRECTORY_SEPARATOR . '.autologin.php';
+      $whitelist[] = BMI_INCLUDES . DIRECTORY_SEPARATOR . 'htaccess' . DIRECTORY_SEPARATOR . '.htaccess';
+      $whitelist[] = BMI_INCLUDES . DIRECTORY_SEPARATOR . 'htaccess' . DIRECTORY_SEPARATOR . '.litespeed';
 
       return $whitelist;
     }
@@ -707,12 +725,27 @@
       if (get_option('_bmi_redirect', false)) {
         $this->fixLitespeed();
         delete_option('_bmi_redirect');
-        wp_safe_redirect(admin_url('admin.php?page=backup-migration'));
+
+        $is_bulk_action = isset($_REQUEST['action']) && $_REQUEST['action'] === 'activate-selected';
+        $is_bulk_action_alt = isset($_REQUEST['action2']) && $_REQUEST['action2'] === 'activate-selected';
+
+        $is_multi_activate = isset($_GET['activate-multi']) && $_GET['activate-multi'] === 'true';
+
+        if ($is_bulk_action || $is_bulk_action_alt || $is_multi_activate) {
+          return;
+        }
+
+        if (function_exists('is_multisite') && is_multisite()) {
+          wp_safe_redirect(network_admin_url('admin.php?page=backup-migration'));
+        } else {
+          wp_safe_redirect(admin_url('admin.php?page=backup-migration'));
+        }
+        exit;
       }
     }
 
     public function admin_notices() {
-      if (get_current_screen()->id != 'toplevel_page_backup-migration' && get_option('bmi_display_email_issues', false)) {
+      if (!in_array(get_current_screen()->id, ['toplevel_page_backup-migration', 'toplevel_page_backup-migration-network']) && get_option('bmi_display_email_issues', false)) {
         ?>
         <div class="notice notice-warning">
           <p>
@@ -905,7 +938,11 @@
 
     public static function handle_after_cron() {
       require_once BMI_INCLUDES . DIRECTORY_SEPARATOR . 'scanner' . DIRECTORY_SEPARATOR . 'backups.php';
-      $backups = new Backups();
+      require_once BMI_INCLUDES . '/external/external-storage-manager.php';
+
+      $backups = Backups::getInstance();
+      $externalStorageManager = \BMI\Plugin\External\BMI_External_Storage_Manager::getInstance();
+
       $availableBackups = $backups->getAvailableBackups();
       $list = $availableBackups['local'];
 
@@ -959,8 +996,7 @@
         $md5 = $data[1];
         $name = $data[2];
         Logger::log(__("Removing external backup due to keep rules: ", 'backup-backup') . $name);
-        do_action('bmi_premium_remove_backup_file', $md5);
-        do_action('bmi_premium_remove_backup_json_file', $md5 . '.json');
+        $externalStorageManager->deleteBackup($md5);
       }
     }
 
@@ -1088,7 +1124,9 @@
           if (!defined('BMI_DOING_SCHEDULED_BACKUP')) {
             define('BMI_DOING_SCHEDULED_BACKUP', true);
           }
+          $this->scheduleWatchDogCron();
 
+          $GLOBALS['bmi_current_action'] = 'create-backup';
           $handler = new BMI_Ajax();
           $handler->resetLatestLogs();
           $backup = $handler->prepareAndMakeBackup(true);
@@ -1119,11 +1157,6 @@
         $this->set_last_cron('5', $now);
       }
       
-      $this->handle_after_cron();
-
-      if (file_exists(BMI_BACKUPS . '/.cron')) {
-        @unlink(BMI_BACKUPS . '/.cron');
-      }
       require_once BMI_INCLUDES . '/cron/handler.php';
       $time = $this->get_next_cron();
 
@@ -1134,10 +1167,33 @@
       file_put_contents($file, $time);
     }
 
+    public function scheduleWatchDogCron() {
+      wp_clear_scheduled_hook('bmi_watchdog_cron');
+      wp_schedule_single_event(time() + 120, 'bmi_watchdog_cron'); // 2 minutes
+    }
+
+    public function handleWatchDogCron() {
+      if (!file_exists(BMI_BACKUPS . '/.running')) return; // backup process did not stalled
+      $lastAction = filemtime(BMI_BACKUPS . '/.running');
+      if ((time() - $lastAction) > 300) { // large window to prevent false positives
+        $this->handleErrorDuringBackup(
+          __('The backup process appears to have stopped unexpectedly and was marked as stalled.', 'backup-backup'),
+          __FILE__,
+          __LINE__
+        ); // cleanup running and cron flags
+        $this->handle_cron_error(
+          __('The scheduled backup did not complete because the process became unresponsive. Please check the plugin logs for more details.', 'backup-backup')
+        );
+        $this->set_last_cron('5', $lastAction);
+      } else {
+        $this->scheduleWatchDogCron();
+      }
+    }
+
     public function enqueue_scripts() {
 
       // Global
-      if (in_array(get_current_screen()->id, ['toplevel_page_backup-migration', 'plugins'])) { ?>
+      if (in_array(get_current_screen()->id, ['toplevel_page_backup-migration', 'toplevel_page_backup-migration-network', 'plugins', 'plugins-network'])) { ?>
       <script type="text/javascript">
         let stars = <?php echo json_encode(plugin_dir_url(BMI_ROOT_FILE)); ?> + 'admin/images/stars.gif';
         let css_star = "background:url('" + stars + "')";
@@ -1149,7 +1205,7 @@
       <?php }
 
       // Only for BM Settings
-      if (!in_array(get_current_screen()->id, ['toplevel_page_backup-migration', 'update-core', 'plugins', 'plugin-install', 'themes','customize', 'plugins-network', 'plugin-install-network', 'themes-network']) && $this->backupbliss_space_issues() === false) return;
+      if (!in_array(get_current_screen()->id, ['toplevel_page_backup-migration', 'toplevel_page_backup-migration-network', 'update-core', 'plugins', 'plugin-install', 'themes','customize', 'plugins-network', 'plugin-install-network', 'themes-network']) && $this->backupbliss_space_issues() === false) return;
       wp_enqueue_script('backup-migration-script', $this->get_asset('js', 'backup-migration.min.js'), ['jquery'], BMI_VERSION, true);
       wp_localize_script('backup-migration-script', 'bmiVariables', [
         'nonce' => wp_create_nonce('backup-migration-ajax'),
@@ -1196,7 +1252,7 @@
       wp_enqueue_style('backup-migration-style-icon', $this->get_asset('css', 'bmi-plugin-icon.min.css'), [], BMI_VERSION);
 
       // Only for BM Settings and Update Core page and if there's no backupbliss space issues do not include the stylesheet.
-      if (!in_array(get_current_screen()->id, ['toplevel_page_backup-migration', 'update-core', 'plugins', 'plugin-install', 'themes','customize', 'plugins-network', 'plugin-install-network', 'themes-network']) && $this->backupbliss_space_issues() === false) return;
+      if (!in_array(get_current_screen()->id, ['toplevel_page_backup-migration', 'toplevel_page_backup-migration-network', 'update-core', 'plugins', 'plugin-install', 'themes','customize', 'plugins-network', 'plugin-install-network', 'themes-network']) && $this->backupbliss_space_issues() === false) return;
 
       // Enqueue the style
       wp_enqueue_style('backup-migration-style', $this->get_asset('css', 'bmi-plugin.min.css'), [], BMI_VERSION);
@@ -1252,63 +1308,75 @@
       $crons_enabled = !empty($_GET['crons']) ? sanitize_text_field($_GET['crons']) : false;
       $secret_key = !empty($_GET['sk']) ? sanitize_text_field($_GET['sk']) : false;
 
-      if (isset($get_bmi) && in_array($get_bmi, $allowed)) {
-        if (isset($get_bid) && strlen($get_bid) > 0 && isset($secret_key) && $secret_key === Dashboard\bmi_get_config('REQUEST:SECRET')) {
+      if (isset($get_bmi) && in_array($get_bmi, $allowed) && $secret_key !== false) {
+        $is_valid_secret = ($secret_key === Dashboard\bmi_get_config('REQUEST:SECRET')) && $get_bmi === 'CURL_BACKUP';
+        $is_valid_nonce = wp_verify_nonce($secret_key, 'bmi_download_nonce');
+        $is_valid_token = ($secret_key === get_transient('bmi_download_token'));
+
+        if (isset($get_bid) && strlen($get_bid) > 0 && isset($secret_key) && ($is_valid_secret || $is_valid_nonce || $is_valid_token)) {
           $type = $get_bmi;
 
           if ($type == 'AFTER_RESTORE' && isset($get_pid)) {
             if (file_exists($autologin_file)) {
               $autoLoginMD = file_get_contents($autologin_file);
+              unlink($autologin_file);
               $autoLoginMD = explode('_', $autoLoginMD);
-              $aID = intval($autoLoginMD[0]);
-              $aID2 = intval($autoLoginMD[0]) - 1;
-              $aID3 = intval($autoLoginMD[0]) + 1;
-              $aID4 = intval($autoLoginMD[0]) + 2;
-              $aID5 = intval($autoLoginMD[0]) + 3;
-              $aID6 = intval($autoLoginMD[0]) + 4;
-              $aIP = $autoLoginMD[1];
-              $aIZ = $autoLoginMD[2];
+              $hashedToken = $autoLoginMD[0];
+              $ip = $autoLoginMD[1];
+              $time = $autoLoginMD[2];
 
-              // Allow 1 second delay
-              $timeIsProper = false;
-              if ($aID === intval($get_bid)) $timeIsProper = true;
-              if ($aID2 === intval($get_bid)) $timeIsProper = true;
-              if ($aID3 === intval($get_bid)) $timeIsProper = true;
-              if ($aID4 === intval($get_bid)) $timeIsProper = true;
-              if ($aID5 === intval($get_bid)) $timeIsProper = true;
-              if ($aID6 === intval($get_bid)) $timeIsProper = true;
-
-              if ($timeIsProper && $aIP === $ip && trim($aIZ) === $get_pid) {
-                $query = new \WP_User_Query(['role' => 'Administrator', 'count_total' => false, 'fields' => 'all']);
-                $sqlres = $query->get_results();
-
-                if (sizeof($sqlres) > 0 && isset($sqlres[0]->ID) && isset($sqlres[0]->user_login)) {
-
-                  $user = $sqlres[0];
-                  $adminID = $sqlres[0]->ID;
-                  $adminLogin = $sqlres[0]->user_login;
-
-                  remove_all_actions('wp_login', -1000);
-                  wp_load_alloptions(true);
-                  clean_user_cache(get_current_user_id());
-                  clean_user_cache($adminID);
-                  wp_clear_auth_cookie();
-                  wp_set_current_user($adminID, $adminLogin);
-                  wp_set_auth_cookie($adminID, 1, is_ssl());
-                  do_action('wp_login', $adminLogin, $user);
-                  update_user_caches($user);
-
-                }
-                $cronsEnabledParam = $crons_enabled ? "&crons=true" : ""; 
-
-                $url = admin_url('admin.php?page=backup-migration' . $cronsEnabledParam);
-                header('Location: ' . $url);
-
-                @unlink($autologin_file);
-                exit;
+              if (!hash_equals($hashedToken, wp_hash($get_bid, 'bmi_autologin'))) {
+                wp_die(__('Invalid autologin data', 'backup-backup'));
               }
-            }
 
+              if ($time + 300 < time()) {
+                wp_die(__('Autologin data has expired', 'backup-backup'));
+              }
+
+              if ($ip !== $_SERVER['REMOTE_ADDR']) {
+                wp_die(__('Invalid IP', 'backup-backup'));
+              }
+
+              // Clear Elementor cache after restore
+              if (class_exists( '\Elementor\Plugin' ) ) {
+                $elementor = \Elementor\Plugin::$instance;
+                if ( isset( $elementor->files_manager ) && method_exists( $elementor->files_manager, 'clear_cache' ) ) {
+                  try {
+                    $elementor->files_manager->clear_cache();
+                  } catch ( \Exception $e ) {
+                    error_log( 'Elementor native cache clear failed: ' . $e->getMessage() );
+                  }
+                }
+              }
+
+              $query = new \WP_User_Query(['role' => 'Administrator', 'count_total' => false, 'fields' => 'all']);
+              $sqlres = $query->get_results();
+
+              if (sizeof($sqlres) > 0 && isset($sqlres[0]->ID) && isset($sqlres[0]->user_login)) {
+
+                $user = $sqlres[0];
+                $adminID = $sqlres[0]->ID;
+                $adminLogin = $sqlres[0]->user_login;
+
+                remove_all_actions('wp_login', -1000);
+                wp_load_alloptions(true);
+                clean_user_cache(get_current_user_id());
+                clean_user_cache($adminID);
+                wp_clear_auth_cookie();
+                wp_set_current_user($adminID, $adminLogin);
+                do_action('wp_login', $adminLogin, $user);
+                update_user_caches($user);
+
+              }
+              $cronsEnabledParam = $crons_enabled ? "&crons=true" : ""; 
+              if (function_exists('is_multisite') && is_multisite()) {
+                $url = network_admin_url('admin.php?page=backup-migration' . $cronsEnabledParam);
+              } else {
+                $url = admin_url('admin.php?page=backup-migration' . $cronsEnabledParam);
+              }
+              header('Location: ' . $url);
+              exit;
+            }
           } else if ($type == 'BMI_BACKUP') {
             if (Dashboard\bmi_get_config('STORAGE::DIRECT::URL') === 'true' || current_user_can('administrator')) {
 
@@ -1634,6 +1702,7 @@
       require_once BMI_INCLUDES . '/cron/bootstrap.php';
       \BMI\Plugin\CRON\TaskManager::boot();
       \BMI\Plugin\CRON\TaskManager::on_deactivation();
+      wp_clear_scheduled_hook('bmip_keepalive_cron');
       Logger::log(__("Plugin has been deactivated", 'backup-backup'));
     }
 
@@ -1970,6 +2039,11 @@
       return false;
     }
 
+    public static function isPluginAutoUpdateEnabled( $plugin_file ) {
+      $auto_updates = (array) get_site_option( 'auto_update_plugins', array() );
+      return in_array( $plugin_file, $auto_updates, true );
+    }
+
     public static function escapeSQLIDentifier($identifier) {
         global $wpdb;
         
@@ -2053,6 +2127,22 @@
           return false;
         }
       }
+    }
+
+    public function fetchFatalErrorVerbose($fatalErrorMsg) {
+      if (empty($fatalErrorMsg)) return 'unknown_fatal_error';
+      
+      $msgLower = strtolower($fatalErrorMsg);
+
+      if (strpos($msgLower, 'maximum execution time') !== false) {
+        return 'max_execution_time_exceeded';
+      }
+
+      if (strpos($msgLower, 'allowed memory size') !== false) {
+        return 'memory_size_exhausted';
+      }
+
+      return 'unknown_fatal_error';
     }
 
   }

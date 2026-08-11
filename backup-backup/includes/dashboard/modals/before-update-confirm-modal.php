@@ -6,9 +6,10 @@
   // Exit on direct access
   if (!defined('ABSPATH')) exit;
 
+  $pluginUrl = function_exists('is_multisite') && is_multisite() ? network_admin_url('admin.php?page=backup-migration') : admin_url('admin.php?page=backup-migration');
   $note = sprintf(
     __("Note: You're seeing this confirmation because you've enabled the backup before updates feature in the %sBackup & Migration%s plugin.", 'backup-backup'),
-    '<a href="' . admin_url('admin.php?page=backup-migration') . '" target="_blank" class="secondary">',
+    '<a href="' . $pluginUrl . '" target="_blank" class="secondary">',
     '</a>'
   );
 

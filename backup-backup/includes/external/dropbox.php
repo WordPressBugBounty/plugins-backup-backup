@@ -12,6 +12,9 @@ use BMI\Plugin\BMI_Logger as Logger;
 use BMI\Plugin\Dashboard as Dashboard;
 use BMI\Plugin\Backup_Migration_Plugin as BMP;
 use BMI\Plugin\Scanner\BMI_BackupsScanner as Backups;
+use BMI\Plugin\External\Contracts\DeleteBackup;
+
+require_once BMI_INCLUDES . DIRECTORY_SEPARATOR . 'external' . DIRECTORY_SEPARATOR . 'contracts' . DIRECTORY_SEPARATOR . 'interface-delete-backup.php';
 
 /**
  * BMI_External_Dropbox
@@ -19,7 +22,7 @@ use BMI\Plugin\Scanner\BMI_BackupsScanner as Backups;
  * This class is responsible for handling all Dropbox related operations
  */
 
-class BMI_External_Dropbox
+class BMI_External_Dropbox implements DeleteBackup
 {
     public $dropboxId = 'bmip_dropbox';
     public $dropboxAuthCodeOption = 'bmip_dropbox_auth_code';
@@ -29,7 +32,7 @@ class BMI_External_Dropbox
 
     public function __construct()
     {
-        add_action('bmi_premium_remove_backup_file', [&$this, 'deleteDropboxBackup']);
+        add_action('bmi_premium_remove_backup_file', [&$this, 'deleteBackup']);
         add_action('bmi_premium_remove_backup_json_file', [&$this, 'deleteDropboxBackupJson']);
         add_action('delete_transient_bmip_dropbox_issue', [&$this, 'deleteDropboxIssue']);
     }
@@ -619,7 +622,11 @@ class BMI_External_Dropbox
     /************************************************************************************************************* */
     /*********************  DELETE DROPBOX BACKUP  **************************************************************** */
     /************************************************************************************************************* */
-    public function deleteDropboxBackup($md5){
+    
+    /**
+     * @inheritDoc
+     */
+    public function deleteBackup($md5){
         if ($this->verifyConnection()['result'] != 'connected') {
             return false;
         }
@@ -642,6 +649,16 @@ class BMI_External_Dropbox
         return false;    
     }
 
+    /**
+     * @deprecated Use deleteBackup() instead.
+     */
+    public function deleteDropboxBackup($md5) {
+        return $this->deleteBackup($md5);
+    }
+
+    /**
+     * @deprecated Use deleteBackup() instead.
+     */
     public function deleteDropboxBackupJson($manifestFile){
         if ($this->verifyConnection()['result'] != 'connected') {
             return false;
@@ -796,7 +813,7 @@ class BMI_External_Dropbox
         ]);
     
         require_once BMI_INCLUDES . DIRECTORY_SEPARATOR . 'scanner' . DIRECTORY_SEPARATOR . 'backups.php';
-        $backups = new Backups();
+        $backups = Backups::getInstance();
         $backupsAvailable = $backups->getAvailableBackups("local");
         $localBackups = $backupsAvailable['local'];
         $parsedDropboxFiles = $this->getParsedFiles();

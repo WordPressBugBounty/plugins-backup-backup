@@ -28,6 +28,7 @@
       });
       add_action('wp_ajax_bmip_keepalive', [&$this, 'initializeOfflineAjax']);
       add_action('wp_ajax_nopriv_bmip_keepalive', [&$this, 'initializeOfflineAjax']);
+      add_action('bmip_keepalive_cron', [&$this, 'executeKeepAliveCron']);
 
       // Handle Auth Handshake For M2M Connection (Ping server)
       add_action('wp_ajax_nopriv_bmip_auth_handshake', [&$this, 'bmip_handle_handshake_request']);
@@ -108,6 +109,24 @@
 
       // }
 
+    }
+
+    /**
+     * executeKeepAliveCron - Fallback keepalive trigger via WP-Cron
+     *
+     * @return void
+     */
+    public function executeKeepAliveCron() {
+      if (!class_exists('BMI\Plugin\BMI_Ajax_Offline')) {
+        if (file_exists(BMI_INCLUDES . '/ajax_offline.php')) {
+          require_once BMI_INCLUDES . '/ajax_offline.php';
+        } else {
+          return;
+        }
+      }
+
+      $ajaxOffline = new \BMI\Plugin\BMI_Ajax_Offline([]);
+      $ajaxOffline->keepAliveUnAuthorizedRefresh();
     }
 
     /**

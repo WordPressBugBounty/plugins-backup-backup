@@ -10,22 +10,26 @@ use BMI\Plugin\BMI_Pro_Core;
 use BMI\Plugin\BMProAjax as BMProAjax;
 use BMI\Plugin\Scanner\BMI_BackupsScanner as Backups;
 use BMI\Plugin\Dashboard as Dashboard;
+use BMI\Plugin\External\Contracts\DeleteBackup;
 
-// Exit on direct access
 if (!defined('ABSPATH')) {
   exit;
 }
 
+require_once BMI_INCLUDES . DIRECTORY_SEPARATOR . 'external' . DIRECTORY_SEPARATOR . 'contracts' . DIRECTORY_SEPARATOR . 'interface-delete-backup.php';
+
 /**
  * BMI_External_GDrive
+ * 
+ * This class is responsible for handling all Google Drive related operations
  */
-class BMI_External_GDrive  {
+class BMI_External_GDrive implements DeleteBackup {
 
   private $gdrive_access_token = false;
 
   public function __construct() {
 
-    add_action('bmi_premium_remove_backup_file', [&$this, 'deleteGoogleDriveBackup']);
+    add_action('bmi_premium_remove_backup_file', [&$this, 'deleteBackup']);
     add_action('bmi_premium_remove_backup_json_file', [&$this, 'deleteGoogleDriveJson']);
 
   }
@@ -51,7 +55,7 @@ class BMI_External_GDrive  {
 
     // Local Backups
     require_once BMI_INCLUDES . DIRECTORY_SEPARATOR . 'scanner' . DIRECTORY_SEPARATOR . 'backups.php';
-    $backups = new Backups();
+    $backups = Backups::getInstance();
     $backupsAvailable = $backups->getAvailableBackups("local");
     $localBackups = $backupsAvailable['local'];
     $localBackups = array_reverse($localBackups);
@@ -592,27 +596,46 @@ class BMI_External_GDrive  {
   }
 
   /**
-   * deleteGoogleDriveBackup - Deletes Backup from Google Drive
-   *
-   * @return json status
+   * @inheritDoc
    */
-  public function deleteGoogleDriveBackup($md5) {
-
+  public function deleteBackup($md5) {
+    $success = true;
+    $found = false;
     $files = $this->getGoogleDriveBackups();
     if (isset($files['status']) && $files['status'] == 'success') {
       $files = $files['data']->files;
       foreach ($files as $index => $file) {
         if ($file->md5Checksum == $md5) {
+          $found = true;
           $fileId = $file->id;
-          $this->makeGoogleDriveAPICallDelete($fileId);
+          if ( $this->makeGoogleDriveAPICallDelete($fileId) == 'error') {
+            $success = false;
+          }
+        } else if ($file->originalFilename == $md5 . '.json'){
+          $found = true;
+          $fileId = $file->id;
+          if ( $this->makeGoogleDriveAPICallDelete($fileId) == 'error') {
+            $success = false;
+          }
         }
       }
+    } else {
+      $success = false;
     }
 
+    return $found && $success;
+  }
+
+  /**
+   * @deprecated Use deleteBackup() instead.
+   */
+  public function deleteGoogleDriveBackup($md5) {
+      return $this->deleteBackup($md5);
   }
 
   /**
    * deleteGoogleDriveJson - Deletes JSON manifest from Google Drive
+   * @deprecated Use deleteBackup() instead.
    *
    * @return json status
    */

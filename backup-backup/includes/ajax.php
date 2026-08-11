@@ -227,6 +227,8 @@
         BMP::res($this->verifyWasabiConnection());
       } elseif ($this->post['f'] == 'manually-enqueue-upload') {
         BMP::res($this->manuallyEnqueueUpload());
+      } elseif ($this->post['f'] == 'validate-backup-password') {
+        BMP::res($this->validateBackupPassword());
       } elseif ($this->post['f'] == 'resync-with-ping-server') {
         BMP::res($this->resyncWithPingServer());
       } 
@@ -252,6 +254,35 @@
         do_action('bmi_premium_ajax', $this->post);
       }
 
+    }
+
+    public function validateBackupPassword() {
+      $backupName = isset($this->post['backupName']) ? $this->post['backupName'] : false;
+      $password = isset($this->post['password']) ? $this->post['password'] : false;
+
+      if (!$backupName || !$password) {
+        return ['status' => 'msg', 'why' => 'Missing backup file or password.', 'level' => 'error'];
+      }
+
+      $backupFile = BMI_BACKUPS . DIRECTORY_SEPARATOR . $backupName;
+
+      if (!file_exists($backupFile)) {
+        return ['status' => 'msg', 'why' => 'Backup file not found.', 'level' => 'error'];
+      }
+
+      try {
+      require_once BMI_INCLUDES . '/zipper/zipping.php';
+        $isValid = Zipper::validateZipPassword($backupFile, $password);
+      } catch (\Exception $e) {
+        return ['status' => 'msg', 'why' => 'Error validating password: ' . $e->getMessage(), 'level' => 'error'];
+      }
+
+
+      if ($isValid) {
+        return ['status' => 'success'];
+      } else {
+        return ['status' => 'msg', 'why' => 'Incorrect password. Please try again.', 'level' => 'error'];
+      }
     }
   
   /**
@@ -2076,82 +2107,73 @@
           error_log(print_r($errline, true));
         }
 
-        if (strpos($errstr, 'deprecated') !== false) return;
-        if (strpos($errstr, 'php_uname') !== false) return;
-        if (strpos($errfile, 'backup-backup') === false && strpos($errfile, 'backup-migration') === false && $errno != E_ERROR) return;
+        if (in_array($errno, [E_DEPRECATED, E_USER_DEPRECATED, E_NOTICE])) {
+          return true;
+        }        
+        if (strpos($errstr, 'php_uname') !== false) return true;
 
-        if ($errno != E_ERROR && $errno != E_CORE_ERROR && $errno != E_COMPILE_ERROR && $errno != E_USER_ERROR && $errno != E_RECOVERABLE_ERROR) {
-
-          if (strpos($errfile, 'backup-backup') === false && strpos($errfile, 'backup-migration') === false) return;
-          Logger::error(__('There was an error before request shutdown (but it was not logged to restore log)', 'backup-backup'));
-          Logger::error(__('Error message: ', 'backup-backup') . $errstr);
-          Logger::error(__('Error file/line: ', 'backup-backup') . $errfile . '|' . $errline);
-          Logger::error(__('Error handler: ', 'backup-backup') . 'ajax#01' . '|' . $errno);
-          return;
-
-        }
-        if (strpos($errfile, 'backup-backup') === false) {
-          Logger::error(__("Restore process was not aborted because this error is not related to Backup Migration.", 'backup-backup'));
-          $this->zip_progress->log(__("There was an error not related to Backup Migration Plugin.", 'backup-backup'), 'warn');
-          $this->zip_progress->log(__("Message: ", 'backup-backup') . $errstr, 'warn');
-          $this->zip_progress->log(__("Backup will not be aborted because of this.", 'backup-backup'), 'warn');
-          return;
-        }
-        if (strpos($errstr, 'unlink(') !== false) {
-          Logger::error(__("Restore process was not aborted due to this error.", 'backup-backup'));
-          Logger::error(__('Error handler: ', 'backup-backup') . 'ajax#02' . '|' . $errno);
-          Logger::error($errstr);
-          return;
-        }
-        if (strpos($errfile, 'pclzip') !== false) {
-          Logger::error(__("Restore process was not aborted due to this error.", 'backup-backup'));
-          Logger::error(__('Error handler: ', 'backup-backup') . 'ajax#03' . '|' . $errno);
-          Logger::error($errstr);
-          return;
-        }
-        if (strpos($errstr, 'rename(') !== false) {
-          Logger::error(__("Restore process was not aborted due to this error.", 'backup-backup'));
-          Logger::error(__('Error handler: ', 'backup-backup') . 'ajax#04' . '|' . $errno);
-          Logger::error($errstr);
-          $this->zip_progress->log(__("Cannot move: ", 'backup-backup') . $errstr, 'warn');
-          return;
+        $ignored_warnings = ['unlink(', 'pclzip'];
+        foreach ($ignored_warnings as $warning) {
+          if (strpos($errstr, $warning) !== false || strpos($errfile, $warning) !== false) {
+            Logger::error(sprintf(__("Process continuation: Ignored expected warning. Handler: ajax#0x | ErrNo: %s | Msg: %s", 'backup-backup'), $errno, $errstr));
+            return true;
+          }
         }
 
-        $this->zip_progress->log(__("There was an error during backup:", 'backup-backup'), 'error');
+        $is_our_plugin = strpos($errfile, 'backup-backup') !== false;
+        $fatal_levels = [E_USER_ERROR, E_RECOVERABLE_ERROR]; // E_ERROR cannot be caught here
+        $is_fatal = in_array($errno, $fatal_levels);
+
+        if (!$is_fatal) {
+          if (!$is_our_plugin) {
+            return false;
+          }
+          
+          Logger::error(__('Non-fatal error encountered before request shutdown.', 'backup-backup'));
+          Logger::error(sprintf(__('Message: %s | File: %s:%s', 'backup-backup'), $errstr, $errfile, $errline));
+          return true;
+        }
+    
+        if (!$is_our_plugin) {
+          Logger::error(__("Backup process was not aborted because this error originated outside Backup Migration.", 'backup-backup'));
+          if (isset($this->zip_progress)) {
+            $this->zip_progress->log(__("Third-party error detected, attempting to continue.", 'backup-backup'), 'warn');
+            $this->zip_progress->log(__("Message: ", 'backup-backup') . $errstr, 'warn');
+          }
+          return false;
+        }
+
+        $this->zip_progress->log(__("There was a critical error during backup:", 'backup-backup'), 'error');
         $this->zip_progress->log(__("Message: ", 'backup-backup') . $errstr, 'error');
         $this->zip_progress->log(__("File/line: ", 'backup-backup') . $errfile . '|' . $errline, 'error');
         $this->zip_progress->log(__('Unfortunately we had to remove the backup (if partly created).', 'backup-backup'), 'error');
-
-        $backup = $GLOBALS['bmi_current_backup_name'];
-        $backup_path = BMI_BACKUPS . DIRECTORY_SEPARATOR . $backup;
-        if (file_exists($backup_path)) @unlink($backup_path);
-        if (file_exists(BMI_BACKUPS . DIRECTORY_SEPARATOR . '.running')) @unlink(BMI_BACKUPS . DIRECTORY_SEPARATOR . '.running');
-        if (file_exists(BMI_BACKUPS . DIRECTORY_SEPARATOR . '.abort')) @unlink(BMI_BACKUPS . DIRECTORY_SEPARATOR . '.abort');
-
         $this->zip_progress->log(__("Aborting backup...", 'backup-backup'), 'step');
         $this->zip_progress->log(__("#002", 'backup-backup'), 'end-code');
         $this->zip_progress->end();
 
-        $GLOBALS['bmi_error_handled'] = true;
-        BMP::res(['status' => 'error', 'error' => $errstr]);
-        exit;
+        // Cleanup routine
+        if (!empty($GLOBALS['bmi_current_backup_name'])) {
+          $backup_path = BMI_BACKUPS . DIRECTORY_SEPARATOR . $GLOBALS['bmi_current_backup_name'];
+          if (file_exists($backup_path)) @unlink($backup_path);
+        }
+        
+        $flags = ['.running', '.abort'];
+        foreach ($flags as $flag) {
+          $flag_path = BMI_BACKUPS . DIRECTORY_SEPARATOR . $flag;
+          if (file_exists($flag_path)) @unlink($flag_path);
+        }
 
+        $GLOBALS['bmi_error_handled'] = true;
+        
+        if (class_exists('BMP') && method_exists('BMP', 'res')) {
+          BMP::res(['status' => 'error', 'error' => $errstr]);
+        }
+        
+        exit;
       }, E_ALL);
     }
 
     public function migrationErrorHandler() {
-      set_exception_handler(function ($exception) {
-        if (BMI_DEBUG) {
-          error_log('BMI DEBUG ENABLED, HERE IS THE COMPLETE REPORT (EXCEPTION HANDLER #1):');
-          error_log(print_r($exception, true));
-        }
-
-        $this->migration_progress->log(__("Restore exception: ", 'backup-backup') . $exception->getMessage(), 'warn');
-        Logger::log(__("Restore exception: ", 'backup-backup') . $exception->getMessage());
-      });
-    }
-
-    public function migrationExceptionHandler() {
       set_error_handler(function ($errno, $errstr, $errfile, $errline) {
 
         if (BMI_DEBUG) {
@@ -2162,60 +2184,51 @@
           error_log(print_r($errline, true));
         }
 
-        if (strpos($errstr, 'deprecated') !== false) return;
-        if (strpos($errstr, 'php_uname') !== false) return;
-        if (strpos($errfile, 'backup-backup') === false && strpos($errfile, 'backup-migration' && $errno != E_ERROR) === false) return;
+        if (in_array($errno, [E_DEPRECATED, E_USER_DEPRECATED, E_NOTICE])) {
+          return true;
+        }
+        if (strpos($errstr, 'php_uname') !== false) return true;
 
-        if ($errno == E_NOTICE) return;
-        if ($errno != E_ERROR && $errno != E_CORE_ERROR && $errno != E_COMPILE_ERROR && $errno != E_USER_ERROR && $errno != E_RECOVERABLE_ERROR) {
-          if (strpos($errfile, 'backup-backup') === false && strpos($errfile, 'backup-migration') === false) return;
-          Logger::error(__('There was an error before request shutdown (but it was not logged to restore log)', 'backup-backup'));
-          Logger::error(__('Error message: ', 'backup-backup') . $errstr);
-          Logger::error(__('Error file/line: ', 'backup-backup') . $errfile . '|' . $errline);
-          Logger::error(__('Error handler: ', 'backup-backup') . 'ajax#05' . '|' . $errno);
-          return;
-        }
 
-        Logger::error(__("There was an error/warning during restore process:", 'backup-backup'));
-        Logger::error(__("Message: ", 'backup-backup') . $errstr);
-        Logger::error(__("File/line: ", 'backup-backup') . $errfile . '|' . $errline);
-        Logger::error(__('Error handler: ', 'backup-backup') . 'ajax#06' . '|' . $errno);
-
-        if (strpos($errfile, 'backup-backup') === false) {
-          Logger::error(__("Restore process was not aborted because this error is not related to Backup Migration.", 'backup-backup'));
-          $this->migration_progress->log(__("There was an error not related to Backup Migration Plugin.", 'backup-backup'), 'warn');
-          $this->migration_progress->log(__("Message: ", 'backup-backup') . $errstr, 'warn');
-          $this->migration_progress->log(__("Backup will not be aborted because of this.", 'backup-backup'), 'warn');
-          return;
-        }
-        if (strpos($errstr, 'unlink(') !== false) {
-          Logger::error(__("Restore process was not aborted due to this error.", 'backup-backup'));
-          Logger::error(__('Error handler: ', 'backup-backup') . 'ajax#07' . '|' . $errno);
-          Logger::error($errstr);
-          return;
-        }
-        if (strpos($errfile, 'pclzip') !== false) {
-          Logger::error(__("Restore process was not aborted due to this error.", 'backup-backup'));
-          Logger::error(__('Error handler: ', 'backup-backup') . 'ajax#08' . '|' . $errno);
-          Logger::error($errstr);
-          return;
-        }
-        if (strpos($errstr, 'rename(') !== false) {
-          Logger::error(__("Restore process was not aborted due to this error.", 'backup-backup'));
-          Logger::error(__('Error handler: ', 'backup-backup') . 'ajax#09' . '|' . $errno);
-          Logger::error($errstr);
-          $this->migration_progress->log(__("Cannot move: ", 'backup-backup') . $errstr, 'warn');
-          return;
+        $ignored_warnings = ['unlink(', 'rename('];
+        foreach ($ignored_warnings as $warning) {
+          if (strpos($errstr, $warning) !== false || strpos($errfile, $warning) !== false) {
+            Logger::error(sprintf(__("Process continuation: Ignored expected warning. Handler: ajax#0x | ErrNo: %s | Msg: %s", 'backup-backup'), $errno, $errstr));
+            return true;
+          }
         }
 
-        $this->migration_progress->log(__("There was an error during restore process:", 'backup-backup'), 'error');
+        $is_our_plugin = strpos($errfile, 'backup-backup') !== false;
+        $fatal_levels = [E_USER_ERROR, E_RECOVERABLE_ERROR]; // E_ERROR cannot be caught here
+        $is_fatal = in_array($errno, $fatal_levels);
+
+        if (!$is_fatal) {
+          if (!$is_our_plugin) {
+            return false;
+          }
+          
+          Logger::error(__('Non-fatal error encountered before request shutdown.', 'backup-backup'));
+          Logger::error(sprintf(__('Message: %s | File: %s:%s', 'backup-backup'), $errstr, $errfile, $errline));
+          return true;
+        }
+        
+        if (!$is_our_plugin) {
+          Logger::error(__("Restore process was not aborted because this error originated outside Backup Migration.", 'backup-backup'));
+          if (isset($this->migration_progress)) {
+            $this->migration_progress->log(__("Third-party error detected, attempting to continue.", 'backup-backup'), 'warn');
+            $this->migration_progress->log(__("Message: ", 'backup-backup') . $errstr, 'warn');
+          }
+          return false;
+        }
+
+        $this->migration_progress->log(__("There was a critical error during restore:", 'backup-backup'), 'error');
         $this->migration_progress->log(__("Message: ", 'backup-backup') . $errstr, 'error');
         $this->migration_progress->log(__("File/line: ", 'backup-backup') . $errfile . '|' . $errline, 'error');
+        $this->migration_progress->log(__('Unfortunately we had to stop the restore process.', 'backup-backup'), 'error');
+        $this->migration_progress->log(__("Aborting restore...", 'backup-backup'), 'step');
 
+        // Cleanup routine
         if (file_exists(BMI_BACKUPS . DIRECTORY_SEPARATOR . '.migration_lock')) @unlink(BMI_BACKUPS . DIRECTORY_SEPARATOR . '.migration_lock');
-
-        $this->migration_progress->log(__("Aborting restore process...", 'backup-backup'), 'step');
-
         if (isset($GLOBALS['bmi_current_tmp_restore']) && !empty($GLOBALS['bmi_current_tmp_restore'])) {
 
           $this->migration_progress->log(__("Cleaning up exported files...", 'backup-backup'), 'step');
@@ -2251,6 +2264,17 @@
       }, E_ALL);
     }
 
+    public function migrationExceptionHandler() {
+      set_exception_handler(function ($exception) {
+        if (BMI_DEBUG) {
+          error_log('BMI DEBUG ENABLED, HERE IS THE COMPLETE REPORT (EXCEPTION HANDLER #1):');
+          error_log(print_r($exception, true));
+        }
+
+        $this->migration_progress->log(__("Restore exception: ", 'backup-backup') . $exception->getMessage(), 'warn');
+        Logger::log(__("Restore exception: ", 'backup-backup') . $exception->getMessage());
+      });
+    }
     public function backupExceptionHandler() {
       set_exception_handler(function ($exception) {
         if (BMI_DEBUG) {
@@ -2755,14 +2779,8 @@
       $zip_progress->log(__("Backup initialized...", 'backup-backup'), 'success');
       $zip_progress->log(__("Initializing archiving system...", 'backup-backup'), 'step');
 
-        $resultCreateBackup = $this->createBackup($files, ABSPATH, $name, $zip_progress, $cron, $isCLI);
-        do_action('bmp_created_backup',$resultCreateBackup);
-        return $resultCreateBackup;
-
-      $bckpres = $this->createBackup($files, ABSPATH, $name, $zip_progress, $cron, $isCLI);
-      if (file_exists($triggerLock)) @unlink($triggerLock);
-      if ($cron == true) return ['status' => 'success'];
-      else return $bckpres;
+      $resultCreateBackup = $this->createBackup($files, ABSPATH, $name, $zip_progress, $cron, $isCLI);
+      return $resultCreateBackup;
     }
 
     public function fixLitespeed() {
@@ -2816,6 +2834,7 @@
       // Initialized
       $zip_progress->log('backup_initialized', 'verbose');
       $zip_progress->log(__("Archive system initialized...", 'backup-backup'), 'success');
+      do_action('bmip_backup_initialized');
 
       // Make ZIP
       $zipper = new Zipper();
@@ -2859,10 +2878,12 @@
         if (file_exists($backup_path)) @unlink($backup_path);
         if (file_exists(BMI_BACKUPS . '/.running')) @unlink(BMI_BACKUPS . '/.running');
         if (file_exists(BMI_BACKUPS . '/.abort')) @unlink(BMI_BACKUPS . '/.abort');
+        if (file_exists(BMI_BACKUPS . '/.cron')) @unlink(BMI_BACKUPS . '/.cron');
         if ($isCLI === true && file_exists($cli_lock)) @unlink($cli_lock);
 
         // Log and close log
         $zip_progress->log(__("Backup process aborted.", 'backup-backup'), 'warn');
+        $zip_progress->log('manually_aborted', 'verbose');
         $zip_progress->log('#003', 'END-CODE');
         $zip_progress->end();
 
@@ -2887,6 +2908,7 @@
 
         // Close backup
         if (file_exists(BMI_BACKUPS . '/.running')) @unlink(BMI_BACKUPS . '/.running');
+        if (file_exists(BMI_BACKUPS . '/.cron')) @unlink(BMI_BACKUPS . '/.cron');
         if (file_exists(BMI_BACKUPS . '/.abort')) @unlink(BMI_BACKUPS . '/.abort');
         if ($isCLI === true && file_exists($cli_lock)) @unlink($cli_lock);
 
@@ -2911,6 +2933,7 @@
 
       // Unlink progress
       if (file_exists(BMI_BACKUPS . '/.running')) @unlink(BMI_BACKUPS . '/.running');
+      if (file_exists(BMI_BACKUPS . '/.cron')) @unlink(BMI_BACKUPS . '/.cron');
       if (file_exists(BMI_BACKUPS . '/.abort')) @unlink(BMI_BACKUPS . '/.abort');
       if ($isCLI === true && file_exists($cli_lock)) @unlink($cli_lock);
 
@@ -2936,8 +2959,15 @@
       require_once BMI_INCLUDES . '/scanner/backups.php';
 
       // Get backups
-      $backups = new Backups();
+      $backups = Backups::getInstance();
       $manifests = $backups->getAvailableBackups();
+
+      // Get ongoing backups
+      $manifests['ongoing'] = get_option('bmip_to_be_uploaded', [
+        'current_upload' => [],
+        'queue' => [],
+        'failed' => []
+      ]);
 
       // Return files
       return ['status' => 'success', 'backups' => $manifests];
@@ -2987,19 +3017,6 @@
       require_once BMI_INCLUDES . '/progress/migration.php';
       require_once BMI_INCLUDES . '/check/checker.php';
 
-      // Make AutoLogin possible
-      $ip = '127.0.0.1';
-      if (isset($_SERVER['HTTP_CLIENT_IP'])) {
-        $ip = $_SERVER['HTTP_CLIENT_IP'];
-      } else {
-        if (isset($_SERVER['HTTP_X_FORWARDED_FOR'])) {
-          $ip = $_SERVER['HTTP_X_FORWARDED_FOR'];
-        }
-        if ($ip === false) {
-          if (isset($_SERVER['REMOTE_ADDR'])) $ip = $_SERVER['REMOTE_ADDR'];
-        }
-      }
-      $autoLoginMD = time() . '_' . $ip . '_' . '4u70L051n';
 
       // Progress & lock file
       $lock = BMI_BACKUPS . '/.migration_lock';
@@ -3033,8 +3050,17 @@
 
       }
 
+      // Check if password protected and if we have password
+      require_once BMI_INCLUDES . '/zipper/zipping.php';
+      $isProtected = false;
+      $backupFilePath = BMI_BACKUPS . '/' . $this->post['file'];
+      if (file_exists($backupFilePath)) {
+        $isProtected = Zipper::isZipProtected($backupFilePath);
+      }
+      $hasPassword = isset($this->post['options']['password']) && !empty($this->post['options']['password']);
+
       // Check PHP CLI
-      if ((!defined('BMI_USING_CLI_FUNCTIONALITY') || BMI_USING_CLI_FUNCTIONALITY === false) && (!defined('BMI_CLI_REQUEST') || BMI_CLI_REQUEST === false)) {
+      if ((!defined('BMI_USING_CLI_FUNCTIONALITY') || BMI_USING_CLI_FUNCTIONALITY === false) && (!defined('BMI_CLI_REQUEST') || BMI_CLI_REQUEST === false) && (!$isProtected || $hasPassword)) {
 
         $cli_result = $this->checkIfPHPCliExist($migration);
 
@@ -3050,10 +3076,11 @@
           }
           $remoteType = 'false';
           if ($this->post['remote'] == 'true' || $this->post['remote'] === true) $remoteType = 'true';
+          $cliArg2 = ($isProtected && $hasPassword) ? escapeshellarg($this->post['options']['password']) : $remoteType;
           if (file_exists($lock_cli_end)) @unlink($lock_cli_end);
 
           $res = null;
-          @exec(BMI_CLI_EXECUTABLE . ' -f "' . $cliHandler . '" bmi_restore ' . $backupName . ' ' . $remoteType . ' > /dev/null &', $res);
+          @exec(BMI_CLI_EXECUTABLE . ' -f "' . $cliHandler . '" bmi_restore ' . $backupName . ' ' . $cliArg2 . ' > /dev/null &', $res);
           $res = implode("\n", $res);
 
           sleep(3);
@@ -3061,10 +3088,9 @@
           if (file_exists($lock_cli_end) && (time() - filemtime($lock_cli_end)) < 10) {
 
             // Put autologin
-            file_put_contents($autologin_file, $autoLoginMD);
-            touch($autologin_file);
+            $autologinToken = $this->generateAutologinData();
 
-            return ['status' => 'cli', 'login' => explode('_', $autoLoginMD)[0], 'url' => site_url()];
+            return ['status' => 'cli', 'login' => $autologinToken, 'url' => site_url()];
             exit;
 
           }
@@ -3081,12 +3107,9 @@
 
             // $migration->log(__('PHP CLI responded with correct code - we will continue via PHP CLI.', 'backup-backup'), 'info');
             // $migration->end();
+            $token = $this->generateAutologinData();
 
-            // Put autologin
-            file_put_contents($autologin_file, $autoLoginMD);
-            touch($autologin_file);
-
-            return ['status' => 'cli', 'login' => explode('_', $autoLoginMD)[0], 'url' => site_url()];
+            return ['status' => 'cli', 'login' => $token, 'url' => site_url()];
             exit;
 
           }
@@ -3174,13 +3197,52 @@
         }
       }
 
+      $migration->log(__("Checking if backup is valid...", 'backup-backup'), 'STEP');
+      $zippath = BMP::fixSlashes(BMI_BACKUPS) . DIRECTORY_SEPARATOR . $this->post['file'];
+      $manifest = $zipper->getZipFileContent($zippath, 'bmi_backup_manifest.json');
+      if ($manifest) {
+        $isMultisite = false;
+        $tablePrefix = $manifest->config->table_prefix;
+        $multisiteTables = ['blogs', 'blogmeta', 'site', 'sitemeta', 'registration_log', 'signups', 'sitecategories', 'sitecategorymeta'];
+        foreach ($multisiteTables as $msTable) {
+          $fileExists = $zipper->isFileExists($zippath, 'db_tables/' . $tablePrefix . $msTable . '.sql');
+          if ($fileExists) {
+            $isMultisite = true;
+            break;
+          }
+        }
+
+        $notCompatible = false;
+        if (!$isMultisite && is_multisite()) {
+          $notCompatible = true;
+          $migration->log(__("Error: Backup is not multisite but current site is multisite.", 'backup-backup'), 'error');
+          $migration->log('single_site_backup_on_multisite', 'verbose');
+        } else if ($isMultisite && !is_multisite()) {
+          $notCompatible = true;
+          $migration->log(__("Error: Backup is multisite but current site is not multisite.", 'backup-backup'), 'error');
+          $migration->log('multisite_backup_on_single_site', 'verbose');
+        } 
+        if ($notCompatible) {
+          $migration->log(__("Aborting...", 'backup-backup'), 'error');
+          $migration->log(__("Unlocking migration", 'backup-backup'), 'INFO');
+
+          if (file_exists($lock)) @unlink($lock);
+          $migration->log('#005', 'END-CODE');
+          $migration->end();
+
+          if ($isCLIRunning == true) touch($lock_cli_end);
+          $this->actionsAfterProcess(false, 'migration');
+
+          return ['status' => 'error'];
+        }
+
+
+      }
+
       $migration->log(__("Restore process initialized successfully.", 'backup-backup'), 'success');
 
-      // Check file size
-      $zippath = BMP::fixSlashes(BMI_BACKUPS) . DIRECTORY_SEPARATOR . $this->post['file'];
       if (!$ignoreRunCheck) {
 
-        $manifest = $zipper->getZipFileContent($zippath, 'bmi_backup_manifest.json');
         $migration->log(__('Free space checking...', 'backup-backup'), 'STEP');
         $migration->log(__('Checking if there is enough amount of free space', 'backup-backup'), 'INFO');
 
@@ -3281,11 +3343,27 @@
       if ($isCLIRunning == true) touch($lock_cli_end);
 
       // Put autologin
-      file_put_contents($autologin_file, $autoLoginMD);
-      touch($autologin_file);
+      $token = $this->generateAutologinData();
 
       $this->actionsAfterProcess(true, 'migration');
-      return ['status' => 'success', 'login' => explode('_', $autoLoginMD)[0], 'url' => site_url()];
+      return ['status' => 'success', 'login' => $token, 'url' => site_url()];
+    }
+
+    /**
+     * Generates autologin data file with the following format: "{hashedToken}_{ip}_{time}"
+     * @return string Returns token
+     */
+    private function generateAutologinData() {
+      $time = time();
+      $token = wp_generate_password(32, false);
+      $ip = '127.0.0.1';
+      if (isset($_SERVER['REMOTE_ADDR'])) $ip = $_SERVER['REMOTE_ADDR'];
+
+      $hashedToken = wp_hash($token, 'bmi_autologin');
+      $md = "{$hashedToken}_{$ip}_{$time}";
+      file_put_contents(BMI_BACKUPS . '/.autologin', $md);
+      touch(BMI_BACKUPS . '/.autologin');
+      return $token;
     }
 
     public function isRunningBackup() {
@@ -3615,74 +3693,29 @@
     }
 
     public function removeBackupFile() {
-      $files = $this->post['filenames'];
+      $backups = $this->post['backups']; // ['filename' => ['hash' => 'hash', 'isCloud' => true/false]]
       $deleteCloud = $this->post['deleteCloud'] === 'yes' ? true : false;
-      $cloudDetails = $this->post['cloudDetails'];
 
-      $md5_file_summary_path = BMI_BACKUPS . DIRECTORY_SEPARATOR. 'md5summary.php';
-      $md5summary = [];
+      $startTime = time();
 
-      if (file_exists($md5_file_summary_path)) {
-        $md5summary = file_get_contents($md5_file_summary_path);
-        $md5summary = substr($md5summary, 18, -2);
-        if (is_serialized($md5summary)) {
-          $md5summary = maybe_unserialize($md5summary);
-        }
-      }
+      require_once BMI_INCLUDES . '/scanner/backups.php';
 
-      if ($deleteCloud) {
-        //Initialize externall storages for backup deletion action to be initiated
-        require_once BMI_INCLUDES . '/external/controller.php';
-        new ExternalStorage();
+      $backupsScanner = Backups::getInstance();
 
-        if (defined('BMI_BACKUP_PRO') && defined('BMI_PRO_INC')) {
-          $proPath = BMI_PRO_INC . 'external/controller.php';
-          if (file_exists($proPath)) {
-            require_once $proPath;
-            new ExternalStoragePremium();
-          }
-        }
-      }
 
       try {
-        if (is_array($files)) {
-          for ($i = 0; $i < sizeof($files); $i++) {
+        if (is_array($backups)) {
+          foreach( $backups as $fileName => $data ) {
+            $backupsScanner->deleteBackup($fileName, $data, $deleteCloud);
 
-            $removeByMD5 = false;
-            $file = $files[$i];
-            $file = preg_replace('/\.\./', '', $file);
+            unset($backups[$fileName]);
+            
+            $elapsedTime = time() - $startTime;
+            $originalCount = is_array($this->post['backups']) ? count($this->post['backups']) : 0;
+            $processedCount = $originalCount - count($backups);
 
-            if (file_exists(BMI_BACKUPS . '/' . $file)) {
-
-              if ($deleteCloud) {
-                do_action('bmi_premium_remove_backup_file', md5_file(BMI_BACKUPS . '/' . $file));
-              }
-
-              unlink(BMI_BACKUPS . '/' . $file);
-
-            } else if ($deleteCloud) $removeByMD5 = true;
-
-            if (isset($md5summary[$file])) {
-              $md5s = $md5summary[$file];
-
-              for ($j = 0; $j < sizeof($md5s); ++$j) {
-                $md5_file_path = BMI_BACKUPS . DIRECTORY_SEPARATOR . $md5s[$j] . '.json';
-                if (file_exists($md5_file_path)) {
-                  if ($deleteCloud) {
-                    do_action('bmi_premium_remove_backup_json_file', $md5s[$j] . '.json');
-                  }
-                  unlink($md5_file_path);
-                } else if ($deleteCloud) $removeByMD5 = true;
-              }
-
-              unset($md5summary[$file]);
-            }
-
-            if ($deleteCloud && $removeByMD5) {
-              if (isset($cloudDetails[$file])) {
-                do_action('bmi_premium_remove_backup_file', $cloudDetails[$file]['md5']);
-                do_action('bmi_premium_remove_backup_json_file', $cloudDetails[$file]['md5'] . '.json');
-              }
+            if (count($backups) > 0 && ($elapsedTime >= 3 || $processedCount >= 5)) {
+              return ['status' => 'continue', 'remaining' => $backups];
             }
 
           }
@@ -3692,9 +3725,6 @@
       } catch (\Throwable $e) {
         return ['status' => 'error', 'e' => $e];
       }
-
-      $cacheMd5String = "<?php exit; \$x = '" . serialize($md5summary) . "';";
-      file_put_contents($md5_file_summary_path, $cacheMd5String);
 
       return ['status' => 'success'];
     }
@@ -4232,8 +4262,15 @@
 
       $direct_cloud_streaming = isset($this->post['direct_cloud_streaming']) && $this->post['direct_cloud_streaming'] === 'true' ? true : false;
       $direct_cloud_provider = isset($this->post['direct_cloud_provider']) ? $this->post['direct_cloud_provider'] : '';
+      $encryptionEnabled = isset($this->post['encryption']) && $this->post['encryption'] === 'true' ? true : false;
+      $encryptionPassword = isset($this->post['encryption_password']) ? sanitize_text_field($this->post['encryption_password']) : '';
 
       $response = apply_filters('bmi_premium_store_streaming_configuration', $response, $direct_cloud_streaming, $direct_cloud_provider);
+      if ($response['status'] === 'msg') {
+        return $response;
+      }
+
+      $response = apply_filters('bmi_premium_store_encryption_configuration', $response, $encryptionEnabled, $encryptionPassword);
       if ($response['status'] === 'msg') {
         return $response;
       }
@@ -4463,8 +4500,8 @@
       if ($is && $dynamesis) {
         for ($i = 0; $i < sizeof($dynames); ++$i) {
           $s = $dynames[$i];
-          if ($s->whr == '2') {
-            $dynparsed[] = ['s' => $s->txt, 'w' => $s->pos, 'z' => strlen($s->txt)];
+          if ($s['whr'] == '2') {
+            $dynparsed[] = ['s' => $s['txt'], 'w' => $s['pos'], 'z' => strlen($s['txt'])];
           }
         }
       }
@@ -4716,8 +4753,8 @@
       if ($is && $abis) {
         for ($i = 0; $i < sizeof($ab); ++$i) {
           $s = $ab[$i];
-          if ($s->whr == '1') {
-            $abres[] = ['s' => $s->txt, 'w' => $s->pos, 'z' => strlen($s->txt)];
+          if ($s['whr'] == '1') {
+            $abres[] = ['s' => $s['txt'], 'w' => $s['pos'], 'z' => strlen($s['txt'])];
           }
         }
       }
@@ -4933,18 +4970,12 @@
 
     public function resetConfiguration() {
 
-      if (file_exists(BMI_CONFIG_PATH)) {
-        @unlink(BMI_CONFIG_PATH);
+      global $wpdb;
+      $free_options = $wpdb->get_results( "SELECT option_name FROM $wpdb->options WHERE option_name LIKE '%bmi_%' OR option_name LIKE '%bmip_%' OR option_name LIKE '%bmi_pro_%'" );
+      foreach( $free_options as $option ) {
+        delete_option( $option->option_name );
       }
-
-      delete_option('bmi_hotfixes');
-      delete_option('bmip_to_be_uploaded');
-      delete_option('bmi_pro_gd_client_id');
-      delete_option('bmi_pro_gd_token');
-      delete_option('bmi_pro_cron_domain_done');
       delete_option('BMI::STORAGE::LOCAL::PATH');
-
-      // update_option('BMI_LOGS_SHARING_IS_ALLOWED', 'unknown');
 
       return ['status' => 'success'];
 
@@ -5014,6 +5045,7 @@
           $errors++;
         }
       }
+      do_action('bmip_cron_settings_updated', $this->post);
 
       if ($this->post['enabled'] === 'true') {
         $this->post['enabled'] = true;
@@ -5141,7 +5173,7 @@
     }
 
     // recursive removal
-    private function rrmdir($dir) {
+    private static function rrmdir($dir) {
 
       if (is_dir($dir)) {
 
@@ -5152,7 +5184,7 @@
 
             if (is_dir($dir . DIRECTORY_SEPARATOR . $object) && !is_link($dir . DIRECTORY_SEPARATOR . $object)) {
 
-              $this->rrmdir($dir . DIRECTORY_SEPARATOR . $object);
+              self::rrmdir($dir . DIRECTORY_SEPARATOR . $object);
 
             } else {
 
@@ -5178,7 +5210,7 @@
 
     }
 
-    public function forceBackupToStop() {
+    public static function forceBackupToStop() {
 
       $filesToBeRemoved = [];
 
@@ -5231,23 +5263,28 @@
       $filesToBeRemoved[] = BMI_BACKUPS . DIRECTORY_SEPARATOR . '.backup_cli_lock_ended';
       $filesToBeRemoved[] = BMI_BACKUPS . DIRECTORY_SEPARATOR . '.backup_cli_lock_end';
       $filesToBeRemoved[] = BMI_BACKUPS . DIRECTORY_SEPARATOR . '.last_triggered';
+      $filesToBeRemoved[] = BMI_BACKUPS . DIRECTORY_SEPARATOR . '.abort';
       $filesToBeRemoved[] = BMI_BACKUPS . DIRECTORY_SEPARATOR . '.running';
+      $filesToBeRemoved[] = BMI_BACKUPS . DIRECTORY_SEPARATOR . '.cron';
       $filesToBeRemoved[] = BMI_BACKUPS . DIRECTORY_SEPARATOR . '.space_check';
       $filesToBeRemoved[] = BMI_TMP . DIRECTORY_SEPARATOR . 'db_tables';
       $filesToBeRemoved[] = BMI_TMP . DIRECTORY_SEPARATOR . 'bmi_backup_manifest.json';
+      $filesToBeRemoved[] = BMI_TMP . DIRECTORY_SEPARATOR . '.backup_name';
       $filesToBeRemoved[] = BMI_TMP . DIRECTORY_SEPARATOR . 'files_latest.list';
       $filesToBeRemoved[] = BMI_TMP . DIRECTORY_SEPARATOR . 'currentBackupConfig.php';
 
-      $currentlyRunningBackupName = file_get_contents(BMI_BACKUPS . DIRECTORY_SEPARATOR . '.running');
-      if ($currentlyRunningBackupName) {
-          foreach (glob(BMI_BACKUPS . DIRECTORY_SEPARATOR . $currentlyRunningBackupName . '*') as $filename) {
-            $filesToBeRemoved[] = $filename;
-          }
+      if (file_exists(BMI_BACKUPS . DIRECTORY_SEPARATOR . '.running')) {
+        $currentlyRunningBackupName = file_get_contents(BMI_BACKUPS . DIRECTORY_SEPARATOR . '.running');
+        if ($currentlyRunningBackupName) {
+            foreach (glob(BMI_BACKUPS . DIRECTORY_SEPARATOR . $currentlyRunningBackupName . '*') as $filename) {
+              $filesToBeRemoved[] = $filename;
+            }
+        }
       }
 
       if (is_array($filesToBeRemoved) || is_object($filesToBeRemoved)) {
         foreach ((array) $filesToBeRemoved as $file) {
-          $this->rrmdir($file);
+          self::rrmdir($file);
         }
       }
 
@@ -5255,12 +5292,76 @@
 
     }
 
-    public function forceRestoreToStop() {
+    public static function forceRestoreToStop() {
 
       $filesToBeRemoved = [];
 
       $themedir = get_theme_root();
       $tempTheme = $themedir . DIRECTORY_SEPARATOR . 'backup_migration_restoration_in_progress';
+      $currentTemplate = get_option('template');
+      $currentStylesheet = get_option('stylesheet');
+
+      $templateExists = !empty($currentTemplate) && file_exists($themedir . DIRECTORY_SEPARATOR . $currentTemplate) && is_dir($themedir . DIRECTORY_SEPARATOR . $currentTemplate);
+      $stylesheetExists = !empty($currentStylesheet) && file_exists($themedir . DIRECTORY_SEPARATOR . $currentStylesheet) && is_dir($themedir . DIRECTORY_SEPARATOR . $currentStylesheet);
+
+      // If either the template or stylesheet is still the temporary restoration theme, or if either does not exist on disk,
+      // both template and stylesheet must be reverted together to maintain parent/child theme compatibility.
+      $shouldRevertThemeAndPlugins = ($currentTemplate === 'backup_migration_restoration_in_progress' ||
+                                      $currentStylesheet === 'backup_migration_restoration_in_progress' ||
+                                      !$templateExists ||
+                                      !$stylesheetExists);
+
+      if ($shouldRevertThemeAndPlugins) {
+        $prevTemplate = '';
+        $prevStylesheet = '';
+
+        if (file_exists($tempTheme . DIRECTORY_SEPARATOR . '.previous_theme')) {
+          $prevTemplate = trim(file_get_contents($tempTheme . DIRECTORY_SEPARATOR . '.previous_theme'));
+        }
+        if (file_exists($tempTheme . DIRECTORY_SEPARATOR . '.previous_stylesheet')) {
+          $prevStylesheet = trim(file_get_contents($tempTheme . DIRECTORY_SEPARATOR . '.previous_stylesheet'));
+        }
+
+        $prevTemplateExists = !empty($prevTemplate) && file_exists($themedir . DIRECTORY_SEPARATOR . $prevTemplate) && is_dir($themedir . DIRECTORY_SEPARATOR . $prevTemplate);
+        $prevStylesheetExists = !empty($prevStylesheet) && file_exists($themedir . DIRECTORY_SEPARATOR . $prevStylesheet) && is_dir($themedir . DIRECTORY_SEPARATOR . $prevStylesheet);
+
+        if ($prevTemplateExists && $prevStylesheetExists) {
+          update_option('template', $prevTemplate);
+          update_option('stylesheet', $prevStylesheet);
+        } elseif ($prevTemplateExists) {
+          update_option('template', $prevTemplate);
+          update_option('stylesheet', $prevTemplate);
+        } elseif (!($templateExists && $stylesheetExists && $currentTemplate !== 'backup_migration_restoration_in_progress' && $currentStylesheet !== 'backup_migration_restoration_in_progress')) {
+          if (function_exists('wp_get_themes')) {
+            $allThemes = wp_get_themes();
+            if (is_array($allThemes) && !empty($allThemes)) {
+              reset($allThemes);
+              $firstThemeSlug = key($allThemes);
+              if (!empty($firstThemeSlug) && file_exists($themedir . DIRECTORY_SEPARATOR . $firstThemeSlug) && is_dir($themedir . DIRECTORY_SEPARATOR . $firstThemeSlug)) {
+                update_option('template', $firstThemeSlug);
+                update_option('stylesheet', $firstThemeSlug);
+              }
+            }
+          }
+        }
+
+        if (file_exists($tempTheme . DIRECTORY_SEPARATOR . '.earlier_active_plugins')) {
+          $earlierPlugins = unserialize(file_get_contents($tempTheme . DIRECTORY_SEPARATOR . '.earlier_active_plugins'));
+          if (is_array($earlierPlugins)) {
+            $validPlugins = [];
+            foreach ($earlierPlugins as $plugin) {
+              if (is_string($plugin) && !empty($plugin) && file_exists(WP_PLUGIN_DIR . DIRECTORY_SEPARATOR . $plugin)) {
+                $validPlugins[] = $plugin;
+              }
+            }
+            if (!in_array('backup-backup/backup-backup.php', $validPlugins) && file_exists(WP_PLUGIN_DIR . DIRECTORY_SEPARATOR . 'backup-backup/backup-backup.php')) {
+              $validPlugins[] = 'backup-backup/backup-backup.php';
+            }
+            update_option('active_plugins', array_values(array_unique($validPlugins)));
+          }
+        }
+      }
+
       $filesToBeRemoved[] = $tempTheme;
 
       $tmpDirectory = BMI_ROOT_DIR . DIRECTORY_SEPARATOR . 'tmp';
@@ -5330,7 +5431,7 @@
 
       if (is_array($filesToBeRemoved) || is_object($filesToBeRemoved)) {
         foreach ((array) $filesToBeRemoved as $file) {
-          $this->rrmdir($file);
+          self::rrmdir($file);
         }
       }
 
@@ -5391,9 +5492,9 @@
         $latestStagingProgress = file_get_contents(BMI_STAGING . '/latest_staging_progress.' . BMI_LOGS_SUFFIX . '.log');
       }
 
-      if (file_exists(BMI_CONFIG_PATH)) {
-        $currentPluginConfig = substr(file_get_contents(BMI_CONFIG_PATH), 8);
-      }
+      $currentPluginConfig = Dashboard\BMI_Config_V2::get_instance()->get_all();
+      unset($currentPluginConfig['OTHER:EMAIL']);
+      $currentPluginConfig = json_encode($currentPluginConfig);
 
       $completeLogsPath = BMI_CONFIG_DIR . DIRECTORY_SEPARATOR . 'complete_logs.' . BMI_LOGS_SUFFIX . '.log';
       if (file_exists($completeLogsPath)) {
@@ -5444,10 +5545,6 @@
       $latestBackupLogs = preg_replace('/\:\ ((.*)\.zip)/', ': *****.zip', $latestBackupLogs);
       $latestRestorationLogs = preg_replace('/bmi\-id\=(.*)\.zip/', 'bmi-id=[***redacted***].zip', $latestRestorationLogs);
       $latestStagingLogs = preg_replace('/\:\ ((.*)\.zip)/', ': *****.zip', $latestStagingLogs);
-
-      $currentPluginConfig = json_decode($currentPluginConfig);
-      unset($currentPluginConfig->{"OTHER:EMAIL"});
-      $currentPluginConfig = json_encode($currentPluginConfig);
 
       $url = 'https://' . BMI_API_BACKUPBLISS_PUSH . '/v1' . '/push';
       $data = array(
@@ -5546,6 +5643,10 @@
 
         file_put_contents($afterMigrationLock, '');
         Logger::log("Process (" . $triggeredBy . ") finished successfully via ajax.php");
+
+        if ($triggeredBy === 'backup' && !wp_next_scheduled('bmip_keepalive_cron')) {
+          wp_schedule_single_event(time() + 15, 'bmip_keepalive_cron');
+        }
 
       } else {
 
@@ -5820,6 +5921,7 @@
      * Handles secure backup via browser method
      */
     public function backupBrowserMethodHandler() {
+      $this->backupErrorHandler();
 
        try {
 
@@ -5999,7 +6101,7 @@
     public function debugging() {
 
       require_once BMI_INCLUDES . DIRECTORY_SEPARATOR . 'scanner' . DIRECTORY_SEPARATOR . 'backups.php';
-      $backups = new Backups();
+      $backups = Backups::getInstance();
       $availableBackups = $backups->getAvailableBackups();
       $list = $availableBackups['local'];
 
@@ -6125,6 +6227,7 @@
     if (file_exists($spaceCheckFile)){
       @unlink($spaceCheckFile);
     }
+    if (file_exists(BMI_BACKUPS . '/.cron')) @unlink(BMI_BACKUPS . '/.cron');
   }
 
   function manuallyEnqueueUpload(){

@@ -7,7 +7,7 @@
    *  Author URI: https://inisev.com
    *  Plugin URI: https://backupbliss.com
    * Text Domain: backup-backup
-   *     Version: 2.1.6
+   *     Version: 2.1.7
    * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
   // Exit on direct access
@@ -21,7 +21,7 @@
     define('BMI_DEBUG', false);
   }
   if (!defined('BMI_VERSION')) {
-    define('BMI_VERSION', '2.1.6');
+    define('BMI_VERSION', '2.1.7');
   }
   if (!defined('BMI_ROOT_DIR')) {
     define('BMI_ROOT_DIR', __DIR__);
@@ -47,6 +47,11 @@
 
   // Opt-in sub plugin
   require_once BMI_INCLUDES . DIRECTORY_SEPARATOR . 'analyst.php';
+
+  // WP-CLI Integration
+  if (defined('WP_CLI') && WP_CLI) {
+    require_once BMI_INCLUDES . DIRECTORY_SEPARATOR . 'cli' . DIRECTORY_SEPARATOR . 'wp-cli.php';
+  }
 
   // Load plugin after all
   add_action('init', function () {

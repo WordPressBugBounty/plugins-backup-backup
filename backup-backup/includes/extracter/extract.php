@@ -101,6 +101,10 @@
       if (isset($options['firstExtract'])) {
         $this->firstExtract = (($options['firstExtract'] == 'false' || $options['firstExtract'] === '1' || $options['firstExtract'] === 1 || $options['firstExtract'] === false) ? false : true);
       }
+      $this->password = null;
+      if (isset($options['password'])) {
+        $this->password = $options['password'];
+      }
 
       $this->db_xi = 0;
       $this->ini_start = 0;
@@ -221,6 +225,7 @@
         'debug.log',
         '.user.ini',
         'php.ini',
+        '.bmi_staging',
         '.htaccess'
       ];
       
@@ -550,41 +555,7 @@
     }
 
     public function removePreviousSelectionsIfDatabaseIncluded() {
-      if (!isset($manifest)) {
-        $manifest = $this->getCurrentManifest();
-      }
-      $restorePartsFile= BMI_TMP . DIRECTORY_SEPARATOR . 'restore_parts.json';
-      $prefix = $manifest->config->table_prefix;
-      if (file_exists($restorePartsFile)) {
-        $restoreParts = json_decode(file_get_contents($restorePartsFile));
-        if (isset($restoreParts->backupName) && $restoreParts->backupName == basename($this->src)) {
-          if (!isset($restoreParts->dirs['db_tables']) &&  !isset($restoreParts->files[$prefix . 'options.sql'])) {
-            return;
-          }
-        }
-      } else {
-        $manager = new ZipManager();
-        $optionsTable = $manager->getZipFileContent($this->src, 'db_tables' . DIRECTORY_SEPARATOR . $prefix . 'options.sql');
-        if ($optionsTable === false) {
-          return;
-        }
-      }
-
-      $themedir = get_theme_root();
-      $tempTheme = $themedir . DIRECTORY_SEPARATOR . 'backup_migration_restoration_in_progress';
-
-      if (file_exists($tempTheme . DIRECTORY_SEPARATOR . '.previous_theme')) {
-        @unlink($tempTheme . DIRECTORY_SEPARATOR . '.previous_theme');
-      }
-
-      if (file_exists($tempTheme . DIRECTORY_SEPARATOR . '.previous_stylesheet')) {
-        @unlink($tempTheme . DIRECTORY_SEPARATOR . '.previous_stylesheet');
-      }
-
-      if (file_exists($tempTheme . DIRECTORY_SEPARATOR . '.earlier_active_plugins')) {
-        @unlink($tempTheme . DIRECTORY_SEPARATOR . '.earlier_active_plugins');
-      }
-
+      // DO NOTHING
     }
 
     public function replaceAll($content) {
@@ -632,21 +603,83 @@
 
       delete_option('bmi_pro_cron_new_domain_done');
 
+      $options = [
+        'stylesheet',
+        'stylesheet_root',
+        'template',
+        'template_root'
+      ];
+      foreach ($options as $option) {
+        add_filter('pre_option_' . $option, [$this, 'filterUncachedOption'], 10, 2);
+      }
+
       $filesToBeRemoved = [];
       $dir = $this->tmp;
 
       $themedir = get_theme_root();
       $tempTheme = $themedir . DIRECTORY_SEPARATOR . 'backup_migration_restoration_in_progress';
 
-      if (get_option('template') == 'backup_migration_restoration_in_progress' || get_option('stylesheet') == 'backup_migration_restoration_in_progress') {
+      $currentTemplate = get_option('template');
+      $currentStylesheet = get_option('stylesheet');
+
+      $templateExists = !empty($currentTemplate) && file_exists($themedir . DIRECTORY_SEPARATOR . $currentTemplate) && is_dir($themedir . DIRECTORY_SEPARATOR . $currentTemplate);
+      $stylesheetExists = !empty($currentStylesheet) && file_exists($themedir . DIRECTORY_SEPARATOR . $currentStylesheet) && is_dir($themedir . DIRECTORY_SEPARATOR . $currentStylesheet);
+
+      // If either the template or stylesheet is still the temporary restoration theme, or if either does not exist on disk,
+      // both template and stylesheet must be reverted together to maintain parent/child theme compatibility.
+      $shouldRevertThemeAndPlugins = ($currentTemplate === 'backup_migration_restoration_in_progress' ||
+                                      $currentStylesheet === 'backup_migration_restoration_in_progress' ||
+                                      !$templateExists ||
+                                      !$stylesheetExists);
+
+      if ($shouldRevertThemeAndPlugins) {
+        $prevTemplate = '';
+        $prevStylesheet = '';
+
         if (file_exists($tempTheme . DIRECTORY_SEPARATOR . '.previous_theme')) {
-          update_option('template', file_get_contents($tempTheme . DIRECTORY_SEPARATOR . '.previous_theme'));
+          $prevTemplate = trim(file_get_contents($tempTheme . DIRECTORY_SEPARATOR . '.previous_theme'));
         }
         if (file_exists($tempTheme . DIRECTORY_SEPARATOR . '.previous_stylesheet')) {
-          update_option('stylesheet', file_get_contents($tempTheme . DIRECTORY_SEPARATOR . '.previous_stylesheet'));
+          $prevStylesheet = trim(file_get_contents($tempTheme . DIRECTORY_SEPARATOR . '.previous_stylesheet'));
         }
+
+        $prevTemplateExists = !empty($prevTemplate) && file_exists($themedir . DIRECTORY_SEPARATOR . $prevTemplate) && is_dir($themedir . DIRECTORY_SEPARATOR . $prevTemplate);
+        $prevStylesheetExists = !empty($prevStylesheet) && file_exists($themedir . DIRECTORY_SEPARATOR . $prevStylesheet) && is_dir($themedir . DIRECTORY_SEPARATOR . $prevStylesheet);
+
+        if ($prevTemplateExists && $prevStylesheetExists) {
+          update_option('template', $prevTemplate);
+          update_option('stylesheet', $prevStylesheet);
+        } elseif ($prevTemplateExists) {
+          update_option('template', $prevTemplate);
+          update_option('stylesheet', $prevTemplate);
+        } elseif (!($templateExists && $stylesheetExists && $currentTemplate !== 'backup_migration_restoration_in_progress' && $currentStylesheet !== 'backup_migration_restoration_in_progress')) {
+          if (function_exists('wp_get_themes')) {
+            $allThemes = wp_get_themes();
+            if (is_array($allThemes) && !empty($allThemes)) {
+              reset($allThemes);
+              $firstThemeSlug = key($allThemes);
+              if (!empty($firstThemeSlug) && file_exists($themedir . DIRECTORY_SEPARATOR . $firstThemeSlug) && is_dir($themedir . DIRECTORY_SEPARATOR . $firstThemeSlug)) {
+                update_option('template', $firstThemeSlug);
+                update_option('stylesheet', $firstThemeSlug);
+              }
+            }
+          }
+        }
+
         if (file_exists($tempTheme . DIRECTORY_SEPARATOR . '.earlier_active_plugins')) {
-          update_option('active_plugins', unserialize(file_get_contents($tempTheme . DIRECTORY_SEPARATOR . '.earlier_active_plugins')));
+          $earlierPlugins = unserialize(file_get_contents($tempTheme . DIRECTORY_SEPARATOR . '.earlier_active_plugins'));
+          if (is_array($earlierPlugins)) {
+            $validPlugins = [];
+            foreach ($earlierPlugins as $plugin) {
+              if (is_string($plugin) && !empty($plugin) && file_exists(WP_PLUGIN_DIR . DIRECTORY_SEPARATOR . $plugin)) {
+                $validPlugins[] = $plugin;
+              }
+            }
+            if (!in_array('backup-backup/backup-backup.php', $validPlugins) && file_exists(WP_PLUGIN_DIR . DIRECTORY_SEPARATOR . 'backup-backup/backup-backup.php')) {
+              $validPlugins[] = 'backup-backup/backup-backup.php';
+            }
+            update_option('active_plugins', array_values(array_unique($validPlugins)));
+          }
         }
       }
 
@@ -734,6 +767,10 @@
         foreach ((array) $filesToBeRemoved as $file) {
           $this->rrmdir($file);
         }
+      }
+
+      foreach ($options as $option) {
+        remove_filter('pre_option_' . $option, [$this, 'filterUncachedOption'], 10);
       }
 
     }
@@ -890,7 +927,7 @@
 
       if ($this->isCLI) {
 
-        $isOk = $this->zip->unzip_file($src, $this->tmp, $this->migration);
+        $isOk = $this->zip->unzip_file($src, $this->tmp, $this->migration, $this->password);
 
       } else {
 
@@ -949,7 +986,7 @@
 
         }
 
-        $isOk = $this->zip->extract_files($src, $files, $this->tmp, $this->migration, $this->firstExtract);
+        $isOk = $this->zip->extract_files($src, $files, $this->tmp, $this->migration, $this->firstExtract, $this->password);
 
       }
 
@@ -1358,7 +1395,7 @@
           $themes = array_values(array_diff(scandir($themes_path), ['..', '.', 'backup-backup', 'backup-backup-pro']));
         }
 
-        $destination = BMI_BACKUPS_DEFAULT . DIRECTORY_SEPARATOR . 'clean-ups';
+        $destination = BMI_TMP . DIRECTORY_SEPARATOR . 'clean-ups';
         $destination_unique = $destination . DIRECTORY_SEPARATOR . 'restoration_' . intval($this->start);
 
         $destination_plugins = $destination_unique . DIRECTORY_SEPARATOR . 'plugins';
@@ -1398,7 +1435,7 @@
         $plugins_path = BMP::fixSlashes(WP_PLUGIN_DIR);
         $themes_path = BMP::fixSlashes(dirname(get_template_directory()));
 
-        $destination = BMI_BACKUPS_DEFAULT . DIRECTORY_SEPARATOR . 'clean-ups';
+        $destination = BMI_TMP . DIRECTORY_SEPARATOR . 'clean-ups';
         $destination_unique = $destination . DIRECTORY_SEPARATOR . 'restoration_' . intval($this->start);
 
         $destination_plugins = $destination_unique . DIRECTORY_SEPARATOR . 'plugins';
@@ -1447,7 +1484,7 @@
 
           $this->migration->log(__('Removing old plugins and themes moved before restoration.', 'backup-backup'), 'INFO');
 
-          $destination = BMI_BACKUPS_DEFAULT . DIRECTORY_SEPARATOR . 'clean-ups';
+          $destination = BMI_TMP . DIRECTORY_SEPARATOR . 'clean-ups';
           $destination_unique = $destination . DIRECTORY_SEPARATOR . 'restoration_' . intval($this->start);
           $this->rrmdir($destination_unique);
 
@@ -1608,14 +1645,45 @@
 
     }
 
-    public function clearElementorCache() {
+    public function clearElementorCache( $force_manual = false ) {
+      $cache_cleared_natively = false;
 
-      $file = trailingslashit(wp_upload_dir()['basedir']) . 'elementor';
-      if (file_exists($file) && is_dir($file)) {
-        $this->migration->log(__('Clearing elementor template cache...', 'backup-backup'), 'STEP');
-        $path = $file . DIRECTORY_SEPARATOR . '*';
-        foreach (glob($path) as $file_path) if (!is_dir($file_path)) @unlink($file_path);
-        $this->migration->log(__('Elementor cache cleared!', 'backup-backup'), 'SUCCESS');
+      if ( !$force_manual && class_exists( '\Elementor\Plugin' ) ) {
+        $elementor = \Elementor\Plugin::$instance;
+        
+        if ( isset( $elementor->files_manager ) && method_exists( $elementor->files_manager, 'clear_cache' ) ) {
+          try {
+            $elementor->files_manager->clear_cache();
+            $cache_cleared_natively = true;
+          } catch ( \Exception $e ) {
+            error_log( 'Elementor native cache clear failed: ' . $e->getMessage() );
+          }
+        }
+      }
+
+      if ( !$cache_cleared_natively || $force_manual ) {
+        
+        $upload_dir = wp_get_upload_dir();
+        if ( empty( $upload_dir['error'] ) ) {
+          $elementor_css_dir = trailingslashit( $upload_dir['basedir'] ) . 'elementor/css';
+
+          if ( is_dir( $elementor_css_dir ) ) {
+            $files = new \RecursiveIteratorIterator(
+              new \RecursiveDirectoryIterator( $elementor_css_dir, \RecursiveDirectoryIterator::SKIP_DOTS ),
+              \RecursiveIteratorIterator::CHILD_FIRST
+            );
+
+            foreach ( $files as $fileinfo ) {
+              $action = ( $fileinfo->isDir() ? 'rmdir' : 'unlink' );
+              @$action( $fileinfo->getRealPath() );
+            }
+          }
+        }
+
+        delete_post_meta_by_key( '_elementor_css' );
+        delete_option( '_elementor_global_css' );
+        delete_option( 'elementor-custom-breakpoints-files' );
+        $this->migration->log(__( 'Elementor CSS files deleted from: ', 'backup-backup' ) . $elementor_css_dir, 'INFO');
       }
 
     }
@@ -1730,6 +1798,56 @@
 
     }
 
+    /**
+     * Immediately flushes and rebuilds rewrite rules and physical server configuration files (.htaccess / web.config).
+     * Bypasses local runtime option caching to ensure rules are generated from the newly restored database tables.
+     *
+     * @return void
+     */
+    public function flushImmediateRewriteRules() {
+        $options = [
+            'permalink_structure',
+            'rewrite_rules',
+            'page_on_front'
+        ];
+
+        // Intercept pre_option filters to bypass runtime memory cache and query the database directly
+        foreach ($options as $option) {
+            add_filter('pre_option_' . $option, [$this, 'filterUncachedOption'], 10, 2);
+        }
+
+        global $wp_rewrite;
+        $wp_rewrite->init();
+
+        if (function_exists('save_mod_rewrite_rules')) {
+            save_mod_rewrite_rules();
+        }
+        if (function_exists('iis7_save_url_rewrite_rules')) {
+            iis7_save_url_rewrite_rules();
+        }
+
+        foreach ($options as $option) {
+            remove_filter('pre_option_' . $option, [$this, 'filterUncachedOption'], 10);
+        }
+    }
+
+    /**
+     * Filter callback to fetch an option directly from the database table, bypassing wp_cache.
+     *
+     * @param mixed  $pre_value   The pre-filtered return value (default false).
+     * @param string $option_name Name of the option being retrieved.
+     * @return mixed Option value from database, or false if not found.
+     */
+    public function filterUncachedOption($pre_value, $option_name) {
+        global $wpdb;
+        $row = $wpdb->get_row(
+            $wpdb->prepare("SELECT option_value FROM {$wpdb->options} WHERE option_name = %s LIMIT 1", $option_name)
+        );
+
+        return is_object($row) ? $row->option_value : false;
+    }
+
+
     public function extractTo($secret = null) {
 
       try {
@@ -1738,10 +1856,35 @@
         require_once BMI_INCLUDES . DIRECTORY_SEPARATOR . 'zipper' . DIRECTORY_SEPARATOR . 'src' . DIRECTORY_SEPARATOR . 'zip.php';
 
         // Make restore secret
+        if ($this->batchStep == 0 && $this->isCLI) {
+          $isProtected = ZipManager::isZipProtected($this->src);
+          if ($isProtected) {
+            if (defined('BMI_CLI_ARGUMENT_2') && BMI_CLI_ARGUMENT_2 && BMI_CLI_ARGUMENT_2 != false && BMI_CLI_ARGUMENT_2 !== 'false' && BMI_CLI_ARGUMENT_2 !== 'true') {
+              if (ZipManager::validateZipPassword($this->src, BMI_CLI_ARGUMENT_2)) {
+                $this->password = BMI_CLI_ARGUMENT_2;
+              } else {
+                throw new \Exception('Zip is password protected, but the provided password is incorrect.');
+              }
+            } else {
+              throw new \Exception('Zip is password protected, please provide a password as the 3rd argument. Example: "php -f cli-handler.php ' . (defined('BMI_CLI_FUNCTION') ? BMI_CLI_FUNCTION : 'bmi_restore') . ' <backup_path> <password>"');
+            }
+          }
+        }
         if (!$this->isCLI && $this->batchStep == 0) {
 
           // Verbose
           Logger::log('Restoring site...');
+
+          if (ZipManager::isZipProtected($this->src) && $this->password == null) {
+
+            $this->migration->log(__('This backup is password protected, requesting password...', 'backup-backup'), 'STEP');
+            BMP::res(['status' => 'password', 'tmp' => $this->tmptime, 'options' => [
+              'code' => $this->code,
+              'start' => $this->start,
+              'step' => -1
+            ]]);
+            return;
+          }
 
           if ((gettype($secret) != 'string' || strlen($secret) != 64)) {
 
@@ -1749,6 +1892,7 @@
             BMP::res(['status' => 'secret', 'tmp' => $this->tmptime, 'secret' => $secret, 'options' => [
               'code' => $this->code,
               'start' => $this->start,
+              'password' => $this->password,
               'step' => 0
             ]]);
             return;
@@ -1784,6 +1928,7 @@
             BMP::res(['status' => 'restore_ongoing', 'tmp' => $this->tmptime, 'secret' => $secret, 'options' => [
               'code' => $this->code,
               'start' => $this->start,
+              'password' => $this->password,
               'step' => 1
             ]]);
 
@@ -1806,6 +1951,7 @@
               'code' => $this->code,
               'start' => $this->start,
               'amount' => $this->fileAmount,
+              'password' => $this->password,
               'step' => 2
             ]]);
 
@@ -1856,6 +2002,7 @@
               'recent_export_seek' => $this->recent_export_seek,
               'repeat_export' => $shouldRepeat,
               'firstExtract' => $this->firstExtract,
+              'password' => $this->password,
               'step' => 3
             ]]);
 
@@ -1882,6 +2029,7 @@
               'start' => $this->start,
               'amount' => $this->fileAmount,
               'storage' => get_option('BMI::STORAGE::LOCAL::PATH', false),
+              'password' => $this->password,
               'step' => 4
             ]]);
 
@@ -1961,6 +2109,7 @@
               'fileRestoreCategory' => $this->fileRestoreCategory,
               'repeat_restore' => $shouldRepeatRestore,
               'firstFileRestore' => $this->firstFileRestore,
+              'password' => $this->password,
               'step' => 5
             ]]);
 
@@ -1982,6 +2131,7 @@
               'start' => $this->start,
               'amount' => $this->fileAmount,
               'storage' => $this->backupStorage,
+              'password' => $this->password,
               'step' => 6
             ]]);
 
@@ -2119,6 +2269,7 @@
               'conversionStats' => $this->conversionStats,
               'storage' => $this->backupStorage,
               'dbFoundPrefix' => $dbPrefix,
+              'password' => $this->password,
               'step' => 7 + $wasDisabled
             ]]);
 
@@ -2196,6 +2347,7 @@
               'v3RestoreUsed' => $this->v3RestoreUsed,
               'dbFoundPrefix' => $this->dbFoundPrefix,
               'storage' => $this->backupStorage,
+              'password' => $this->password,
               'step' => 8
             ]]);
 
@@ -2305,6 +2457,7 @@
                 'fieldAdjustments' => $this->fieldAdjustments,
                 'dbFoundPrefix' => $this->dbFoundPrefix,
                 'storage' => $this->backupStorage,
+                'password' => $this->password,
                 'step' => 9
               ]
             ]);
@@ -2373,17 +2526,13 @@
           $this->finalCleanUP();
 
           // Final flush of rewrite rules
-          flush_rewrite_rules();
+          $this->flushImmediateRewriteRules();   
           
           // Remove backup migration temporary options
           $this->restoreLocalPluginConfiguration();
 
           // Dedicated fix for block-wp-login plugin
           $this->fixWPLogin($manifest);
-
-          // Touch autologin file
-          $autologin_file = BMI_BACKUPS . DIRECTORY_SEPARATOR . '.autologin';
-          touch($autologin_file);
 
           // Final verbose
           if ((intval(microtime(true)) - intval($this->start)) > 0) {

@@ -68,5 +68,6 @@
   "CRON:WEEK": "1",
   "CRON:HOUR": "08",
   "CRON:MINUTE": "00",
-  "CRON:KEEP": "2"
+  "CRON:KEEP": "2",
+  "CRON:REMOTE_PING": false
 }

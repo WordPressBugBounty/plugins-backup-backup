@@ -87,7 +87,7 @@ class BMI_Checker {
       $file = BMI_BACKUPS . '/' . '.space_check';
       try {
 
-        $total = $currentTestSize = $size;
+        $total = $currentTestSize = (int)$size;
 
         $baseChunk = 65536;
         $maxChunk = 1048576;

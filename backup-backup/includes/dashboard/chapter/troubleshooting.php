@@ -216,7 +216,7 @@
 
   <div class="mm mtll f16 lh28">
     <?php esc_html_e("All backup creation and restore processes are documented in log files, which can be used to debug issues.", 'backup-backup'); ?>
-    <a href="<?php echo esc_url( get_site_url() . '/?backup-migration=PROGRESS_LOGS&progress-id=complete_logs.log&bmi-id=current&t=' . time() . '&sk=' . bmi_get_config('REQUEST:SECRET') ); ?>"
+    <a href="<?php echo esc_url( get_site_url() . '/?backup-migration=PROGRESS_LOGS&progress-id=complete_logs.log&bmi-id=current&t=' . time() . '&sk=' . wp_create_nonce('bmi_download_nonce') ); ?>"
        download="troubleshooting-logs.txt" class="nodec hoverable secondary">
        <?php esc_html_e("Download logs.", 'backup-backup'); ?>
     </a>

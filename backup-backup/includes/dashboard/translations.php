@@ -320,14 +320,35 @@
   <div id="bmi-direct-cloud-allowed-only-with-cloud-strategy">
     <?php esc_html_e('You can only enable this option if you have selected all backups to be stored only on the cloud, in the section above.', 'backup-backup') ?>
   </div>
+  <input type="text" value="<?php echo defined('BMI_BACKUP_PRO') && BMI_BACKUP_PRO === 1 ? 1 : 0; ?>" hidden id="BMI_BACKUP_PRO" />
 
+  <div id="bmi-pwd-modal-restore-title"><?php esc_html_e("Enter Backup Password", 'backup-backup') ?></div>
+  <div id="bmi-pwd-modal-restore-desc"><?php esc_html_e("Please provide the password for this backup to proceed with the restoration.", 'backup-backup') ?></div>
+  <div id="bmi-pwd-modal-restore-btn"><?php esc_html_e("Verify & Restore", 'backup-backup') ?></div>
 
+  <div id="bmi-pwd-modal-encrypt-title"><?php esc_html_e("Encrypt Backup", 'backup-backup') ?></div>
+  <div id="bmi-pwd-modal-encrypt-desc"><?php esc_html_e("Enter an encryption password for this backup.", 'backup-backup') ?></div>
+  <div id="bmi-pwd-modal-encrypt-btn"><?php esc_html_e("Encrypt Backup", 'backup-backup') ?></div>
+  <div id="bmi-pwd-modal-encrypt-warn"><?php esc_html_e("This backup will be removed from all connected external storage providers. After encryption completes successfully, any remote copies will be permanently deleted.", 'backup-backup') ?></div>
 
+  <div id="bmi-pwd-modal-decrypt-title"><?php esc_html_e("Decrypt Backup", 'backup-backup') ?></div>
+  <div id="bmi-pwd-modal-decrypt-desc"><?php esc_html_e("Enter the password to decrypt this backup.", 'backup-backup') ?></div>
+  <div id="bmi-pwd-modal-decrypt-btn"><?php esc_html_e("Decrypt Backup", 'backup-backup') ?></div>
+  <div id="bmi-pwd-modal-decrypt-warn"><?php esc_html_e("This backup will be removed from all connected external storage providers. After decryption completes successfully, any remote copies will be permanently deleted.", 'backup-backup') ?></div>
+  <div id="bmi-pwd-modal-warn-important"><?php esc_html_e("Important:", 'backup-backup') ?></div>
 
   <div id="BMI_URL_ROOT"><?php echo esc_url( plugin_dir_url(BMI_ROOT_FILE) ); ?></div>
   <div id="BMI_BLOG_URL"><?php echo esc_url( get_site_url() ); ?></div>
   <div id="BMI_REV"><?php echo esc_html( BMI_REV ); ?></div>
-  <div id="BMI_SECRET_KEY"><?php echo esc_html( bmi_get_config('REQUEST:SECRET') ); ?></div>
+  <div id="BMI_SECRET_KEY"><?php echo esc_html( wp_create_nonce('bmi_download_nonce') ); ?></div>
+  <?php
+    $bmi_download_token = get_transient('bmi_download_token');
+    if (!$bmi_download_token) {
+      $bmi_download_token = wp_generate_password(32, false);
+      set_transient('bmi_download_token', $bmi_download_token, 7 * DAY_IN_SECONDS);
+    }
+  ?>
+  <div id="BMI_DOWNLOAD_TOKEN"><?php echo esc_html( $bmi_download_token ); ?></div>
   <div id="BMI_ASSETS"><?php echo esc_url( BMI_ASSETS ); ?></div>
   <div><input type="text" id="bmi-support-url-translation" value="<?php echo esc_url( BMI_CHAT_SUPPORT_URL ); ?>" hidden autocomplete="off"></div>
 </div>

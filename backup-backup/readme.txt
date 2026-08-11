@@ -2,8 +2,8 @@
 Contributors: Migrate
 Tags: Migration, Backup, Staging, Migrate, Backups
 Requires at least: 4.6
-Tested up to: 7.0
-Stable tag: 2.1.6
+Tested up to: 7.0.3
+Stable tag: 2.1.7
 License: GPLv3
 Requires PHP: 5.6
 
@@ -177,111 +177,95 @@ Vietnamese: [Tạo sao lưu, khôi phục các bản sao lưu và di chuyển c�
 5. The plugin should be shown below the settings menu.
 
 == Changelog ==
-= 2.1.6 =
-* [FEATURE] Added direct-to-cloud streaming configuration, notices, and validation checks.
-* [FEATURE] Added file integrity verification with chained hash calculation for streamed backups.
-* [FEATURE] Added manifest-based MD5 verification support for enhanced backup validation.
-* [FEATURE] Added streaming support to the backup process with manifest integration.
-* [FEATURE] Added available cloud storage space detection and validation for BackupBliss storage.
-* [FEATURE] Added streaming space requirement checks with compatibility recommendations.
-* [FEATURE] Added lock status information to backup manifests based on cron state.
-* [FEATURE] Added cron-related information to system information reports.
-* [FEATURE] Added transient storage of the latest backup file for improved retrieval and tracking.
-* [FEATURE] Added streamed backup name display in the backup success modal.
-* [FEATURE] Enhanced cloud backup validation and response handling for storage strategy checks.
-* [FEATURE] Standardized external storage provider identification across all supported cloud storage providers.
-* [ENHANCEMENT] Increased chained hash chunk size to 50MB for improved hashing performance.
-* [ENHANCEMENT] Enhanced backup file name validation and security hardening.
-* [ENHANCEMENT] Improved cron diagnostics, overdue detection logic, and troubleshooting information.
-* [ENHANCEMENT] Improved dashboard tooltips, notifications, and backup method descriptions.
-* [ENHANCEMENT] Improved handling of upload rate limiting with automatic retry support for HTTP 429 responses.
-* [ENHANCEMENT] Refactored file hashing into a dedicated service for improved maintainability.
-* [ENHANCEMENT] Improved BackupBliss storage integration, configuration management, and upload handling.
-* [FIX] Prevented early exit when saving backup configuration settings.
-* [FIX] Sanitized backup file and URL arguments for improved security.
-* [FIX] Resolved cURL deprecation warnings and improved resource validation before closing handles.
-* [FIX] Corrected chained hash chunk size constant value.
-* [FIX] Corrected storage strategy handling throughout backup processing.
-* [FIX] Improved file size retrieval handling with existence checks.
-* [FIX] Improved notifications for local site and ping server issues.
-* [FIX] Updated troubleshooting selectors and resync functionality for improved user experience.
-* [FIX] Improved plugin deactivation and uninstall cleanup for scheduled tasks.
-* [FIX] Improved BackupBliss upload session failure logging and storage information retrieval.
-* [FIX] Removed unnecessary modal state classes after backup completion.
-* [FIX] Prevented fatal errors when checking active plugins.
-* [FIX] Improved handling of backup progress status responses.
-* [STYLE] Updated review banner markup and cloud backup notice styling for improved consistency.
-* [MISC] Various UX improvements, internal optimizations, text refinements, and stability enhancements throughout the plugin.
 
-= 2.1.5.2 =
-* Tested with WordPress 7.0
-* [FIX] Sanitized backup file and URL arguments in AJAX requests to improve security and input validation.
-
-= 2.1.5 =
-
-* [FEATURE] Introduced file restoration in batches with progress and category logging.  
-* [FEATURE] Added conditional file restoration for first-time setup scenarios.  
-* [FEATURE] Implemented reconstruction of local staging site configurations.  
-* [ENHANCEMENT] Simplified batch size determination logic for file restoration.  
-* [FIX] Resolved conflict with wp-svg-icons affecting dashboard sections.  
-* [FIX] Updated dismiss button class for notices to ensure consistent behavior.  
-* [FIX] Corrected path calculation logic for accurate category detection during restore.  
-* [FIX] Updated pre-restore confirmation modal message and removed unnecessary size display.  
-* [FIX] Corrected log file naming for compatibility recommendations.  
-* [MISC] Various minor improvements and fixes across file explorer UI and restore processes.
-
-= 2.1.4 =
-
-* [FIX] Ensured restore success modal appears correctly after restore completion.
-* [FIX] Corrected SQL LIKE statement escaping for accurate query handling and improved security.
-
-= 2.1.3 =
-
-* [FEATURE] Enhanced backup banner with improved initialization logic, positioning, and transition effects.  
-* [FEATURE] Added delayed banner display after 5 minutes of initialization.  
-* [FEATURE] Implemented dynamic arrow positioning updates on DOM mutations for the banner.  
-* [FEATURE] Added menu item checks for accurate banner positioning and behavior.  
-* [... and more ...]
-
-= previous =
-Old changelog has been removed due to WordPress limitation of 5000 characters.
+= 2.1.7 =
+* Tested with WordPress 7.0.3
+* [FEATURE] Added WP-CLI commands for backup, restore, and quick migration operations.
+* [FEATURE] Added remote execution support for scheduled backups with improved cron logging and management.
+* [FEATURE] Added WP-Cron fallback for keepalive heartbeats to improve backup upload reliability.
+* [FEATURE] Added watchdog monitoring to detect and handle stalled scheduled backup processes.
+* [FEATURE] Introduced a new plugin configuration management system with improved migration and initialization of existing settings.
+* [FEATURE] Added interactive backup deletion progress with cancellation support and batch processing for large numbers of backups.
+* [FEATURE] Added detailed fatal error detection and reporting for memory and execution time limit failures.
+* [FEATURE] Added manual backup abortion tracking.
+* [ENHANCEMENT] Improved backup scanning and retrieval performance for large backup collections.
+* [ENHANCEMENT] Improved backup search performance.
+* [ENHANCEMENT] Improved file handle management during backup, restore, logging, and keepalive operations to reduce resource usage on limited hosting environments.
+* [ENHANCEMENT] Improved backup and restore error handling with clearer and more consistent logging.
+* [ENHANCEMENT] Improved theme and plugin restoration handling for invalid or incomplete site states.
+* [ENHANCEMENT] Enhanced Elementor compatibility by clearing its cache after restoration.
+* [ENHANCEMENT] Improved scheduled backup reliability with persistent keepalive scheduling and cron state management.
+* [ENHANCEMENT] Increased maximum backup retention options from 20 to 30.
+* [ENHANCEMENT] Added multisite compatibility checks, recommendations, and staging notices.
+* [ENHANCEMENT] Improved backup deletion handling across local and external storage providers.
+* [ENHANCEMENT] Improved UI modals, tooltips, backup deletion flows, and encryption-related warnings.
+* [FIX] Prevented unauthorized cron execution by enforcing secret key validation.
+* [FIX] Secured backup log downloads using nonces and improved autologin security with hashed tokens.
+* [FIX] Prevented unwanted plugin redirects during bulk activation.
+* [FIX] Fixed multisite plugin URLs, redirects, and network admin visibility.
+* [FIX] Restored permalink structure correctly after staging and autologin redirects.
+* [FIX] Ensured rewrite rules are regenerated correctly after restoration.
+* [FIX] Prevented restored staging configurations from incorrectly affecting the main site.
+* [FIX] Fixed Elementor cache not being cleared after restoration.
+* [FIX] Improved plugin activation handling and version validation during restoration.
+* [FIX] Fixed extraction of password-protected backups by correctly passing the extraction password.
+* [FIX] Improved detection and handling of missing manifests and backup files during backup scanning.
+* [FIX] Prevented resource leaks by properly closing file handles after AJAX and keepalive operations.
+* [FIX] Improved backup cancellation reliability and cleanup of temporary backup files.
+* [FIX] Fixed large backup deletion operations by processing file deletions in batches to prevent timeouts.
+* [FIX] Improved backup space calculations and validation.
+* [FIX] Fixed configuration migration and initialization issues that could unexpectedly reset plugin settings.
+* [FIX] Improved backup restoration checks for options SQL files and other required backup components.
+* [FIX] Improved handling of missing or invalid backup manifest data.
+* [SECURITY] Hardened autologin, cron execution, and backup download authentication mechanisms.
+* [REFACTOR] Optimized backup scanning using generators, caching, and singleton instances for improved performance.
+* [REFACTOR] Streamlined backup deletion and manifest management across local and cloud storage.
+* [MISC] Various performance improvements, security hardening, UI refinements, compatibility fixes, and internal code cleanups throughout the plugin.
 
 == Upgrade Notice ==
 
-= 2.1.6 =
-What's new in 2.1.6?
+= 2.1.7 =
+What's new in 2.1.7?
 
-* [FEATURE] Added direct-to-cloud streaming configuration, notices, and validation checks.
-* [FEATURE] Added file integrity verification with chained hash calculation for streamed backups.
-* [FEATURE] Added manifest-based MD5 verification support for enhanced backup validation.
-* [FEATURE] Added streaming support to the backup process with manifest integration.
-* [FEATURE] Added available cloud storage space detection and validation for BackupBliss storage.
-* [FEATURE] Added streaming space requirement checks with compatibility recommendations.
-* [FEATURE] Added lock status information to backup manifests based on cron state.
-* [FEATURE] Added cron-related information to system information reports.
-* [FEATURE] Added transient storage of the latest backup file for improved retrieval and tracking.
-* [FEATURE] Added streamed backup name display in the backup success modal.
-* [FEATURE] Enhanced cloud backup validation and response handling for storage strategy checks.
-* [FEATURE] Standardized external storage provider identification across all supported cloud storage providers.
-* [ENHANCEMENT] Increased chained hash chunk size to 50MB for improved hashing performance.
-* [ENHANCEMENT] Enhanced backup file name validation and security hardening.
-* [ENHANCEMENT] Improved cron diagnostics, overdue detection logic, and troubleshooting information.
-* [ENHANCEMENT] Improved dashboard tooltips, notifications, and backup method descriptions.
-* [ENHANCEMENT] Improved handling of upload rate limiting with automatic retry support for HTTP 429 responses.
-* [ENHANCEMENT] Refactored file hashing into a dedicated service for improved maintainability.
-* [ENHANCEMENT] Improved BackupBliss storage integration, configuration management, and upload handling.
-* [FIX] Prevented early exit when saving backup configuration settings.
-* [FIX] Sanitized backup file and URL arguments for improved security.
-* [FIX] Resolved cURL deprecation warnings and improved resource validation before closing handles.
-* [FIX] Corrected chained hash chunk size constant value.
-* [FIX] Corrected storage strategy handling throughout backup processing.
-* [FIX] Improved file size retrieval handling with existence checks.
-* [FIX] Improved notifications for local site and ping server issues.
-* [FIX] Updated troubleshooting selectors and resync functionality for improved user experience.
-* [FIX] Improved plugin deactivation and uninstall cleanup for scheduled tasks.
-* [FIX] Improved BackupBliss upload session failure logging and storage information retrieval.
-* [FIX] Removed unnecessary modal state classes after backup completion.
-* [FIX] Prevented fatal errors when checking active plugins.
-* [FIX] Improved handling of backup progress status responses.
-* [STYLE] Updated review banner markup and cloud backup notice styling for improved consistency.
-* [MISC] Various UX improvements, internal optimizations, text refinements, and stability enhancements throughout the plugin.
+* Tested with WordPress 7.0.3
+* [FEATURE] Added WP-CLI commands for backup, restore, and quick migration operations.
+* [FEATURE] Added remote execution support for scheduled backups with improved cron logging and management.
+* [FEATURE] Added WP-Cron fallback for keepalive heartbeats to improve backup upload reliability.
+* [FEATURE] Added watchdog monitoring to detect and handle stalled scheduled backup processes.
+* [FEATURE] Introduced a new plugin configuration management system with improved migration and initialization of existing settings.
+* [FEATURE] Added interactive backup deletion progress with cancellation support and batch processing for large numbers of backups.
+* [FEATURE] Added detailed fatal error detection and reporting for memory and execution time limit failures.
+* [FEATURE] Added manual backup abortion tracking.
+* [ENHANCEMENT] Improved backup scanning and retrieval performance for large backup collections.
+* [ENHANCEMENT] Improved backup search performance.
+* [ENHANCEMENT] Improved file handle management during backup, restore, logging, and keepalive operations to reduce resource usage on limited hosting environments.
+* [ENHANCEMENT] Improved backup and restore error handling with clearer and more consistent logging.
+* [ENHANCEMENT] Improved theme and plugin restoration handling for invalid or incomplete site states.
+* [ENHANCEMENT] Enhanced Elementor compatibility by clearing its cache after restoration.
+* [ENHANCEMENT] Improved scheduled backup reliability with persistent keepalive scheduling and cron state management.
+* [ENHANCEMENT] Increased maximum backup retention options from 20 to 30.
+* [ENHANCEMENT] Added multisite compatibility checks, recommendations, and staging notices.
+* [ENHANCEMENT] Improved backup deletion handling across local and external storage providers.
+* [ENHANCEMENT] Improved UI modals, tooltips, backup deletion flows, and encryption-related warnings.
+* [FIX] Prevented unauthorized cron execution by enforcing secret key validation.
+* [FIX] Secured backup log downloads using nonces and improved autologin security with hashed tokens.
+* [FIX] Prevented unwanted plugin redirects during bulk activation.
+* [FIX] Fixed multisite plugin URLs, redirects, and network admin visibility.
+* [FIX] Restored permalink structure correctly after staging and autologin redirects.
+* [FIX] Ensured rewrite rules are regenerated correctly after restoration.
+* [FIX] Prevented restored staging configurations from incorrectly affecting the main site.
+* [FIX] Fixed Elementor cache not being cleared after restoration.
+* [FIX] Improved plugin activation handling and version validation during restoration.
+* [FIX] Fixed extraction of password-protected backups by correctly passing the extraction password.
+* [FIX] Improved detection and handling of missing manifests and backup files during backup scanning.
+* [FIX] Prevented resource leaks by properly closing file handles after AJAX and keepalive operations.
+* [FIX] Improved backup cancellation reliability and cleanup of temporary backup files.
+* [FIX] Fixed large backup deletion operations by processing file deletions in batches to prevent timeouts.
+* [FIX] Improved backup space calculations and validation.
+* [FIX] Fixed configuration migration and initialization issues that could unexpectedly reset plugin settings.
+* [FIX] Improved backup restoration checks for options SQL files and other required backup components.
+* [FIX] Improved handling of missing or invalid backup manifest data.
+* [SECURITY] Hardened autologin, cron execution, and backup download authentication mechanisms.
+* [REFACTOR] Optimized backup scanning using generators, caching, and singleton instances for improved performance.
+* [REFACTOR] Streamlined backup deletion and manifest management across local and cloud storage.
+* [MISC] Various performance improvements, security hardening, UI refinements, compatibility fixes, and internal code cleanups throughout the plugin.

@@ -239,10 +239,13 @@
 
 <hr>
 
-<div class="mm mtl mbl overlayed">
+<div class="mm mtl mbl <?php echo ($pros) ? '' : ' overlayed'; ?>">
 
-  <?php include BMI_INCLUDES . '/dashboard/templates/premium-overlay.php'; ?>
+  <?php if (!$pros) { include BMI_INCLUDES . '/dashboard/templates/premium-function-overlay.php'; } ?>
 
+  <?php if (has_action('bmip_encryption_settings')) { ?>
+    <?php do_action('bmip_encryption_settings'); ?>
+  <?php } else { ?>
   <div class="">
     <div class="lh30 mbll">
       <div class="fo-title semibold">
@@ -252,6 +255,8 @@
         </span>
       </div>
       <div class="f20"><?php esc_html_e("Do you want to encrypt and password protect your files?", 'backup-backup'); ?></div>
+      <div class="f16"><?php esc_html_e("Please make sure you save this password in a secure place. If you lose it, you will not be able to restore your backup.",'backup-backup')?></div>
+      <div class="f16"><?php esc_html_e("Encrypted backups must be restored using plugin version 2.1.7 or higher. Restoring on older versions will cause site failure.",'backup-backup');?></div>
     </div>
 
     <div class="mm mm-border">
@@ -269,6 +274,7 @@
       </div>
     </div>
   </div>
+  <?php } ?>
 
 </div>
 

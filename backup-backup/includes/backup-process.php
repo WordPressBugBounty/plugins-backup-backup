@@ -381,10 +381,12 @@
       $logfile = BMI_TMP . DIRECTORY_SEPARATOR . 'bmi_logs_this_backup.log';
       $clidata = BMI_TMP . DIRECTORY_SEPARATOR . 'bmi_cli_data.json';
       $settings_path = BMI_TMP . DIRECTORY_SEPARATOR . 'currentBackupConfig.php';
+      $backupNameFile = BMI_TMP . DIRECTORY_SEPARATOR . '.backup_name';
       if (file_exists($this->fileList)) $this->unlinksafe($this->fileList);
       if (file_exists($this->dbfile)) $this->unlinksafe($this->dbfile);
       if (file_exists($this->manifest)) $this->unlinksafe($this->manifest);
       if (file_exists($logfile)) $this->unlinksafe($logfile);
+      if (file_exists($backupNameFile)) $this->unlinksafe($backupNameFile);
       if (file_exists($clidata)) $this->unlinksafe($clidata);
       if (file_exists($identyfile)) $this->unlinksafe($identyfile);
       if (file_exists($identyfile . '-running')) $this->unlinksafe($identyfile . '-running');
@@ -393,6 +395,7 @@
 
       // Remove backup
       if (file_exists(BMI_BACKUPS . '/.running')) $this->unlinksafe(BMI_BACKUPS . '/.running');
+      if (file_exists(BMI_BACKUPS . '/.cron')) $this->unlinksafe(BMI_BACKUPS . '/.cron');
       if (file_exists(BMI_BACKUPS . '/.space_check')) $this->unlinksafe(BMI_BACKUPS . '/.space_check');
       if (file_exists(BMI_BACKUPS . '/.abort')) $this->unlinksafe(BMI_BACKUPS . '/.abort');
       if (file_exists(BMI_BACKUPS . '/.last_triggered')) $this->unlinksafe(BMI_BACKUPS . '/.last_triggered');
@@ -465,7 +468,12 @@
 
       // Abort step
       $this->output->log('Aborting backup... ', 'STEP');
-      if ($customEndCode !== false) $this->output->log($customEndCode, 'END-CODE');
+      if ($customEndCode !== false) {
+        if ($customEndCode === "#003") {
+          $this->output->log('manually_aborted', 'verbose');
+        }
+        $this->output->log($customEndCode, 'END-CODE');
+      }
       else if ($abort === false) $this->output->log('#002', 'END-CODE');
       else $this->output->log('#004', 'END-CODE');
       if (isset($this->output)) @$this->output->end();
@@ -582,14 +590,21 @@
       $db_root_dir = BMI_TMP . DIRECTORY_SEPARATOR;
       $logs = $db_root_dir . 'bmi_logs_this_backup.log';
       $_manifest = $this->manifest;
+      $backupName = $db_root_dir . '.backup_name';
       
       if (strpos($logs, 'file://') !== false) $logs = substr($logs, 7);
       if (strpos($_manifest, 'file://') !== false) $_manifest = substr($_manifest, 7);
+      if (strpos($backupName, 'file://') !== false) $backupName = substr($backupName, 7);
 
       $log_file = fopen($logs, 'w');
                   fwrite($log_file, file_get_contents(BMI_BACKUPS . DIRECTORY_SEPARATOR . 'latest.' . BMI_LOGS_SUFFIX . '.log'));
                   fclose($log_file);
-      $files = [$logs, $_manifest];
+
+      $backup_name_file = fopen($backupName, 'w');
+                   fwrite($backup_name_file, $this->backupname);
+                   fclose($backup_name_file);
+                   
+      $files = [$logs, $_manifest, $backupName];
 
       return $files;
 
@@ -644,7 +659,7 @@
 
       } else {
 
-        $this->log_final_batch();
+        $this->final_batch = true;
         return false;
 
       }
@@ -681,7 +696,8 @@
     public function add_files($files = [], $file_list = false, $final = false, $dbLog = false) {
 
       try {
-          
+        $encryptionEnabled = defined('BMI_BACKUP_PRO') && BMI_BACKUP_PRO === 1 && Dashboard\bmi_get_config('ENCRYPTION:ENABLED');
+        $encryptionPassword = $encryptionEnabled ? Dashboard\bmi_get_config('ENCRYPTION:PASSWORD') : false;
         $zipArchive = false;
         if (class_exists('\ZipArchive') || class_exists('ZipArchive')) {
           if (!isset($this->_zip)) {
@@ -739,18 +755,49 @@
         } else {
           
           $backupPath = BMI_BACKUPS . DIRECTORY_SEPARATOR . $this->backupname;
+          $isNewArchive = !file_exists($backupPath);
+          $needsInit = false;
+
           if (BMI_CLI_REQUEST) {
-            if (!isset($this->zip_initialized)) {
-              if (file_exists($backupPath)) $this->_zip->open($backupPath);
-              else $this->_zip->open($backupPath, \ZipArchive::CREATE);
+            if (!$isNewArchive) {
+              $this->_zip->open($backupPath);
+            } else {
+              $this->_zip->open($backupPath, \ZipArchive::CREATE);
+              $needsInit = true;
+            }
+            if ($encryptionEnabled && $encryptionPassword !== false) {
+
+              if ($needsInit) {
+                $this->_zip->addFromString('bmi_init.txt', 'init');
+                $this->_zip->close();
+                $this->_zip->open($backupPath);
+              }
+
+              $this->_zip->setPassword($encryptionPassword);
             }
           } else {
-            if (file_exists($backupPath)) $this->_zip->open($backupPath);
-            else $this->_zip->open($backupPath, \ZipArchive::CREATE);
+            if (!$isNewArchive) {
+              $this->_zip->open($backupPath);
+            } else {
+              $this->_zip->open($backupPath, \ZipArchive::CREATE);
+              $needsInit = true;
+            }
+            if ($encryptionEnabled && $encryptionPassword !== false) {
+              if ($needsInit) {
+                $this->_zip->addFromString('bmi_init.txt', 'init');
+                $this->_zip->close();
+                $this->_zip->open($backupPath);
+              }
+
+              $this->_zip->setPassword($encryptionPassword);
+            }
           }
           
           if ($this->it === 1) {
             $this->output->log('Using ZipArchive extension for this backup process.', 'INFO');
+            if ($encryptionEnabled && $encryptionPassword !== false) {
+              $this->output->log('Encryption is enabled, setting password for the archive.', 'INFO');
+            }
             if ($dbLog == true) {
               $this->output->log('Adding database SQL file(s) to the backup file.', 'STEP');
             }
@@ -794,6 +841,13 @@
                 $this->_zip->addEmptyDir($this->cutDir($files[$i]));
               } else {
                 $this->_zip->addFile($files[$i], $this->cutDir($files[$i]));
+                if ($encryptionEnabled && $encryptionPassword !== false) {
+                  if ($final && basename($files[$i]) === '.backup_name') {
+                    $this->_zip->setEncryptionName($this->cutDir($files[$i]), \ZipArchive::EM_AES_256);
+                  } elseif (!$final) {
+                    $this->_zip->setEncryptionName($this->cutDir($files[$i]), \ZipArchive::EM_AES_256);
+                  }
+                }
               }
               
             }
@@ -833,6 +887,9 @@
                 $this->_zip->addEmptyDir($path);
               } else { 
                 $this->_zip->addFile($files[$i], $path);
+                if ($encryptionEnabled && $encryptionPassword !== false) {
+                  $this->_zip->setEncryptionName($path, \ZipArchive::EM_AES_256);
+                }
               }
               
             }
@@ -925,6 +982,16 @@
 
     // ZIP one of the grouped files
     public function zip_batch() {
+
+      if ($this->final_batch === true) {
+        $this->output->log('Adding final files to this batch...', 'STEP');
+        $this->output->log('Adding manifest as addition...', 'INFO');
+
+        $additionalFiles = $this->get_final_batch();
+        $this->add_files($additionalFiles, false, true);
+        $this->log_final_batch();
+        return true;
+      }
 
       $_dbfile = $this->dbfile;
       $_db_dir_v2 = $this->db_dir_v2;
@@ -1031,40 +1098,10 @@
       
       $this->backupSize = $currentBackupSize;
 
-      if ($this->final_batch === true) {
-        $this->output->log('Adding final files to this batch...', 'STEP');
-        $this->output->log('Adding manifest as addition...', 'INFO');
-
-        $additionalFiles = $this->get_final_batch();
-        $this->add_files($additionalFiles, false, true);
-        $this->log_final_batch();
-        return true;
-      }
-
     }
 
     // Shutdown callback
     public function shutdown() {
-
-      // Check if there was any error
-      $err = error_get_last();
-      if ($err != null) {
-        Logger::error('Shuted down');
-        Logger::error(print_r($err, true));
-        $this->output->log('Background process had some issues, more details printed to global logs.', 'WARN');
-      }
-
-      // Remove lock
-      if (BMI_CLI_REQUEST && $this->lock_cli && file_exists($this->lock_cli)) {
-        $this->unlinksafe($this->lock_cli);
-      }
-
-      // Send next beat to handle next batch
-      if (BMI_CLI_REQUEST) {
-        $this->res = [ 'status' => 'success' ];
-        return true; 
-      }
-      
       if (file_exists($this->identyfile)) {
 
         // Set header for browser
@@ -1076,8 +1113,12 @@
           $this->sendResponse(false);
 
         } else {
-
-          $this->send_beat();
+          if (apply_filters('bmip_should_schedule_next_beat', false)) {
+            $this->res = [ 'status' => 'success' ];
+            $this->saveRemoteSettings();
+          } else {
+            $this->send_beat();
+          }
 
         }
 
@@ -1376,6 +1417,10 @@
         Logger::log("Backup file created successfully via backup-process.php");
         set_transient('bmi_latest_backup_file', base64_encode($this->backupname), 30);
         BMP::handle_after_cron();
+
+        if (!wp_next_scheduled('bmip_keepalive_cron')) {
+          wp_schedule_single_event(time() + 15, 'bmip_keepalive_cron');
+        }
       } else {
         Logger::log("Backup file creation failed via backup-process.php");
       }

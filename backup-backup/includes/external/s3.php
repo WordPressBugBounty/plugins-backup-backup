@@ -8,10 +8,12 @@ use BMI\Plugin\Dashboard;
 use BMI\Plugin\BMI_Logger as Logger;
 use BMI\Plugin\Scanner\BMI_BackupsScanner as Backups;
 use BMI\Plugin\Backup_Migration_Plugin as BMP;
+use BMI\Plugin\External\Contracts\DeleteBackup;
 
 if ( ! defined( 'ABSPATH' ) ) exit;
 
 
+require_once BMI_INCLUDES . DIRECTORY_SEPARATOR . 'external' . DIRECTORY_SEPARATOR . 'contracts' . DIRECTORY_SEPARATOR . 'interface-delete-backup.php';
 // Exception Class for S3 Client Errors
 class S3ClientException extends \Exception
 {
@@ -455,7 +457,7 @@ class S3Client
     }
 }
 
-class BMI_External_S3 {
+class BMI_External_S3 implements DeleteBackup {
 
     private $s3Client;
     private $s3Provider = 'aws';
@@ -687,7 +689,7 @@ class BMI_External_S3 {
         ]);
 
         require_once BMI_INCLUDES . DIRECTORY_SEPARATOR . 'scanner' . DIRECTORY_SEPARATOR . 'backups.php';
-        $backups = new Backups();
+        $backups = Backups::getInstance();
         $backupsAvailable = $backups->getAvailableBackups("local");
         $localBackups = $backupsAvailable['local'];
         $parsedS3Files = $this->getParsedFiles();
@@ -1101,10 +1103,7 @@ class BMI_External_S3 {
     }
 
     /**
-     * Deletes a backup from the S3 bucket
-     *
-     * @param string $md5 MD5 of the backup to delete
-     * @return bool
+     * @inheritDoc
      */
     public function deleteBackup($md5)
     {
@@ -1125,7 +1124,11 @@ class BMI_External_S3 {
         }
         $deleteManifest = $this->s3Client->deleteFile($manifestFile);
         $deleteBackup = $this->s3Client->deleteFile($backupName);
-        return $deleteManifest && $deleteBackup;
+
+        if ($deleteManifest && $deleteBackup) {
+            return true;
+        }
+        return false;
     }
 
     /**
@@ -1133,6 +1136,9 @@ class BMI_External_S3 {
      *
      * @param string $md5 MD5 of the backup to delete
      * @return bool
+     */
+    /**
+     * @deprecated Use deleteBackup() instead.
      */
     public function deleteBackupJson($md5)
     {

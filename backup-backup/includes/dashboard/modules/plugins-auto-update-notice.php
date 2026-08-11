@@ -13,13 +13,23 @@ $premium_version = defined('BMI_PRO_VERSION') ? BMI_PRO_VERSION : null;
 
 $notices = [];
 
+// Get plugin file paths
+$free_plugin_file = 'backup-backup/backup-backup.php'; // Adjust to actual plugin file
+$premium_plugin_file = 'backup-backup-pro/backup-backup-pro.php'; // Adjust to actual premium plugin file
+
+if (
+  BMP::isPluginAutoUpdateEnabled($free_plugin_file)
+  &&
+  (
+    !$has_premium
+    || BMP::isPluginAutoUpdateEnabled($premium_plugin_file)
+  )
+) return;
+
 // Check if free version needs auto-update
 $free_needs_update = BMP::bmiNeedsUpdate();
 $premium_needs_update = BMP::bmiNeedsUpdate(true);
 
-// Get plugin file paths
-$free_plugin_file = 'backup-backup/backup-backup.php'; // Adjust to actual plugin file
-$premium_plugin_file = 'backup-backup-pro/backup-backup-pro.php'; // Adjust to actual premium plugin file
 
 // Get admin URLs
 $plugins_page_url = admin_url('plugins.php');
@@ -27,9 +37,11 @@ $plugins_page_url = admin_url('plugins.php');
 if ($has_premium && ($free_needs_update || $premium_needs_update)) {
   // Both free and premium versions, at least one needs update
   $notices[] = sprintf(
-    __('%sWarning:%s plugin version discrepancy detected. Keeping free and premium plugin auto-updated ensures the quality of our service, provides new features, and enforces security. Please enable auto-updates %shere%s.', 'backup-backup'),
+    __('%sWarning:%s plugin version discrepancy detected. Keeping free and premium plugin auto-updated ensures the quality of our service, provides new features, and enforces security. Please enable auto-updates %shere%s.%s%sNote:%s You can safely ignore and dismiss this notice if you have already updated both plugins.', 'backup-backup'),
     '<strong>', '</strong>',
-    '<a class="hoverable secondary" href="' . esc_url($plugins_page_url) . '">','</a>'
+    '<a class="hoverable secondary" href="' . esc_url($plugins_page_url) . '">','</a>',
+    "<br>",
+    '<strong>', '</strong>'
   );
 } elseif (!$has_premium && $free_needs_update) {
   // Only free version, needs update

@@ -8,6 +8,7 @@
   use BMI\Plugin\BMI_Logger as Logger;
   use BMI\Plugin\Progress\BMI_ZipProgress as Progress;
   use BMI\Plugin\BMI_Zip_Explorer as ZipExplorer;
+  use BMI\Plugin\Scanner\BMI_BackupsScanner as Backups;
 
   // Exit on direct access
   if (!defined('ABSPATH')) {
@@ -47,7 +48,7 @@
         // Close ZIP and Save
         $lala = $zip->zip_end(2, $cron);
         if (!$lala) {
-          $zip_progress->log(__("Something went wrong (pclzip) – removing backup files...", 'backup-backup'), 'error');
+          $zip_progress->log(__("Something went wrong – removing backup files...", 'backup-backup'), 'error');
 
           return false;
         }
@@ -267,6 +268,7 @@
 
       // Require Universal Zip Library
       require_once BMI_INCLUDES . '/zipper/src/zip.php';
+      require_once BMI_INCLUDES . DIRECTORY_SEPARATOR . 'scanner' . DIRECTORY_SEPARATOR . 'backups.php';
 
       try {
 
@@ -289,26 +291,8 @@
           }
         }
         $lib = new \PclZip($zippath);
-
-        $md5_file_summary_path = BMI_BACKUPS . DIRECTORY_SEPARATOR. 'md5summary.php';
-        if (file_exists($md5_file_summary_path)) {
-          $zip_name = basename($zippath);
-          $md5summary = file_get_contents($md5_file_summary_path);
-          $md5summary = substr($md5summary, 18, -2);
-          if (is_serialized($md5summary)) {
-            $md5summary = maybe_unserialize($md5summary);
-          }
-        }
-
-        if (isset($md5summary[$zip_name])) {
-          $md5s = $md5summary[$zip_name];
-          for ($i = 0; $i < sizeof($md5s); ++$i) {
-            $md5_file_path = BMI_BACKUPS . DIRECTORY_SEPARATOR. $md5s[$i] . '.json';
-            if (file_exists($md5_file_path)) {
-              @unlink($md5_file_path);
-            }
-          }
-        }
+        $backups = Backups::getInstance();
+        $backups->deleteBackupManifest(basename($zippath));
 
         // Unlocking case
         if ($unlock) {
@@ -341,13 +325,152 @@
     public function is_locked_zip($zippath) {
       $lock = $this->getZipFileContent($zippath, '.lock');
       if ($lock) {
-        if ($lock->locked == 'true') {
+        if (isset($lock->locked) && $lock->locked == 'true') {
           return true;
         } else {
           return false;
         }
       } else {
         return false;
+      }
+    }
+
+    /**
+     * Checks if a ZIP archive is protected with a password/encrypted.
+     *
+     * @param string $filepath Absolute path to the ZIP file.
+     * @return bool True if protected/encrypted, false otherwise.
+     */
+    public static function isZipProtected($filepath) {
+      if (!file_exists($filepath) || !is_readable($filepath)) {
+        return false;
+      }
+
+      if (class_exists('ZipArchive')) {
+        $zip = new \ZipArchive();
+        if ($zip->open($filepath) === true) {
+          $isProtected = false;
+          
+          for ($i = 0; $i < $zip->numFiles; $i++) {
+            $stat = $zip->statIndex($i);
+            // 'encryption_method' was introduced in PHP 7.2 / libzip 1.2.0
+            if (isset($stat['encryption_method']) && $stat['encryption_method'] !== \ZipArchive::EM_NONE) {
+                $isProtected = true;
+                break;
+            }
+          }
+          $zip->close();
+          
+          if ($isProtected) {
+            return true;
+          }
+        }
+      }
+      return false;
+    }
+
+    /**
+     * Validates a password for a given ZIP file path, safely ignoring empty files.
+     *
+     * @param string $zipPath The absolute or relative path to the ZIP file.
+     * @param string $password The password to test.
+     * @return bool True if the password is correct, false otherwise.
+     * @throws \Exception If the file cannot be opened or lacks testable files.
+     */
+    public static function validateZipPassword(string $zipPath, string $password): bool {
+      $zip = new \ZipArchive();
+
+      $res = $zip->open($zipPath);
+      if ($res !== true) {
+        throw new \Exception("Failed to open ZIP file. Error Code: " . $res);
+      }
+
+      $zip->setPassword($password);
+
+      if ($zip->locateName('.backup_name') !== false) {
+        $stat = $zip->statName('.backup_name');
+        if ($stat && isset($stat['encryption_method']) && $stat['encryption_method'] !== \ZipArchive::EM_NONE) {
+          $content = $zip->getFromName('.backup_name');
+          $zip->close();
+          if ($content !== false && trim($content) === basename($zipPath)) {
+            return true;
+          }
+          return false;
+        }
+      }
+
+      $minFileSize = PHP_INT_MAX;
+      $minFileIndex = -1;
+
+      for ($i = 0; $i < $zip->numFiles; $i++) {
+        $stat = $zip->statIndex($i);
+        
+        if ($stat === false || $stat['size'] === 0) {
+          continue;
+        }
+
+         $isEncrypted = isset($stat['encryption_method']) && $stat['encryption_method'] !== \ZipArchive::EM_NONE;
+
+        if ($isEncrypted && $stat['size'] > 0) {
+          if ($stat['size'] < $minFileSize) {
+            $minFileSize = $stat['size'];
+            $minFileIndex = $i;
+            if ($minFileSize < 5 * 1024 * 1024) {
+              break;
+            }
+          }
+        }
+      }
+
+      if ($minFileIndex !== -1) {
+        $content = $zip->getFromIndex($minFileIndex);
+        $zip->close();
+        if ($content === false || strlen($content) === 0) {
+          return false;
+        }
+        return true;
+      }
+
+      $zip->close();
+      throw new \Exception("ZIP archive contains no non-empty encrypted files. Cannot validate password.");
+    }
+  
+    public function isFileExists($zippath, $filename) {
+      if (class_exists('ZipArchive')) {
+        $zip = new \ZipArchive();
+
+        if ($zip->open($zippath) === true) {
+          if ($zip->locateName($filename) !== false) {
+            return true;
+          } else {
+            return false;
+          }
+        } else {
+          return false;
+        }
+      } else {
+        if (!class_exists('PclZip')) {
+          if (!defined('PCLZIP_TEMPORARY_DIR')) {
+            $bmi_tmp_dir = BMI_TMP;
+            if (!file_exists($bmi_tmp_dir)) {
+              @mkdir($bmi_tmp_dir, 0775, true);
+            }
+            define('PCLZIP_TEMPORARY_DIR', $bmi_tmp_dir . DIRECTORY_SEPARATOR . 'bmi-');
+          }
+          if (defined('BMI_PRO_PCLZIP') && file_exists(BMI_PRO_PCLZIP)) {
+            require_once BMI_PRO_PCLZIP;
+          } else {
+            require_once trailingslashit(ABSPATH) . 'wp-admin/includes/class-pclzip.php';
+          }
+        }
+        $lib = new \PclZip($zippath);
+
+        $content = $lib->extract(PCLZIP_OPT_BY_NAME, $filename, PCLZIP_OPT_EXTRACT_AS_STRING);
+        if (sizeof($content) > 0) {
+          return true;
+        } else {
+          return false;
+        }
       }
     }
   }
