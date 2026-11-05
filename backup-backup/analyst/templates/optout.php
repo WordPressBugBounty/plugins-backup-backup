@@ -23,7 +23,6 @@
 			<span style="color: #dc3232; font-size: 16px">Service unavailable. Please try again later</span>
 		</div>
 	</div>
-	</div>
 </div>
 
 <script type="text/javascript">

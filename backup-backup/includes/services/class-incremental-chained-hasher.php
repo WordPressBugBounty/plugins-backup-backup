@@ -1,7 +1,5 @@
 <?php
 
-declare(strict_types=1);
-
 namespace BMI\Plugin\Services;
 
 /**
@@ -32,16 +30,16 @@ class IncrementalChainedHasher
     // ── Properties ─────────────────────────────────────────────────────────
 
     /** @var string PHP hash() algorithm name. */
-    private string $algorithm;
+    private $algorithm;
 
     /** @var int Bytes per automatic chain link. */
-    private int $hashChunkSize;
+    private $hashChunkSize;
 
     /** @var string Running chain hash (committed links only). */
-    private string $runningHash;
+    private $runningHash;
 
     /** @var string Bytes accumulated since the last committed link. */
-    private string $pending = '';
+    private $pending = '';
 
     // ── Constructor ────────────────────────────────────────────────────────
 
@@ -51,9 +49,9 @@ class IncrementalChainedHasher
      * @param string $seedHash      Initial running hash H₀ (default '' = fresh chain).
      */
     public function __construct(
-        string $algorithm     = 'md5',
-        int    $hashChunkSize = 1048576,
-        string $seedHash      = ''
+        $algorithm     = 'md5',
+        $hashChunkSize = 1048576,
+        $seedHash      = ''
     ) {
         $this->algorithm     = $algorithm;
         $this->hashChunkSize = max(1, $hashChunkSize);
@@ -69,7 +67,7 @@ class IncrementalChainedHasher
      *
      * @param string $data Raw bytes to accumulate.
      */
-    public function update(string $data): void
+    public function update($data)
     {
         $this->pending .= $data;
 
@@ -91,7 +89,7 @@ class IncrementalChainedHasher
      *
      * @return string Running chain hash after flushing.
      */
-    public function checkpoint(): string
+    public function checkpoint()
     {
         if ($this->pending !== '') {
             $this->advanceChain($this->pending);
@@ -107,7 +105,7 @@ class IncrementalChainedHasher
      *
      * @return string Final running chain hash.
      */
-    public function finalize(): string
+    public function finalize()
     {
         return $this->checkpoint();
     }
@@ -125,7 +123,7 @@ class IncrementalChainedHasher
      * @param string $runningHash Hex-encoded chain hash to restore.
      * @param string $pending     Raw pending bytes to restore (default '' = empty).
      */
-    public function setState(string $runningHash, string $pending = ''): void
+    public function setState($runningHash, $pending = '')
     {
         $this->runningHash = $runningHash;
         $this->pending     = $pending;
@@ -136,7 +134,7 @@ class IncrementalChainedHasher
      *
      * @param string $seedHash New H₀ seed (default '' = fresh chain).
      */
-    public function reset(string $seedHash = ''): void
+    public function reset($seedHash = '')
     {
         $this->runningHash = $seedHash;
         $this->pending     = '';
@@ -151,7 +149,7 @@ class IncrementalChainedHasher
      *
      * @return string Hex-encoded digest.
      */
-    public function getRunningHash(): string
+    public function getRunningHash()
     {
         return $this->runningHash;
     }
@@ -163,19 +161,19 @@ class IncrementalChainedHasher
      *
      * @return string Raw (binary) pending bytes.
      */
-    public function getPending(): string
+    public function getPending()
     {
         return $this->pending;
     }
 
     /** @return string PHP hash() algorithm name. */
-    public function getAlgorithm(): string
+    public function getAlgorithm()
     {
         return $this->algorithm;
     }
 
     /** @return int Bytes per chain link. */
-    public function getHashChunkSize(): int
+    public function getHashChunkSize()
     {
         return $this->hashChunkSize;
     }
@@ -187,7 +185,7 @@ class IncrementalChainedHasher
      *
      * @param string $piece Raw bytes for this link.
      */
-    private function advanceChain(string $piece): void
+    private function advanceChain($piece)
     {
         $pieceHash         = hash($this->algorithm, $piece);
         $this->runningHash = hash($this->algorithm, $this->runningHash . $pieceHash);

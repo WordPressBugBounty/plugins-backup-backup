@@ -377,7 +377,7 @@
      * @return bool True if the password is correct, false otherwise.
      * @throws \Exception If the file cannot be opened or lacks testable files.
      */
-    public static function validateZipPassword(string $zipPath, string $password): bool {
+    public static function validateZipPassword($zipPath, $password) {
       $zip = new \ZipArchive();
 
       $res = $zip->open($zipPath);

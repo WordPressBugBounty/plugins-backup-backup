@@ -153,6 +153,19 @@ class DatabaseExportProcessor
             try {
                 do {
                     $result = $engine->exportBatch();
+                    if ($result['status'] !== DatabaseExportEngine::STATUS_COMPLETED) {
+                        $this->logger->log(
+                            sprintf(
+                                'Table %s progress: %d/%d rows exported [Batch %d/%d]',
+                                $tableName,
+                                $result['rows_exported'],
+                                $result['rows_count'],
+                                $result['batch'],
+                                $result['total_batches']
+                            ),
+                            'INFO'
+                        );
+                    }
                 } while ($result['status'] !== DatabaseExportEngine::STATUS_COMPLETED);
             } catch (\RuntimeException $e) {
                 $this->logger->log(
@@ -265,6 +278,18 @@ class DatabaseExportProcessor
             if ($masterState['current_table_index'] >= count($tables)) {
                 return $this->completeMasterExport($masterState);
             }
+        } else {
+            $this->logger->log(
+                sprintf(
+                    'Table %s progress: %d/%d rows exported [Batch %d/%d]',
+                    $tableName,
+                    $result['rows_exported'],
+                    $result['rows_count'],
+                    $result['batch'],
+                    $result['total_batches']
+                ),
+                'INFO'
+            );
         }
 
         $this->stateStorage->save($masterState);
@@ -391,7 +416,7 @@ class DatabaseExportProcessor
     private function getExcludedTableNames()
     {
         $shouldExclude = Dashboard\bmi_get_config('BACKUP:DATABASE:EXCLUDE');
-        if ($shouldExclude !== 'true') {
+        if ($shouldExclude !== 'true' && $shouldExclude !== true) {
             return [];
         }
 

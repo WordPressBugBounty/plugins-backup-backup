@@ -447,8 +447,22 @@
   private function getDropboxToken()
   {
 
-    $bytes = random_bytes(36);
-    $token = bin2hex($bytes);
+    if (isset($this->post['backupDirectoryPath'])) {
+      $backupDirectoryPath = trim($this->post['backupDirectoryPath']);
+      if (!empty($backupDirectoryPath)) {
+        if (!preg_match("/^[a-zA-Z0-9\_\-\.]+$/", $backupDirectoryPath)) {
+          return ['status' => 'msg', 'why' => __('Entered directory name does not match allowed characters (Dropbox).', 'backup-backup'), 'level' => 'warning'];
+        }
+
+        if (strlen($backupDirectoryPath) > 48) {
+          return ['status' => 'msg', 'why' => __('Entered directory name is too long, max 48 characters (Dropbox).', 'backup-backup'), 'level' => 'warning'];
+        }
+      }
+
+      Dashboard\bmi_set_config('STORAGE::EXTERNAL::DROPBOX::DIRNAME', $backupDirectoryPath);
+    }
+
+    $token = \bmi_generate_auth_token(36);
 
     update_option('bmip_dropbox', $token);
     return ['token' => $token];
@@ -465,6 +479,13 @@
     if ($currentToken === $receivedToken) {
 
       update_option('bmip_dropbox_auth_code', $receivedAuthCode);
+      require_once BMI_INCLUDES . '/external/dropbox.php';
+      $dropbox = new Dropbox();
+      $dropboxDirName = $dropbox->getDirName();
+      if ($dropboxDirName!== '') {
+        $dropbox->createFolder($dropboxDirName);
+      }
+
       return ['status' => 'success'];
     } else {
 
@@ -731,8 +752,7 @@
   private function getGDriveToken()
   {
 
-    $bytes = random_bytes(36);
-    $token = bin2hex($bytes);
+    $token = \bmi_generate_auth_token(36);
     $backupDirectoryPath = $this->post['backupDirectoryPath'];
     if (!preg_match("/^[a-zA-Z0-9\_\ \-\.]+$/", $backupDirectoryPath)) {
       return ['status' => 'msg', 'why' => __('Entered directory name does not match allowed characters (Google Drive).', 'backup-backup'), 'level' => 'warning'];
@@ -950,6 +970,9 @@
   {
 
     $this->removeGDriveConnection();
+    require_once BMI_INCLUDES . '/external/google-drive.php';
+    $gdrive = new GDrive();
+    $gdrive->purgeFilesCache();
     delete_option('bmi_pro_gd_client_id');
     delete_option('bmi_pro_gd_token');
     delete_transient('bmi_pro_access_token');
@@ -1006,6 +1029,11 @@
 
     if ($testConnection['status'] == 'error') {
       return ['status' => 'error', 'msg' => $testConnection['error']];
+    }
+
+    if (!$s3->ensureDirectoryExists()) {
+      Logger::error('Unable to create the configured directory for aws.');
+      return ['status' => 'error', 'msg' => __('The configured Amazon S3 directory could not be created.', 'backup-backup')];
     }
 
     Dashboard\bmi_set_config('STORAGE::EXTERNAL::AWS', 'true');
@@ -1088,6 +1116,11 @@
   
       if ($testConnection['status'] == 'error') {
           return ['status' => 'error', 'msg' => $testConnection['error']];
+      }
+
+      if (!$s3->ensureDirectoryExists()) {
+          Logger::error('Unable to create the configured directory for wasabi.');
+          return ['status' => 'error', 'msg' => __('The configured Wasabi directory could not be created.', 'backup-backup')];
       }
   
       Dashboard\bmi_set_config('STORAGE::EXTERNAL::WASABI', 'true');
@@ -2940,9 +2973,11 @@
       // Return
       Logger::log(__("New backup created and its name is: ", 'backup-backup') . $name);
 
-      $GLOBALS['bmi_error_handled'] = true;
 
       $this->actionsAfterProcess(true, 'backup', $cron);
+
+      $GLOBALS['bmi_error_handled'] = true;
+
       return ['status' => 'success', 'filename' => $name, 'root' => plugin_dir_url(BMI_ROOT_FILE)];
 
     }
@@ -3692,6 +3727,31 @@
       require_once BMI_INCLUDES . '/uploader/chunks.php';
     }
 
+    private function ensureExternalStorageDirectoryExists($serviceName) {
+      require_once BMI_INCLUDES . '/external/external-storage-manager.php';
+      $storageManager = \BMI\Plugin\External\BMI_External_Storage_Manager::getInstance();
+      return $storageManager->ensureStorageDirectoryExists($serviceName);
+    }
+
+    private function saveExternalStorageDirectory($serviceName, $configKey, $directoryName, $enabled) {
+      $currentDirectory = Dashboard\bmi_get_config($configKey);
+      if (!Dashboard\bmi_set_config($configKey, $directoryName)) {
+        return false;
+      }
+
+      if ($enabled !== 'true' || empty($directoryName) || $currentDirectory === $directoryName) {
+        return true;
+      }
+
+      if ($this->ensureExternalStorageDirectoryExists($serviceName)) {
+        return true;
+      }
+
+      Dashboard\bmi_set_config($configKey, $currentDirectory);
+      Logger::error('Reverted the configured directory for ' . $serviceName . ' because the remote directory could not be created.');
+      return false;
+    }
+
     public function removeBackupFile() {
       $backups = $this->post['backups']; // ['filename' => ['hash' => 'hash', 'isCloud' => true/false]]
       $deleteCloud = $this->post['deleteCloud'] === 'yes' ? true : false;
@@ -3760,6 +3820,24 @@
         if (!Dashboard\bmi_set_config('STORAGE::EXTERNAL::DROPBOX', $dropboxenabled)) {
           $errors++;
         }
+
+        if (isset($this->post['dropboxdirname'])) {
+          $dropboxdirname = trim($this->post['dropboxdirname']);
+
+          if (!empty($dropboxdirname)) {
+            if (!preg_match("/^[a-zA-Z0-9\_\-\.]+$/", $dropboxdirname)) {
+              return ['status' => 'msg', 'why' => __('Entered directory name does not match allowed characters (Dropbox).', 'backup-backup'), 'level' => 'warning'];
+            }
+
+            if (strlen($dropboxdirname) > 48) {
+              return ['status' => 'msg', 'why' => __('Entered directory name is too long, max 48 characters (Dropbox).', 'backup-backup'), 'level' => 'warning'];
+            }
+          }
+
+          if (!$this->saveExternalStorageDirectory('dropbox', 'STORAGE::EXTERNAL::DROPBOX::DIRNAME', $dropboxdirname, $dropboxenabled)) {
+            $errors++;
+          }
+        }
       }
 
       if (isset($this->post['gdrive'])) {
@@ -3783,7 +3861,7 @@
             return ['status' => 'msg', 'why' => __('Entered directory name is too long, max 48 characters (Google Drive).', 'backup-backup'), 'level' => 'warning'];
           }
 
-          if (!Dashboard\bmi_set_config('STORAGE::EXTERNAL::GDRIVE::DIRNAME', $gdrivedirname)) {
+          if (!$this->saveExternalStorageDirectory('gdrive', 'STORAGE::EXTERNAL::GDRIVE::DIRNAME', $gdrivedirname, $gdriveenabled)) {
             $errors++;
           }
         }
@@ -3796,6 +3874,9 @@
         }
 
         if ($ftpenabled != "false"){
+          $currentFtpHostDir = get_option('bmi_pro_ftp_backup_dir', '');
+          $ftpHostDir = $currentFtpHostDir;
+
           if (isset($this->post['ftphostip'])) {
             $ftpiphost = $this->post['ftphostip'];
             update_option('bmi_pro_ftp_host', $ftpiphost);
@@ -3820,6 +3901,12 @@
           if (isset($this->post['ftpdir'])) {
             $ftpHostDir = $this->post['ftpdir'];
             update_option('bmi_pro_ftp_backup_dir', $ftpHostDir);
+          }
+
+          if (!empty($ftpHostDir) && $currentFtpHostDir !== $ftpHostDir && !$this->ensureExternalStorageDirectoryExists('ftp')) {
+            update_option('bmi_pro_ftp_backup_dir', $currentFtpHostDir);
+            Logger::error('Reverted the configured directory for ftp because the remote directory could not be created.');
+            $errors++;
           }
         } else {
           delete_option('bmi_pro_ftp_host');
@@ -3854,6 +3941,24 @@
           if (!Dashboard\bmi_set_config('STORAGE::EXTERNAL::ONEDRIVE', $onedriveenabled)) {
             $errors++;
           }
+
+          if (isset($this->post['onedrivedirname'])) {
+            $onedrivedirname = trim($this->post['onedrivedirname']);
+
+            if (!empty($onedrivedirname)) {
+              if (!preg_match("/^[a-zA-Z0-9\_\-\.]+$/", $onedrivedirname)) {
+                return ['status' => 'msg', 'why' => __('Entered directory name does not match allowed characters (OneDrive).', 'backup-backup'), 'level' => 'warning'];
+              }
+
+              if (strlen($onedrivedirname) > 48) {
+                return ['status' => 'msg', 'why' => __('Entered directory name is too long, max 48 characters (OneDrive).', 'backup-backup'), 'level' => 'warning'];
+              }
+            }
+
+            if (!$this->saveExternalStorageDirectory('onedrive', 'STORAGE::EXTERNAL::ONEDRIVE::DIRNAME', $onedrivedirname, $onedriveenabled)) {
+              $errors++;
+            }
+          }
         }
 
         if (isset($this->post['sftp'])) {
@@ -3868,6 +3973,24 @@
           $pcloudenabled = $this->post['pcloud'];
           if (!Dashboard\bmi_set_config('STORAGE::EXTERNAL::PCLOUD', $pcloudenabled)) {
             $errors++;
+          }
+
+          if (isset($this->post['pclouddirname'])) {
+            $pclouddirname = trim($this->post['pclouddirname']);
+
+            if (!empty($pclouddirname)) {
+              if (!preg_match("/^[a-zA-Z0-9\_\-\.]+$/", $pclouddirname)) {
+                return ['status' => 'msg', 'why' => __('Entered directory name does not match allowed characters (pCloud).', 'backup-backup'), 'level' => 'warning'];
+              }
+
+              if (strlen($pclouddirname) > 48) {
+                return ['status' => 'msg', 'why' => __('Entered directory name is too long, max 48 characters (pCloud).', 'backup-backup'), 'level' => 'warning'];
+              }
+            }
+
+            if (!$this->saveExternalStorageDirectory('pcloud', 'STORAGE::EXTERNAL::PCLOUD::DIRNAME', $pclouddirname, $pcloudenabled)) {
+              $errors++;
+            }
           }
         }
 
@@ -4301,9 +4424,9 @@
 
       $existant = [];
       $parsed = [];
-      $ffnames = $this->post['dynamic-names']; // BACKUP:FILES::FILTER:NAMES:IN
-      $ffpnames = array_unique($this->post['dynamic-fpaths-names']); // BACKUP:FILES::FILTER:FPATHS:IN
-      $ffdnames = array_unique($this->post['dynamic-dpaths-names']); // BACKUP:FILES::FILTER:DPATHS:IN
+      $ffnames = isset($this->post['dynamic-names']) && is_array($this->post['dynamic-names']) ? $this->post['dynamic-names'] : []; // BACKUP:FILES::FILTER:NAMES:IN
+      $ffpnames = isset($this->post['dynamic-fpaths-names']) && is_array($this->post['dynamic-fpaths-names']) ? array_values(array_unique(array_filter($this->post['dynamic-fpaths-names'], 'is_string'))) : []; // BACKUP:FILES::FILTER:FPATHS:IN
+      $ffdnames = isset($this->post['dynamic-dpaths-names']) && is_array($this->post['dynamic-dpaths-names']) ? array_values(array_unique(array_filter($this->post['dynamic-dpaths-names'], 'is_string'))) : []; // BACKUP:FILES::FILTER:DPATHS:IN
 
       if (is_array($dbet) || is_object($dbet)) {
         if (sizeof($dbet) == 1 && $dbet[0] == 'empty') {
@@ -4334,6 +4457,7 @@
 
       for ($i = 0; $i < sizeof($ffnames); ++$i) {
         $row = $ffnames[$i];
+        if (!is_array($row)) continue;
         $txt = array_key_exists('txt', $row) ? "" . $row['txt'] . "" : false;
         $pos = array_key_exists('pos', $row) ? $row['pos'] : false;
         $whr = array_key_exists('whr', $row) ? $row['whr'] : false;
@@ -4476,8 +4600,10 @@
       $fgwp = Dashboard\bmi_get_config('BACKUP:FILES::WP');
       $dpathsis = Dashboard\bmi_get_config('BACKUP:FILES::FILTER:DPATHS') === 'true' ? true : false;
       $dpaths = Dashboard\bmi_get_config('BACKUP:FILES::FILTER:DPATHS:IN');
+      $dpaths = is_array($dpaths) ? $dpaths : [];
       $dynamesis = Dashboard\bmi_get_config('BACKUP:FILES::FILTER:NAMES') === 'true' ? true : false;
       $dynames = Dashboard\bmi_get_config('BACKUP:FILES::FILTER:NAMES:IN');
+      $dynames = is_array($dynames) ? $dynames : [];
       $dynparsed = [];
 
       $isSmartExclusion =defined("BMI_BACKUP_PRO") && BMI_BACKUP_PRO && Dashboard\bmi_get_config('SMART:EXCLUSION:ENABLED') == 'true' ? true : false;
@@ -4695,9 +4821,11 @@
       $is = Dashboard\bmi_get_config('BACKUP:FILES::FILTER') === 'true' ? true : false;
       $acis = (Dashboard\bmi_get_config('BACKUP:FILES::FILTER:FPATHS') === 'true' && $is) ? true : false;
       $ac = Dashboard\bmi_get_config('BACKUP:FILES::FILTER:FPATHS:IN');
+      $ac = is_array($ac) ? $ac : [];
 
       $abis = (Dashboard\bmi_get_config('BACKUP:FILES::FILTER:NAMES') === 'true' && $is) ? true : false;
       $ab = Dashboard\bmi_get_config('BACKUP:FILES::FILTER:NAMES:IN');
+      $ab = is_array($ab) ? $ab : [];
       $abres = [];
       $acres = new \stdClass();
 
@@ -4951,6 +5079,10 @@
       $data = Dashboard\bmi_get_config('BACKUP:FILES::FILTER:NAMES:IN');
       $fpdata = Dashboard\bmi_get_config('BACKUP:FILES::FILTER:FPATHS:IN');
       $fddata = Dashboard\bmi_get_config('BACKUP:FILES::FILTER:DPATHS:IN');
+
+      $data = is_array($data) ? $data : [];
+      $fpdata = is_array($fpdata) ? $fpdata : [];
+      $fddata = is_array($fddata) ? $fddata : [];
 
       for ($i = 0; $i < sizeof($fpdata); ++$i) {
         $fpdata[$i] = BMP::fixSlashes($fpdata[$i]);
@@ -5458,6 +5590,7 @@
         $bmiSiteData['is_wp_config_writable'] = "file_does_not_exist?";
       }
 
+      $configFailures = Dashboard\BMI_Config_V2::get_failures_as_string();
       $latestBackupLogs = 'does_not_exist';
       $latestBackupProgress = 'does_not_exist';
       $latestRestorationLogs = 'does_not_exist';
@@ -5510,8 +5643,6 @@
               fclose($fp);
             
               $pluginGlobalLogs = 'file_too_large, last 64KB:' . "\n" . $lastBytes;
-
-              file_put_contents($completeLogsPath, $lastBytes);
           } else {
               $pluginGlobalLogs = 'could_not_open_file';
           }
@@ -5567,6 +5698,7 @@
           'latest_staging_logs' => $latestStagingLogs,
           'latest_staging_progress' => $latestStagingProgress,
           'current_plugin_config' => $currentPluginConfig,
+          'config_failures' => $configFailures,
           'plugin_global_logs' => $pluginGlobalLogs,
           'background_errors' => $backgroundErrors,
           'triggered_by' => $logsSourceFrontEnd,
@@ -5621,6 +5753,7 @@
         try {
           $body = json_decode($response['body']);
           if (isset($body->code)) {
+            Dashboard\BMI_Config_V2::clear_failures();
             return ['status' => 'success', 'code' => sanitize_text_field($body->code)];
           } else {
             return ['status' => 'fail'];

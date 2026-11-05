@@ -13,17 +13,19 @@ use BMI\Plugin\Scanner\BMI_BackupsScanner as Backups;
 use BMI\Plugin\Dashboard as Dashboard;
 use function BMI\Plugin\Dashboard\bmi_get_config;
 use BMI\Plugin\External\Contracts\DeleteBackup;
+use BMI\Plugin\External\Contracts\EnsureDirectoryExists;
 
 if (!defined('ABSPATH')) {
   exit;
 }
 
 require_once BMI_INCLUDES . DIRECTORY_SEPARATOR . 'external' . DIRECTORY_SEPARATOR . 'contracts' . DIRECTORY_SEPARATOR . 'interface-delete-backup.php';
+require_once BMI_INCLUDES . DIRECTORY_SEPARATOR . 'external' . DIRECTORY_SEPARATOR . 'contracts' . DIRECTORY_SEPARATOR . 'interface-ensure-directory-exists.php';
 
 /**
  * BMI_External_FTP
  */
-class BMI_External_FTP implements DeleteBackup
+class BMI_External_FTP implements DeleteBackup, EnsureDirectoryExists
 {
   private $ftp_access_username = false;
   private $ftp_access_password = false;
@@ -129,6 +131,43 @@ class BMI_External_FTP implements DeleteBackup
     }
     
     return $ftp_conn;
+  }
+
+  /**
+   * Ensure the configured FTP directory exists.
+   *
+   * @return bool
+   */
+  public function ensureDirectoryExists()
+  {
+    $directory = str_replace('\\', '/', trim($this->ftp_access_dir));
+    if (empty($directory)) {
+      return true;
+    }
+
+    $ftp = $this->ftpConnect();
+    if ($ftp === false) {
+      return false;
+    }
+
+    if (@ftp_chdir($ftp, $directory)) {
+      ftp_close($ftp);
+      return true;
+    }
+
+    $currentPath = strpos($directory, '/') === 0 ? '' : '.';
+    foreach (explode('/', trim($directory, '/')) as $part) {
+      if ($part === '') continue;
+      $currentPath .= '/' . $part;
+      if (!@ftp_chdir($ftp, $currentPath) && !@ftp_mkdir($ftp, $currentPath)) {
+        ftp_close($ftp);
+        return false;
+      }
+    }
+
+    $exists = @ftp_chdir($ftp, $directory);
+    ftp_close($ftp);
+    return $exists;
   }
 
   public function verifyConnection()

@@ -151,7 +151,7 @@
     }
     
     // Get "remote_settings" from file created by the server
-    public function getRemoteSettings($curlIdenty, $curl = false) : array {
+    public function getRemoteSettings($curlIdenty, $curl = false) {
       $settings_name = 'currentBackupConfig.' . 'php';
       $settings_path = BMP::fixSlashes(BMI_TMP . DIRECTORY_SEPARATOR . $settings_name);
       
@@ -698,6 +698,12 @@
       try {
         $encryptionEnabled = defined('BMI_BACKUP_PRO') && BMI_BACKUP_PRO === 1 && Dashboard\bmi_get_config('ENCRYPTION:ENABLED');
         $encryptionPassword = $encryptionEnabled ? Dashboard\bmi_get_config('ENCRYPTION:PASSWORD') : false;
+
+        if ($encryptionEnabled && !\bmi_zip_encryption_supported()) {
+          $this->send_error(__('Encrypted backups require a ZipArchive build with AES encryption support.', 'backup-backup'));
+          return false;
+        }
+
         $zipArchive = false;
         if (class_exists('\ZipArchive') || class_exists('ZipArchive')) {
           if (!isset($this->_zip)) {

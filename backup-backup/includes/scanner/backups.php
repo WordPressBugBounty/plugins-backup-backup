@@ -296,7 +296,8 @@
         $manifest = $this->getManifestFromZip($backupPath);
         if (!$manifest) {
           if (!self::isBackupRunning($backupPath)) {
-            Logger::error("Failed to extract manifest from backup: " . $backupPath);
+            Logger::error("Deleting the broken backup: " . $backupPath);
+            unlink($backupPath);
           }
           return false;
         }
@@ -443,6 +444,8 @@
         $externalStorageManager = \BMI\Plugin\External\BMI_External_Storage_Manager::getInstance();
         try {
           $externalStorageManager->deleteBackup($fileHash);
+        } catch (\Exception $e) {
+          Logger::log("Error deleting cloud backup: " . $e->getMessage());
         } catch (\Throwable $e) {
           Logger::log("Error deleting cloud backup: " . $e->getMessage());
         }

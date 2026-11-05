@@ -302,6 +302,12 @@
 
       $current_patch = get_option('bmi_hotfixes', array());
 
+      if (!in_array('BMI_D20_M8_26', $current_patch)) {
+        Dashboard\bmi_set_config('STORAGE::EXTERNAL::ONEDRIVE::DIRNAME', '');
+        Dashboard\bmi_set_config('STORAGE::EXTERNAL::DROPBOX::DIRNAME', '');
+        $current_patch[] = 'BMI_D20_M8_26';
+      }
+
       if (!in_array('BMI_D15_M6_26', $current_patch)) {
         if (file_exists(BMI_BACKUPS . '/md5summary.php')) {
           unlink(BMI_BACKUPS . '/md5summary.php');
@@ -937,66 +943,72 @@
     }
 
     public static function handle_after_cron() {
-      require_once BMI_INCLUDES . DIRECTORY_SEPARATOR . 'scanner' . DIRECTORY_SEPARATOR . 'backups.php';
-      require_once BMI_INCLUDES . '/external/external-storage-manager.php';
-
-      $backups = Backups::getInstance();
-      $externalStorageManager = \BMI\Plugin\External\BMI_External_Storage_Manager::getInstance();
-
-      $availableBackups = $backups->getAvailableBackups();
-      $list = $availableBackups['local'];
-
-      $cron_list = [];
-      $cron_dates = [];
-      $sortedMD5s = [];
-      foreach ($list as $key => $value) {
-        if ($list[$key][6] == true) {
-          if ($list[$key][5] == 'unlocked') {
-            $cron_list[$list[$key][1]] = $list[$key][0];
-            $cron_dates[] = $list[$key][1];
-            $sortedMD5s[] = [$list[$key][1], $list[$key][7]];
-          }
-        }
-      }
-
-      usort($cron_dates, function ($a, $b) {
-        return (strtotime($a) < strtotime($b)) ? -1 : 1;
-      });
-
-      $cron_dates = array_slice($cron_dates, 0, -(intval(Dashboard\bmi_get_config('CRON:KEEP'))));
-      foreach ($cron_dates as $key => $value) {
-        $name = $cron_list[$cron_dates[$key]];
-        $name = explode('#%&', $name)[1];
-        Logger::log(__("Removing backup due to keep rules: ", 'backup-backup') . $name);
-        @unlink(BMI_BACKUPS . DIRECTORY_SEPARATOR . $name);
-      }
-
-      // Auto External Removal
-      $sortedMD5s = [];
-      $externalStorages = ['gdrive', 'dropbox', 'onedrive', 'FTP', 'sftp', 'aws', 'wasabi', 'backupbliss'];
-      $currentDomain = sanitize_text_field(parse_url(home_url(), PHP_URL_HOST));
-      foreach ($externalStorages as $storage) {
-        if (isset($availableBackups['external'][$storage])) {
-          $storageList = $availableBackups['external'][$storage];
-          foreach ($storageList as $md5 => $data) {
-            if ($storageList[$md5][6] == true && $storageList[$md5][5] == 'unlocked' && $storageList[$md5][9] === $currentDomain) {
-              $sortedMD5s[] = [$storageList[$md5][1], $md5, $storageList[$md5][0]];
+      try {
+        require_once BMI_INCLUDES . DIRECTORY_SEPARATOR . 'scanner' . DIRECTORY_SEPARATOR . 'backups.php';
+        require_once BMI_INCLUDES . '/external/external-storage-manager.php';
+  
+        $backups = Backups::getInstance();
+        $externalStorageManager = \BMI\Plugin\External\BMI_External_Storage_Manager::getInstance();
+  
+        $availableBackups = $backups->getAvailableBackups();
+        $list = $availableBackups['local'];
+  
+        $cron_list = [];
+        $cron_dates = [];
+        $sortedMD5s = [];
+        foreach ($list as $key => $value) {
+          if ($list[$key][6] == true) {
+            if ($list[$key][5] == 'unlocked') {
+              $cron_list[$list[$key][1]] = $list[$key][0];
+              $cron_dates[] = $list[$key][1];
+              $sortedMD5s[] = [$list[$key][1], $list[$key][7]];
             }
           }
         }
-      }
-      $sortedMD5s = array_intersect_key($sortedMD5s, array_unique(array_map('serialize', $sortedMD5s)));
-      
-      usort($sortedMD5s, function ($a, $b) {
-        return (strtotime($a[0]) < strtotime($b[0])) ? -1 : 1;
-      });
-
-      $sortedMD5s = array_slice($sortedMD5s, 0, -(intval(Dashboard\bmi_get_config('CRON:KEEP'))));
-      foreach ($sortedMD5s as $index => $data) {
-        $md5 = $data[1];
-        $name = $data[2];
-        Logger::log(__("Removing external backup due to keep rules: ", 'backup-backup') . $name);
-        $externalStorageManager->deleteBackup($md5);
+  
+        usort($cron_dates, function ($a, $b) {
+          return (strtotime($a) < strtotime($b)) ? -1 : 1;
+        });
+  
+        $cron_dates = array_slice($cron_dates, 0, -(intval(Dashboard\bmi_get_config('CRON:KEEP'))));
+        foreach ($cron_dates as $key => $value) {
+          $name = $cron_list[$cron_dates[$key]];
+          $name = explode('#%&', $name)[1];
+          Logger::log(__("Removing backup due to keep rules: ", 'backup-backup') . $name);
+          @unlink(BMI_BACKUPS . DIRECTORY_SEPARATOR . $name);
+        }
+  
+        // Auto External Removal
+        $sortedMD5s = [];
+        $externalStorages = ['gdrive', 'dropbox', 'onedrive', 'FTP', 'sftp', 'aws', 'wasabi', 'backupbliss'];
+        $currentDomain = sanitize_text_field(parse_url(home_url(), PHP_URL_HOST));
+        foreach ($externalStorages as $storage) {
+          if (isset($availableBackups['external'][$storage])) {
+            $storageList = $availableBackups['external'][$storage];
+            foreach ($storageList as $md5 => $data) {
+              if ($storageList[$md5][6] == true && $storageList[$md5][5] == 'unlocked' && $storageList[$md5][9] === $currentDomain) {
+                $sortedMD5s[] = [$storageList[$md5][1], $md5, $storageList[$md5][0]];
+              }
+            }
+          }
+        }
+        $sortedMD5s = array_intersect_key($sortedMD5s, array_unique(array_map('serialize', $sortedMD5s)));
+        
+        usort($sortedMD5s, function ($a, $b) {
+          return (strtotime($a[0]) < strtotime($b[0])) ? -1 : 1;
+        });
+  
+        $sortedMD5s = array_slice($sortedMD5s, 0, -(intval(Dashboard\bmi_get_config('CRON:KEEP'))));
+        foreach ($sortedMD5s as $index => $data) {
+          $md5 = $data[1];
+          $name = $data[2];
+          Logger::log(__("Removing external backup due to keep rules: ", 'backup-backup') . $name);
+          $externalStorageManager->deleteBackup($md5);
+        }
+      } catch (\Throwable $e) {
+        Logger::error('Error during handle_after_cron: ' . $e->getMessage());
+      } catch (\Exception $e) {
+        Logger::error('Error during handle_after_cron: ' . $e->getMessage()); 
       }
     }
 

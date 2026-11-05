@@ -570,7 +570,7 @@
         $visitLaterText = __('Site restoration in progress, please visit that website a bit later, thank you! :)', 'backup-backup');
         file_put_contents($tempTheme . DIRECTORY_SEPARATOR . 'header.php', '<?php wp_head(); show_admin_bar(true);');
         file_put_contents($tempTheme . DIRECTORY_SEPARATOR . 'footer.php', '<?php wp_footer(); get_footer();');
-        file_put_contents($tempTheme . DIRECTORY_SEPARATOR . 'index.php', '<?php get_header(); wp_body_open(); ?>' . $visitLaterText);
+        file_put_contents($tempTheme . DIRECTORY_SEPARATOR . 'index.php', '<?php get_header(); if (function_exists("wp_body_open")) wp_body_open(); else do_action("wp_body_open"); ?>' . $visitLaterText);
         file_put_contents($tempTheme . DIRECTORY_SEPARATOR . '.previous_theme', get_option('template', ''));
         file_put_contents($tempTheme . DIRECTORY_SEPARATOR . '.previous_stylesheet', get_option('stylesheet', ''));
         file_put_contents($tempTheme . DIRECTORY_SEPARATOR . '.earlier_active_plugins', serialize(get_option('active_plugins')));

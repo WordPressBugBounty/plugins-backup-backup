@@ -11,19 +11,21 @@ use BMI\Plugin\BMProAjax as BMProAjax;
 use BMI\Plugin\Scanner\BMI_BackupsScanner as Backups;
 use BMI\Plugin\Dashboard as Dashboard;
 use BMI\Plugin\External\Contracts\DeleteBackup;
+use BMI\Plugin\External\Contracts\EnsureDirectoryExists;
 
 if (!defined('ABSPATH')) {
   exit;
 }
 
 require_once BMI_INCLUDES . DIRECTORY_SEPARATOR . 'external' . DIRECTORY_SEPARATOR . 'contracts' . DIRECTORY_SEPARATOR . 'interface-delete-backup.php';
+require_once BMI_INCLUDES . DIRECTORY_SEPARATOR . 'external' . DIRECTORY_SEPARATOR . 'contracts' . DIRECTORY_SEPARATOR . 'interface-ensure-directory-exists.php';
 
 /**
  * BMI_External_GDrive
  * 
  * This class is responsible for handling all Google Drive related operations
  */
-class BMI_External_GDrive implements DeleteBackup {
+class BMI_External_GDrive implements DeleteBackup, EnsureDirectoryExists {
 
   private $gdrive_access_token = false;
 
@@ -472,13 +474,47 @@ class BMI_External_GDrive implements DeleteBackup {
   }
 
   /**
+   * getDirName - Returns configured directory name for Google Drive
+   *
+   * @return string
+   */
+  public function getDirName() {
+    $dirname = Dashboard\bmi_get_config('STORAGE::EXTERNAL::GDRIVE::DIRNAME');
+    if ($dirname === false || $dirname === null || !is_string($dirname) || empty(trim($dirname))) {
+      return 'BACKUP_MIGRATION_BACKUPS';
+    }
+    return trim(sanitize_text_field($dirname), "/\\ \t\n\r\0\x0B");
+  }
+
+  /**
+   * getFilesCacheKey - Returns cache key for Google Drive files list
+   *
+   * @return string
+   */
+  public function getFilesCacheKey() {
+    $dirname = $this->getDirName();
+    return 'bmip_gdrive_files_cache_' . md5($dirname);
+  }
+
+  /**
+   * purgeFilesCache - Purges the Google Drive files list cache
+   *
+   * @return void
+   */
+  public function purgeFilesCache() {
+    delete_transient($this->getFilesCacheKey());
+    delete_transient('bmip_gdrive_files_cache_' . md5(''));
+    delete_transient('bmip_gdrive_files_cache_' . md5('BACKUP_MIGRATION_BACKUPS'));
+  }
+
+  /**
    * getBMIDirectoryID - Return list of Google Drive backups and their MD5s
    *
    * @return json status
    */
   private function getBMIDirectoryID() {
 
-    $dirname = esc_attr(sanitize_text_field(Dashboard\bmi_get_config('STORAGE::EXTERNAL::GDRIVE::DIRNAME')));
+    $dirname = $this->getDirName();
 
     $search = rawurlencode("name = '" . $dirname . "' and trashed = false and mimeType = 'application/vnd.google-apps.folder'");
     $uri = 'files?corpora=user&orderBy=folder&q=' . $search;
@@ -496,6 +532,7 @@ class BMI_External_GDrive implements DeleteBackup {
       ];
 
       $api = $this->makeGoogleDriveAPICallPost('files', $directoryCreationData);
+      if ($api == 'error' || !is_object($api) || !isset($api->id)) return false;
       $bmiAppDirectoryID = $api->id;
 
     } else {
@@ -509,21 +546,66 @@ class BMI_External_GDrive implements DeleteBackup {
   }
 
   /**
+   * Ensure the configured Google Drive directory exists.
+   *
+   * @return bool
+   */
+  public function ensureDirectoryExists() {
+    $directoryId = $this->getBMIDirectoryID();
+    return is_string($directoryId) && !empty($directoryId);
+  }
+
+  /**
    * getGoogleDriveBackups - Return list of Google Drive backups and their MD5s
    *
+   * @param bool $forceRefresh
    * @return json status
    */
-  public function getGoogleDriveBackups() {
+  public function getGoogleDriveBackups($forceRefresh = false) {
+
+    $cacheKey = $this->getFilesCacheKey();
+    if (!$forceRefresh) {
+      $cached = get_transient($cacheKey);
+      if ($cached !== false && is_array($cached)) {
+        return ['status' => 'success', 'data' => (object)['files' => $cached]];
+      }
+    }
 
     $bmiAppDirectoryID = $this->getBMIDirectoryID();
 
     if (is_array($bmiAppDirectoryID)) return false;
 
     $search = rawurlencode("'" . $bmiAppDirectoryID . "'" . ' in parents and trashed = false');
-    $uri = 'files?corpora=user&orderBy=folder&fields=files(md5Checksum,+originalFilename,+size,+mimeType,+name,+id)&q=' . $search;
-    $api = $this->makeGoogleDriveAPICall($uri);
+    $fields = rawurlencode('nextPageToken,files(md5Checksum,originalFilename,size,mimeType,name,id)');
+    $baseUri = 'files?corpora=user&orderBy=folder&pageSize=100&fields=' . $fields . '&q=' . $search;
 
-    return [ 'status' => 'success', 'data' => $api ];
+    $allFiles = [];
+    $pageToken = null;
+    $page = 0;
+    $maxPages = 50;
+
+    do {
+      $page++;
+      $uri = $baseUri . ($pageToken ? '&pageToken=' . rawurlencode($pageToken) : '');
+      $api = $this->makeGoogleDriveAPICall($uri);
+
+      if ($api === 'error' || !is_object($api)) {
+        if ($page === 1) {
+          return false;
+        }
+        break;
+      }
+
+      if (isset($api->files) && is_array($api->files)) {
+        $allFiles = array_merge($allFiles, $api->files);
+      }
+
+      $pageToken = isset($api->nextPageToken) && !empty($api->nextPageToken) ? $api->nextPageToken : null;
+    } while ($pageToken && $page < $maxPages);
+
+    set_transient($cacheKey, $allFiles, HOUR_IN_SECONDS);
+
+    return [ 'status' => 'success', 'data' => (object)['files' => $allFiles] ];
 
   }
 
@@ -623,6 +705,8 @@ class BMI_External_GDrive implements DeleteBackup {
       $success = false;
     }
 
+    $this->purgeFilesCache();
+
     return $found && $success;
   }
 
@@ -651,6 +735,8 @@ class BMI_External_GDrive implements DeleteBackup {
         }
       }
     }
+
+    $this->purgeFilesCache();
 
   }
 
@@ -729,10 +815,9 @@ class BMI_External_GDrive implements DeleteBackup {
         $toBeUploaded['current_upload'] = [];
         if (!isset($toBeUploaded['failed'])) $toBeUploaded['failed'] = [];
         if (isset($toBeUploaded['failed'][$task])) unset($toBeUploaded['failed'][$task]);
-        do_action('bmi_backup_upload_completed', $md5);
-
-
         update_option('bmip_to_be_uploaded', $toBeUploaded);
+        $this->purgeFilesCache();
+        do_action('bmi_backup_upload_completed', $md5);
 
       } else if ($code == 403) {
 

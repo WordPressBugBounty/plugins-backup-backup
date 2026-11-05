@@ -59,7 +59,8 @@
                   <span>
       						  <?php esc_html_e('You can set individual directory name for this website. Allowed characters: 0-9, A-z, _, -', 'backup-backup'); ?><br />
       						  <?php esc_html_e('If you have any existing backups, will not be moved automatically, they will require you to move them manually or upload once again.', 'backup-backup'); ?><br />
-                    <?php esc_html_e('You have to allow our plugin to create the directory, otherwise our plugin cannot access files within that directory.', 'backup-backup'); ?>
+                      <?php esc_html_e('You have to allow our plugin to create the directory, otherwise our plugin cannot access files within that directory.', 'backup-backup'); ?><br />
+                      <?php esc_html_e('Note: For better performance, deleting backups directly from Google Drive or other sites may take up to 1 hour to reflect in the backups list.', 'backup-backup'); ?>
                   </span>
                 </div>
       				</div>

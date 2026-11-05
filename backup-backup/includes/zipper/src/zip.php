@@ -14,6 +14,19 @@ use BMI\Plugin\Database\Export\DatabaseExportProcessor;
 
 if ( ! defined( 'ABSPATH' ) ) exit;
 
+function pclzip_validate_file_path($event, $file) {
+  if (!isset($file['stored_filename']) || !is_string($file['stored_filename']) || $file['stored_filename'] === '') {
+    throw new \Exception('PHP-ZIP: Unsafe file path detected in the backup archive.');
+  }
+
+  $filename = str_replace('\\', '/', $file['stored_filename']);
+  if ($filename[0] === '/' || strpos($filename, "\0") !== false || preg_match('/^[a-zA-Z]:\//', $filename) || strpos('/' . $filename . '/', '/../') !== false) {
+    throw new \Exception('PHP-ZIP: Unsafe file path detected in the backup archive.');
+  }
+
+  return 1;
+}
+
 class Zip {
   protected $lib;
   protected $org_files;
@@ -59,6 +72,7 @@ class Zip {
 
   public function return_bytes($val) {
     $val = trim($val);
+    if ($val == '-1') return -1;
     $last = strtolower($val[strlen($val) - 1]);
     $val = substr($val, 0, -1);
 
@@ -267,6 +281,11 @@ class Zip {
     $better_database_files_dir = $database_file_dir . 'db_tables';
     $encryptionEnabled = defined('BMI_BACKUP_PRO') && BMI_BACKUP_PRO === 1 && Dashboard\bmi_get_config('ENCRYPTION:ENABLED');
     $encryptionPassword = $encryptionEnabled ? Dashboard\bmi_get_config('ENCRYPTION:PASSWORD') : false;
+
+    if ($encryptionEnabled && !\bmi_zip_encryption_supported()) {
+      $this->zip_failed(__('Encrypted backups require a ZipArchive build with AES encryption support.', 'backup-backup'));
+      return false;
+    }
 
     // force usage of specific lib (for testing purposes)
     if ($force_lib === 2) {
@@ -1043,7 +1062,7 @@ class Zip {
       $safe_limit = $this->smartMemory($isFirstExtract);
       $this->loadPclZip($isFirstExtract);
       $lib = new \PclZip($zip_path);
-      $restor = $lib->extract(PCLZIP_OPT_BY_NAME, $files, PCLZIP_OPT_PATH, $target_dir, PCLZIP_OPT_TEMP_FILE_THRESHOLD, $safe_limit);
+      $restor = $lib->extract(PCLZIP_OPT_BY_NAME, $files, PCLZIP_OPT_PATH, $target_dir, PCLZIP_OPT_EXTRACT_DIR_RESTRICTION, $target_dir, PCLZIP_CB_PRE_EXTRACT, 'BMI\\Plugin\\Zipper\\pclzip_validate_file_path', PCLZIP_OPT_TEMP_FILE_THRESHOLD, $safe_limit);
 
       if ($restor == 0) {
 
@@ -1164,7 +1183,7 @@ class Zip {
     if ($this->lib === 2) {
       $this->loadPclZip();
       $lib = new \PclZip($this->extr_file);
-      $restor = $lib->extract(PCLZIP_OPT_PATH, $this->extr_dirc, PCLZIP_OPT_TEMP_FILE_THRESHOLD, $safe_limit);
+      $restor = $lib->extract(PCLZIP_OPT_PATH, $this->extr_dirc, PCLZIP_OPT_EXTRACT_DIR_RESTRICTION, $this->extr_dirc, PCLZIP_CB_PRE_EXTRACT, 'BMI\\Plugin\\Zipper\\pclzip_validate_file_path', PCLZIP_OPT_TEMP_FILE_THRESHOLD, $safe_limit);
       if ($restor == 0) {
         $this->restore_failed($lib->errorInfo(true));
 

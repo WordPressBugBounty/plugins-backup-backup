@@ -48,6 +48,25 @@
         if (function_exists('curl_version') && function_exists('curl_exec') && function_exists('curl_init') && $vA && $vB) {
           ?>
 
+          <div class="container-40 lh30 pt30">
+            <div class="d-flex">
+      				<div class="w270" style="margin-top: 23px;"><span><?php esc_html_e('Backup directory path:', 'backup-backup'); ?></span></div>
+      				<div>
+                  <div class="w100 pos-r external-backup-path-wrapper">
+                  <input id="bmip-dropbox-path" class="input-googledrive_storage input-dropbox_storage" type="text" value="<?php echo esc_attr( sanitize_text_field(Dashboard\bmi_get_config('STORAGE::EXTERNAL::DROPBOX::DIRNAME')) ); ?>" autocomplete="off">
+                    <span class="backups-prefix" id="dropbox-backups-prefix">Apps/Backup &amp; MigrationPlugin/</span>
+                  </div>
+      					<div class="mt10">
+                  <span>
+                    <?php esc_html_e('You can set individual directory name for this website. Allowed characters: 0-9, A-z, _, -', 'backup-backup'); ?><br />
+                    <?php esc_html_e('If you have any existing backups on the cloud, they will not be moved automatically; you will need to move them manually or upload them again.', 'backup-backup'); ?><br />
+                    <?php esc_html_e('For better plugin performance, deleting backups directly from Google Drive or other storage locations may take up to 1 hour to reflect the backups list in the plugin.', 'backup-backup'); ?>
+                  </span>
+                </div>
+      				</div>
+      			</div>
+          </div>
+
           <div id="dropbox-unauthenticated-box" class="container-40 lh30 pt30 pb30" <?php echo (($shouldBeConnected) ? 'style="display: none;"' : ''); ?>>
             <div class="d-flex">
                 <div class="w270" style="margin-top: 11px;"><span id="dropbox-not-authed-content-box">Current status:&nbsp;<b>Inactive</b></span></div>

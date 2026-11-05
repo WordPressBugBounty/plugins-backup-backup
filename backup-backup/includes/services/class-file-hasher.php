@@ -1,7 +1,5 @@
 <?php
 
-declare(strict_types=1);
-
 namespace BMI\Plugin\Services;
 
 use RuntimeException;
@@ -34,13 +32,13 @@ class FileHasher
     // ── Mode constants ─────────────────────────────────────────────────────
 
     /** Standard hash: hash_file() equivalent (v1). */
-    public const STANDARD = 'standard';
+    const STANDARD = 'standard';
 
     /** Chained hash: linked rolling digest over per-chunk hashes (v2). */
-    public const CHAINED = 'chained';
+    const CHAINED = 'chained';
 
-    /** Internal read-buffer size when streaming the file (64 KiB). */
-    private const IO_BUFFER = 65536;
+    /** @var int Internal read-buffer size when streaming the file (64 KiB). */
+    private static $ioBuffer = 65536;
 
     // ── Public API ─────────────────────────────────────────────────────────
 
@@ -57,11 +55,11 @@ class FileHasher
      * @throws RuntimeException If the file is not readable or the mode is unrecognised.
      */
     public static function compute(
-        string $filePath,
-        string $mode      = self::STANDARD,
-        int   $chunkSize = CHAINED_HASH_CHUNK_SIZE,
-        string $algorithm = 'md5'
-    ): string {
+        $filePath,
+        $mode      = self::STANDARD,
+        $chunkSize = CHAINED_HASH_CHUNK_SIZE,
+        $algorithm = 'md5'
+    ) {
         if (!is_readable($filePath)) {
             throw new RuntimeException('File is not readable: ' . $filePath);
         }
@@ -82,7 +80,7 @@ class FileHasher
     /**
      * Standard hash: stream the file and produce a single digest.
      */
-    private static function computeStandard(string $filePath, string $algorithm): string
+    private static function computeStandard($filePath, $algorithm)
     {
         $hash = hash_file($algorithm, $filePath);
         if ($hash === false) {
@@ -96,7 +94,7 @@ class FileHasher
      * Chained hash: stream the file through IncrementalChainedHasher in
      * IO_BUFFER-sized reads; chain links are $chunkSize bytes.
      */
-    private static function computeChained(string $filePath, string $algorithm, int $chunkSize): string
+    private static function computeChained($filePath, $algorithm, $chunkSize)
     {
         $handle = fopen($filePath, 'rb');
         if ($handle === false) {
@@ -106,7 +104,7 @@ class FileHasher
         $hasher = new IncrementalChainedHasher($algorithm, $chunkSize);
 
         while (!feof($handle)) {
-            $piece = fread($handle, self::IO_BUFFER);
+            $piece = fread($handle, self::$ioBuffer);
             if ($piece === false || $piece === '') {
                 break;
             }

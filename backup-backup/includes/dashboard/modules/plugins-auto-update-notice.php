@@ -17,52 +17,61 @@ $notices = [];
 $free_plugin_file = 'backup-backup/backup-backup.php'; // Adjust to actual plugin file
 $premium_plugin_file = 'backup-backup-pro/backup-backup-pro.php'; // Adjust to actual premium plugin file
 
-if (
-  BMP::isPluginAutoUpdateEnabled($free_plugin_file)
-  &&
-  (
-    !$has_premium
-    || BMP::isPluginAutoUpdateEnabled($premium_plugin_file)
-  )
-) return;
-
-// Check if free version needs auto-update
-$free_needs_update = BMP::bmiNeedsUpdate();
-$premium_needs_update = BMP::bmiNeedsUpdate(true);
-
-
-// Get admin URLs
-$plugins_page_url = admin_url('plugins.php');
-
-if ($has_premium && ($free_needs_update || $premium_needs_update)) {
-  // Both free and premium versions, at least one needs update
+if ($has_premium && $premium_version && version_compare($premium_version, '2.1.7', '<=')) {
+  $pro_download_url = 'https://backupbliss.com/downloads/plugins/bmi-premium/backup-backup-pro.zip';
   $notices[] = sprintf(
-    __('%sWarning:%s plugin version discrepancy detected. Keeping free and premium plugin auto-updated ensures the quality of our service, provides new features, and enforces security. Please enable auto-updates %shere%s.%s%sNote:%s You can safely ignore and dismiss this notice if you have already updated both plugins.', 'backup-backup'),
-    '<strong>', '</strong>',
-    '<a class="hoverable secondary" href="' . esc_url($plugins_page_url) . '">','</a>',
-    "<br>",
-    '<strong>', '</strong>'
-  );
-} elseif (!$has_premium && $free_needs_update) {
-  // Only free version, needs update
-  // Try to get the enable auto-update link
-  $auto_update_url = wp_nonce_url(
-    add_query_arg(
-      [
-        'action' => 'toggle-auto-update',
-        'plugin' => $free_plugin_file,
-        'paged' => 1,
-      ],
-      admin_url('plugins.php')
-    ),
-    'updates'
-  );
-  
-  $notices[] = sprintf(
-    __('Keeping the plugin auto-updated ensures the quality of our service, provides new features and enforces security. Please enable auto-updates %shere%s.', 'backup-backup'),
-    '<a href="' . esc_url($auto_update_url) . '">',
+    __('Please download and install the current Backup Migration Premium plugin from %sthis link%s. Further updates can be done automatically.', 'backup-backup'),
+    '<a class="hoverable secondary" href="' . esc_url($pro_download_url) . '" target="_blank">',
     '</a>'
   );
+}
+
+if (
+  !BMP::isPluginAutoUpdateEnabled($free_plugin_file)
+  ||
+  (
+    $has_premium
+    && !BMP::isPluginAutoUpdateEnabled($premium_plugin_file)
+  )
+) {
+  // Check if free version needs auto-update
+  $free_needs_update = BMP::bmiNeedsUpdate();
+  $premium_needs_update = BMP::bmiNeedsUpdate(true);
+
+
+  // Get admin URLs
+  $plugins_page_url = admin_url('plugins.php');
+
+  if ($has_premium && ($free_needs_update || $premium_needs_update)) {
+    // Both free and premium versions, at least one needs update
+    $notices[] = sprintf(
+      __('%sWarning:%s plugin version discrepancy detected. Keeping free and premium plugin auto-updated ensures the quality of our service, provides new features, and enforces security. Please enable auto-updates %shere%s.%s%sNote:%s You can safely ignore and dismiss this notice if you have already updated both plugins.', 'backup-backup'),
+      '<strong>', '</strong>',
+      '<a class="hoverable secondary" href="' . esc_url($plugins_page_url) . '">','</a>',
+      "<br>",
+      '<strong>', '</strong>'
+    );
+  } elseif (!$has_premium && $free_needs_update) {
+    // Only free version, needs update
+    // Try to get the enable auto-update link
+    $auto_update_url = wp_nonce_url(
+      add_query_arg(
+        [
+          'action' => 'toggle-auto-update',
+          'plugin' => $free_plugin_file,
+          'paged' => 1,
+        ],
+        admin_url('plugins.php')
+      ),
+      'updates'
+    );
+    
+    $notices[] = sprintf(
+      __('Keeping the plugin auto-updated ensures the quality of our service, provides new features and enforces security. Please enable auto-updates %shere%s.', 'backup-backup'),
+      '<a href="' . esc_url($auto_update_url) . '">',
+      '</a>'
+    );
+  }
 }
 
 if (empty($notices)) {

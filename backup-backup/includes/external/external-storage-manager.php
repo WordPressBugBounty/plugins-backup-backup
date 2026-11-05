@@ -5,6 +5,9 @@ namespace BMI\Plugin\External;
 
 // Use
 use BMI\Plugin\Dashboard as Dashboard;
+use BMI\Plugin\External\Contracts\EnsureDirectoryExists;
+
+require_once BMI_INCLUDES . DIRECTORY_SEPARATOR . 'external' . DIRECTORY_SEPARATOR . 'contracts' . DIRECTORY_SEPARATOR . 'interface-ensure-directory-exists.php';
 
 // Exit on direct access
 if (!defined('ABSPATH')) {
@@ -198,6 +201,39 @@ class BMI_External_Storage_Manager {
       return new $className(...$config['constructor_args']);
     } else {
       return new $className();
+    }
+  }
+
+  /**
+   * Ensure the configured directory exists for a storage service.
+   *
+   * @param string $serviceName The storage service name.
+   * @return bool True when the directory exists or the provider has no directory capability.
+   */
+  public function ensureStorageDirectoryExists($serviceName) {
+    $instance = $this->getStorageInstance($serviceName);
+    if (!$instance) {
+      \BMI\Plugin\BMI_Logger::error('Unable to initialize ' . $serviceName . ' while creating its configured directory.');
+      return false;
+    }
+
+    if (!($instance instanceof EnsureDirectoryExists)) {
+      return true;
+    }
+
+    try {
+      $created = $instance->ensureDirectoryExists();
+      if ($created !== true) {
+        \BMI\Plugin\BMI_Logger::error('Unable to create the configured directory for ' . $serviceName . '.');
+        return false;
+      }
+      return true;
+    } catch (\Exception $e) {
+      \BMI\Plugin\BMI_Logger::error('Unable to create the configured directory for ' . $serviceName . ': ' . $e->getMessage());
+      return false;
+    } catch (\Throwable $e) {
+      \BMI\Plugin\BMI_Logger::error('Unable to create the configured directory for ' . $serviceName . ': ' . $e->getMessage());
+      return false;
     }
   }
 

@@ -9,11 +9,13 @@ use BMI\Plugin\BMI_Logger as Logger;
 use BMI\Plugin\Scanner\BMI_BackupsScanner as Backups;
 use BMI\Plugin\Backup_Migration_Plugin as BMP;
 use BMI\Plugin\External\Contracts\DeleteBackup;
+use BMI\Plugin\External\Contracts\EnsureDirectoryExists;
 
 if ( ! defined( 'ABSPATH' ) ) exit;
 
 
 require_once BMI_INCLUDES . DIRECTORY_SEPARATOR . 'external' . DIRECTORY_SEPARATOR . 'contracts' . DIRECTORY_SEPARATOR . 'interface-delete-backup.php';
+require_once BMI_INCLUDES . DIRECTORY_SEPARATOR . 'external' . DIRECTORY_SEPARATOR . 'contracts' . DIRECTORY_SEPARATOR . 'interface-ensure-directory-exists.php';
 // Exception Class for S3 Client Errors
 class S3ClientException extends \Exception
 {
@@ -62,6 +64,16 @@ class S3Client
     {
         $this->rootDir = BMP::fixSlashes($rootDir);
         return $this;
+    }
+
+    /**
+     * Gets the configured root directory.
+     *
+     * @return string
+     */
+    public function getRootDir()
+    {
+        return $this->rootDir;
     }
     
     /**
@@ -353,6 +365,51 @@ class S3Client
     }
 
     /**
+     * Lists files from S3 bucket with pagination tracking.
+     *
+     * @param string $bucket
+     * @param string $path
+     * @param int $pageSize
+     * @return array|bool
+     */
+    public function listFilesPaginated($bucket = '', $path = '', $pageSize = 100)
+    {
+        if (!$this->status) {
+            return false;
+        }
+        $bucket = $bucket ? $bucket : $this->bucket;
+        $fullPath = $path ? BMP::fixSlashes($path) : $this->rootDir;
+
+        $results = [];
+        $marker = null;
+        $page = 0;
+        $maxPages = 50;
+
+        do {
+            $page++;
+            $batch = $this->s3->getBucket($bucket, $fullPath, $marker, $pageSize);
+            if ($batch === false) {
+                if ($page === 1) {
+                    return false;
+                }
+                break;
+            }
+
+            if (is_array($batch) && !empty($batch)) {
+                $results = array_merge($results, $batch);
+                $keys = array_keys($batch);
+                $marker = end($keys);
+            }
+
+            if (!is_array($batch) || count($batch) < $pageSize) {
+                break;
+            }
+        } while ($marker && $page < $maxPages);
+
+        return ['files' => $results, 'pageCount' => $page];
+    }
+
+    /**
      * Gets file metadata.
      *
      * @param string $fileName
@@ -457,7 +514,7 @@ class S3Client
     }
 }
 
-class BMI_External_S3 implements DeleteBackup {
+class BMI_External_S3 implements DeleteBackup, EnsureDirectoryExists {
 
     private $s3Client;
     private $s3Provider = 'aws';
@@ -755,22 +812,58 @@ class BMI_External_S3 implements DeleteBackup {
     }
 
     /**
+     * getFilesCacheKey - Returns cache key for S3/Wasabi files list
+     *
+     * @return string
+     */
+    public function getFilesCacheKey()
+    {
+        $path = get_option('bmip_' . $this->s3Provider . '_path', '');
+        $path = is_string($path) ? trim($path) : '';
+        return 'bmip_' . $this->s3Provider . '_files_cache_' . md5($path);
+    }
+
+    /**
+     * purgeFilesCache - Purges the S3/Wasabi files list cache
+     *
+     * @return void
+     */
+    public function purgeFilesCache()
+    {
+        delete_transient($this->getFilesCacheKey());
+        delete_transient('bmip_' . $this->s3Provider . '_files_cache_' . md5(''));
+    }
+
+    /**
      * Retrieves and parses files from the S3 bucket
      *
+     * @param bool $forceRefresh
      * @return array|bool Parsed files or false on error
      */
-    public function getParsedFiles()
+    public function getParsedFiles($forceRefresh = false)
     {
         if ($this->getConnectionStatus() === false) {
             return false;
         }
+
+        $cacheKey = $this->getFilesCacheKey();
+        if (!$forceRefresh) {
+            $cached = get_transient($cacheKey);
+            if ($cached !== false && is_array($cached)) {
+                return $cached;
+            }
+        }
+
         $zipFilesName = [];
         $jsonFilesPath = [];
-        $files = $this->s3Client->listFiles();
+        $listResult = $this->s3Client->listFilesPaginated();
 
-        if ($files === false) {
+        if ($listResult === false || !isset($listResult['files']) || !is_array($listResult['files'])) {
             return false;
         }
+
+        $files = $listResult['files'];
+        $pageCount = isset($listResult['pageCount']) ? $listResult['pageCount'] : 1;
 
         $path = get_option('bmip_' . $this->s3Provider . '_path', '');
         foreach ($files as $filename => $metadata) {
@@ -783,7 +876,7 @@ class BMI_External_S3 implements DeleteBackup {
             }
             $filename = $fileData['basename'];
             $metadata['name'] = $filename;
-            $extension = strtolower($fileData['extension']);
+            $extension = strtolower(isset($fileData['extension']) ? $fileData['extension'] : '');
             if (in_array($extension, array('zip', 'tar', 'gz'))) {
                 $zipFilesName[$filename] = ['id' => $filename, 'size' => $metadata['size']];
             } elseif ($extension === 'json' && strlen($fileData['filename']) === 32) {
@@ -791,7 +884,13 @@ class BMI_External_S3 implements DeleteBackup {
             }
         }
 
-        return compact('zipFilesName', 'jsonFilesPath');
+        $result = compact('zipFilesName', 'jsonFilesPath');
+
+        if ($pageCount > 1) {
+            set_transient($cacheKey, $result, HOUR_IN_SECONDS);
+        }
+
+        return $result;
     }
 
     /**
@@ -856,6 +955,8 @@ class BMI_External_S3 implements DeleteBackup {
                 ];
             }
 
+            $this->s3Client->setStatus(true);
+
             $testStatus['credentials'] = true;
             $testStatus['bucket_exists'] = true;
             $testStatus['bucket_access'] = true;
@@ -877,9 +978,25 @@ class BMI_External_S3 implements DeleteBackup {
             return [
                 'status' => 'error',
                 'error' => 'Connection test failed: ' . $e->getMessage(),
-                'test_status' => $testStatus ?? null
+                'test_status' => isset($testStatus) ? $testStatus : null
             ];
         }
+    }
+
+    /**
+     * Ensure an S3-compatible storage directory exists.
+     *
+     * @param string|null $path
+     * @param string $bucket
+     * @return bool
+     */
+    public function ensureDirectoryExists()
+    {
+        $path = $this->s3Client->getRootDir();
+        if (empty(trim($path, '/'))) {
+            return true;
+        }
+        return $this->s3Client->createDirectoryIfNotExists($path);
     }
 
     /**
@@ -898,6 +1015,7 @@ class BMI_External_S3 implements DeleteBackup {
         delete_option('bmip_' . $this->s3Provider . '_sse');
         delete_option('bmip_' . $this->s3Provider . '_was_connected');
         delete_transient('bmip_' . $this->s3Provider . '_connection_status');
+        $this->purgeFilesCache();
         $this->restartUploadProcess();
         Dashboard\bmi_set_config('STORAGE::EXTERNAL::' . strtoupper($this->s3Provider), false);
         return ['status' => 'success'];
@@ -966,7 +1084,7 @@ class BMI_External_S3 implements DeleteBackup {
 
         $meta = $this->s3Client->getFileMeta($backupName);
         if ($meta === false || !isset($meta['x-amz-meta-md5']) || $meta['x-amz-meta-md5'] !== $fileMd5) {
-            Logger::error('[BMI PRO] MD5 mismatch for small file: ' . $backupName . '. Local: ' . $fileMd5 . ', Remote: ' . ($meta['x-amz-meta-md5'] ?? 'N/A') . '. Deleting remote file.');
+            Logger::error('[BMI PRO] MD5 mismatch for small file: ' . $backupName . '. Local: ' . $fileMd5 . ', Remote: ' . (isset($meta['x-amz-meta-md5']) ? $meta['x-amz-meta-md5'] : 'N/A') . '. Deleting remote file.');
             $this->s3Client->deleteFile($backupName); // Attempt to delete corrupted file
             return ['status' => 'error', 'error' => 'md5_mismatch'];
         }
@@ -976,6 +1094,7 @@ class BMI_External_S3 implements DeleteBackup {
             $this->s3Client->deleteFile($backupName);
             return ['status' => 'error', 'error' => 'upload_manifest'];
         }
+        $this->purgeFilesCache();
         return ['status' => 'success'];
     }
 
@@ -1018,7 +1137,7 @@ class BMI_External_S3 implements DeleteBackup {
 
         $meta = $this->s3Client->getFileMeta($backupName);
         if ($meta === false || !isset($meta['x-amz-meta-md5']) || $meta['x-amz-meta-md5'] !== $fileMd5) {
-            Logger::error('[BMI PRO] MD5 mismatch for large file: ' . $backupName . '. Local: ' . $fileMd5 . ', Remote: ' . ($meta['x-amz-meta-md5'] ?? 'N/A'));
+            Logger::error('[BMI PRO] MD5 mismatch for large file: ' . $backupName . '. Local: ' . $fileMd5 . ', Remote: ' . (isset($meta['x-amz-meta-md5']) ? $meta['x-amz-meta-md5'] : 'N/A'));
             $this->s3Client->deleteFile($backupName);
             return ['status' => 'error', 'error' => 'md5_mismatch'];
         }
@@ -1029,6 +1148,7 @@ class BMI_External_S3 implements DeleteBackup {
             $this->s3Client->deleteFile($backupName);
             return ['status' => 'error', 'error' => 'upload_manifest'];
         }
+        $this->purgeFilesCache();
         return ['status' => 'success'];
     }
 
@@ -1124,6 +1244,7 @@ class BMI_External_S3 implements DeleteBackup {
         }
         $deleteManifest = $this->s3Client->deleteFile($manifestFile);
         $deleteBackup = $this->s3Client->deleteFile($backupName);
+        $this->purgeFilesCache();
 
         if ($deleteManifest && $deleteBackup) {
             return true;
@@ -1147,7 +1268,9 @@ class BMI_External_S3 implements DeleteBackup {
         }
 
         $manifestFile = $md5 . '.json';
-        return $this->s3Client->deleteFile($manifestFile);
+        $res = $this->s3Client->deleteFile($manifestFile);
+        $this->purgeFilesCache();
+        return $res;
     }
 
     /**
@@ -1357,7 +1480,8 @@ class BMI_External_S3 implements DeleteBackup {
 
     public function getRegions()
     {
-        return isset(self::S3_PROVIDERS_REGIONS[$this->s3Provider]) ? self::S3_PROVIDERS_REGIONS[$this->s3Provider] : [];
+        $regions = self::S3_PROVIDERS_REGIONS;
+        return isset($regions[$this->s3Provider]) ? $regions[$this->s3Provider] : [];
     }
 
     public function getConnectionStatus()

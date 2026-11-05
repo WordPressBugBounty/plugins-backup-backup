@@ -632,6 +632,8 @@ class BMI_Even_Better_Database_Restore {
       
       return $wp && $php;
           
+    } catch (\Exception $e) {
+      return false;
     } catch (\Throwable $e) {
       return false;
     }
@@ -707,6 +709,28 @@ class BMI_Even_Better_Database_Restore {
             }
 
           }
+        } catch (\Exception $e) {
+
+          if (!in_array($plugin_name, $failed_plugins)) {
+
+            $msg = $e->getMessage();
+            if (strpos($msg, 'add_rule()') !== false || strpos($msg, 'rewrite.php:143') !== false) {
+
+              $activated_plugins[] = $plugin_name;
+              error_log(strval($e));
+
+              $should_continue = true;
+              break;
+
+            } else {
+
+              $failed_plugins[] = $plugin_name;
+              error_log(strval($e));
+
+            }
+
+          }
+
         } catch (\Throwable $e) {
 
           if (!in_array($plugin_name, $failed_plugins)) {

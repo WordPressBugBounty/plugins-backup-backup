@@ -69,6 +69,14 @@ add_action('bmi_pro_wasabi_template', function () {
                             value="<?php echo esc_attr( sanitize_text_field($path) ); ?>"
                             placeholder="backups/wordpress">
                     </div>
+                    <div class="mt10">
+                        <span>
+                            <?php esc_html_e('Optional: You can set an individual sub-directory path for this website. Allowed characters: 0-9, A-z, _, -, /', 'backup-backup'); ?><br />
+                            <?php esc_html_e('Leave empty to store backups directly in the root of the bucket.', 'backup-backup'); ?><br />
+                            <?php esc_html_e('Existing backups will not be moved automatically if you change this path.', 'backup-backup'); ?><br />
+                            <?php esc_html_e('Note: For better performance, deleting backups directly from Wasabi or other sites may take up to 1 hour to reflect in the backups list.', 'backup-backup'); ?>
+                        </span>
+                    </div>
                 </div>
             </div>
 

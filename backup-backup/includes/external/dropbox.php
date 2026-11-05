@@ -13,8 +13,10 @@ use BMI\Plugin\Dashboard as Dashboard;
 use BMI\Plugin\Backup_Migration_Plugin as BMP;
 use BMI\Plugin\Scanner\BMI_BackupsScanner as Backups;
 use BMI\Plugin\External\Contracts\DeleteBackup;
+use BMI\Plugin\External\Contracts\EnsureDirectoryExists;
 
 require_once BMI_INCLUDES . DIRECTORY_SEPARATOR . 'external' . DIRECTORY_SEPARATOR . 'contracts' . DIRECTORY_SEPARATOR . 'interface-delete-backup.php';
+require_once BMI_INCLUDES . DIRECTORY_SEPARATOR . 'external' . DIRECTORY_SEPARATOR . 'contracts' . DIRECTORY_SEPARATOR . 'interface-ensure-directory-exists.php';
 
 /**
  * BMI_External_Dropbox
@@ -22,7 +24,7 @@ require_once BMI_INCLUDES . DIRECTORY_SEPARATOR . 'external' . DIRECTORY_SEPARAT
  * This class is responsible for handling all Dropbox related operations
  */
 
-class BMI_External_Dropbox implements DeleteBackup
+class BMI_External_Dropbox implements DeleteBackup, EnsureDirectoryExists
 {
     public $dropboxId = 'bmip_dropbox';
     public $dropboxAuthCodeOption = 'bmip_dropbox_auth_code';
@@ -125,19 +127,78 @@ class BMI_External_Dropbox implements DeleteBackup
     }
 
     /**
+     * getDirName - Returns configured directory name for Dropbox
+     *
+     * @return string
+     */
+    public function getDirName()
+    {
+        $dirname = Dashboard\bmi_get_config('STORAGE::EXTERNAL::DROPBOX::DIRNAME');
+        if ($dirname === false || $dirname === null || !is_string($dirname)) {
+            return '';
+        }
+        return trim(sanitize_text_field($dirname), "/\\ \t\n\r\0\x0B");
+    }
+
+    /**
+     * getFilesCacheKey - Returns cache key for Dropbox files list
+     *
+     * @return string
+     */
+    public function getFilesCacheKey()
+    {
+        $dirname = $this->getDirName();
+        return 'bmip_dropbox_files_cache_' . md5($dirname);
+    }
+
+    /**
+     * purgeFilesCache - Purges the Dropbox files list cache
+     *
+     * @return void
+     */
+    public function purgeFilesCache()
+    {
+        delete_transient($this->getFilesCacheKey());
+        delete_transient('bmip_dropbox_files_cache_' . md5(''));
+    }
+
+    /**
+     * formatDropboxPath - Formats path relative to custom sub-folder
+     *
+     * @param string $path
+     * @return string
+     */
+    public function formatDropboxPath($path)
+    {
+        if (substr($path, 0, 3) === 'id:') {
+            return $path;
+        }
+        $dirname = $this->getDirName();
+        $path = ltrim($path, '/');
+        if (!empty($dirname)) {
+            if (strpos($path, $dirname . '/') === 0 || $path === $dirname) {
+                return '/' . $path;
+            }
+            return '/' . $dirname . '/' . $path;
+        }
+        return '/' . $path;
+    }
+
+    /**
      * createFolder create a folder in Dropbox
      * @param string $folderName full path of the folder
      * @return false|string false if error, folder id if success
      */
     public function createFolder($folderName)
     {
+        $folderPath = $this->formatDropboxPath($folderName);
         $params = array(
-            'path' => '/' . $folderName,
+            'path' => $folderPath,
             'autorename' => false
         );
 
         $getFolderMeta = $this->getFileMeta($folderName); // Avoid already existing folder error
-        if ($getFolderMeta) {
+        if ($getFolderMeta && isset($getFolderMeta['id'])) {
             return $getFolderMeta['id'];
         }
 
@@ -153,7 +214,22 @@ class BMI_External_Dropbox implements DeleteBackup
 
         $response = json_decode($response, true);
 
-        return $response['metadata']['id'];
+        return isset($response['metadata']['id']) ? $response['metadata']['id'] : false;
+    }
+
+    /**
+     * Ensure the configured Dropbox directory exists.
+     *
+     * @return bool
+     */
+    public function ensureDirectoryExists()
+    {
+        $dirname = $this->getDirName();
+        if (empty($dirname)) {
+            return true;
+        }
+
+        return $this->createFolder($dirname) !== false;
     }
 
     /**
@@ -163,13 +239,10 @@ class BMI_External_Dropbox implements DeleteBackup
      */
     public function getFileMeta($fileName)
     {
-        $isId = (substr($fileName, 0, 3) == 'id:');
-        if (!$isId && $fileName[0] != '/') {
-            $fileName = '/' . $fileName;
-        }
+        $path = $this->formatDropboxPath($fileName);
 
         $params = array(
-            'path' => $fileName
+            'path' => $path
         );
 
         $headers = array(
@@ -195,13 +268,10 @@ class BMI_External_Dropbox implements DeleteBackup
      */
     public function deleteFile($fileName)
     {
-        $isId = (substr($fileName, 0, 3) == 'id:');
-        if (!$isId && $fileName[0] != '/') {
-            $fileName = '/' . $fileName;
-        }
+        $path = $this->formatDropboxPath($fileName);
 
         $params = array(
-            'path' => $fileName
+            'path' => $path
         );
 
         $headers = array(
@@ -214,6 +284,8 @@ class BMI_External_Dropbox implements DeleteBackup
             return false;
         }
 
+        $this->purgeFilesCache();
+
         return true;
     }
 
@@ -225,13 +297,10 @@ class BMI_External_Dropbox implements DeleteBackup
      */
     public function getFileContent($fileName, $range = '')
     {
-        $isId = (substr($fileName, 0, 3) == 'id:');
-        if (!$isId && $fileName[0] != '/') {
-            $fileName = '/' . $fileName;
-        }
+        $path = $this->formatDropboxPath($fileName);
 
         $headers = array(
-            'Dropbox-API-Arg: {"path": "' . $fileName . '"}',
+            'Dropbox-API-Arg: {"path": "' . $path . '"}',
             'Content-Type: text/plain'
         );
 
@@ -250,15 +319,27 @@ class BMI_External_Dropbox implements DeleteBackup
 
     /**
      * listFiles list all files in a folder in Dropbox
+     * @param bool $forceRefresh
      * @return false|array[] false if error, array of entries if success
      * @see https://www.dropbox.com/developers/documentation/http/documentation#files-list_folder
      */
-    public function listFiles()
+    public function listFiles($forceRefresh = false)
     {
+        $cacheKey = $this->getFilesCacheKey();
+        if (!$forceRefresh) {
+            $cachedFiles = get_transient($cacheKey);
+            if ($cachedFiles !== false && is_array($cachedFiles)) {
+                return $cachedFiles;
+            }
+        }
+
+        $dirname = $this->getDirName();
+        $path = empty($dirname) ? '' : '/' . $dirname;
 
         $params = array(
-            'path' => '',
-            'include_non_downloadable_files' => false
+            'path' => $path,
+            'include_non_downloadable_files' => false,
+            'limit' => 100
         );
 
         $headers = array(
@@ -273,45 +354,37 @@ class BMI_External_Dropbox implements DeleteBackup
         
         $response = json_decode($response, true);
         
-        $entries = $response['entries'];
-
-        if (isset($response['has_more']) && $response['has_more'] === true) { // In Almost all cases, this will be false
-            $cursor = $response['cursor'];
-            $entries = array_merge($entries, $this->listFilesContinue($cursor));
-        }
-
-        return $entries;
-    }
-
-    private function listFilesContinue($cursor)
-    {
-        $params = array(
-            'cursor' => $cursor
-        );
-
-        $headers = array(
-            'Content-Type: application/json'
-        );
-
-        $response = $this->request('files/list_folder/continue', $params, $headers);
-
-        if ($response === 'error') {
+        if (!isset($response['entries']) || !is_array($response['entries'])) {
+            if (isset($response['error_summary']) && (strpos($response['error_summary'], 'path_lookup') !== false || strpos($response['error_summary'], 'not_found') !== false)) {
+                set_transient($cacheKey, [], HOUR_IN_SECONDS);
+                return [];
+            }
             return false;
         }
 
-        $files = [];
-        $response = json_decode($response, true);
+        $entries = $response['entries'];
+        $page = 1;
+        $cursor = isset($response['cursor']) ? $response['cursor'] : null;
+        $hasMore = isset($response['has_more']) && $response['has_more'] === true;
+        $maxPages = 50;
 
-        foreach ($response['entries'] as $entry) {
-            $files[] = $entry['name'];
+        while ($hasMore && $cursor && $page < $maxPages) {
+            $page++;
+            $continueRes = $this->request('files/list_folder/continue', ['cursor' => $cursor], ['Content-Type: application/json']);
+            if ($continueRes === 'error') {
+                break;
+            }
+            $continueData = json_decode($continueRes, true);
+            if (isset($continueData['entries']) && is_array($continueData['entries'])) {
+                $entries = array_merge($entries, $continueData['entries']);
+            }
+            $cursor = isset($continueData['cursor']) ? $continueData['cursor'] : null;
+            $hasMore = isset($continueData['has_more']) && $continueData['has_more'] === true;
         }
 
-        if (isset($response['has_more']) && $response['has_more'] === true) {
-            $cursor = $response['cursor'];
-            $files = array_merge($files, $this->listFilesContinue($cursor));
-        }
+        set_transient($cacheKey, $entries, HOUR_IN_SECONDS);
 
-        return $files;
+        return $entries;
     }
 
 
@@ -422,7 +495,7 @@ class BMI_External_Dropbox implements DeleteBackup
      */
     public function finishUpload($sessionId, $filePathOnDropbox, $offset)
     {
-        $filePathOnDropbox = '/' . basename($filePathOnDropbox);
+        $filePathOnDropbox = $this->formatDropboxPath(basename($filePathOnDropbox));
 
         $header = array(
             'Dropbox-API-Arg: {"cursor": {"session_id": "' . $sessionId . '", "offset": ' . $offset . '}, "commit": {"path": "' . $filePathOnDropbox . '", "mode": "add", "autorename": true, "mute": false}}',
@@ -441,7 +514,7 @@ class BMI_External_Dropbox implements DeleteBackup
 
         $response = json_decode($response, true);
 
-        return $response['id'];
+        return isset($response['id']) ? $response['id'] : false;
     }
 
     /**
@@ -465,7 +538,7 @@ class BMI_External_Dropbox implements DeleteBackup
             return false;
         }
 
-        $filePathOnDropbox = '/' . basename($filePath);
+        $filePathOnDropbox = $this->formatDropboxPath(basename($filePath));
 
         $header = array(
             'Dropbox-API-Arg: {"path": "' . $filePathOnDropbox . '"}',
@@ -492,7 +565,7 @@ class BMI_External_Dropbox implements DeleteBackup
 
         $response = json_decode($response, true);
 
-        return $response['id'];
+        return isset($response['id']) ? $response['id'] : false;
 
     }
 
@@ -635,14 +708,15 @@ class BMI_External_Dropbox implements DeleteBackup
         if (file_exists(BMI_BACKUPS . DIRECTORY_SEPARATOR . $manifestFile)) {
             $manifestContent = json_decode(file_get_contents(BMI_BACKUPS . DIRECTORY_SEPARATOR . $manifestFile), true);
         } else {
-            $manifestContent = json_decode($this->getFileContent('/' . $manifestFile), true);
+            $manifestContent = json_decode($this->getFileContent($manifestFile), true);
         }
         if ($manifestContent == false) {
             return false;
         }
         $backupName = $manifestContent['name'];
         $deleteManifest = $this->deleteFile($manifestFile);
-        $deleteZip = $this->deleteFile('/' . $backupName);
+        $deleteZip = $this->deleteFile($backupName);
+        $this->purgeFilesCache();
         if ($deleteManifest && $deleteZip) {
             return true;
         }
@@ -664,7 +738,8 @@ class BMI_External_Dropbox implements DeleteBackup
             return false;
         }
 
-        $deleteManifest = $this->deleteFile('/' . $manifestFile);
+        $deleteManifest = $this->deleteFile($manifestFile);
+        $this->purgeFilesCache();
         if ($deleteManifest) {
             return true;
         }
@@ -742,7 +817,10 @@ class BMI_External_Dropbox implements DeleteBackup
                 $uploadResult = $this->uploadFile($backupPath);
                 if ($uploadResult) {
                     $manifestUploadResult = $this->uploadFile($manifestPath);
-                    if ($manifestUploadResult) return ['status' => 'finished'];
+                    if ($manifestUploadResult) {
+                        $this->purgeFilesCache();
+                        return ['status' => 'finished'];
+                    }
                     else return ['status' => 'error', 'error' => 'could_not_upload_manifest'];
                 } else {
                     return ['status' => 'error', 'error' => 'could_not_upload_backup_in_one_go'];
@@ -779,7 +857,10 @@ class BMI_External_Dropbox implements DeleteBackup
               $fileId = $this->finishUpload($sessionId, $backupPath, $offset);
               if ($fileId) {
                   $manifestUploadResult = $this->uploadFile($manifestPath);
-                  if ($manifestUploadResult) return ['status' => 'success'];
+                  if ($manifestUploadResult) {
+                      $this->purgeFilesCache();
+                      return ['status' => 'success'];
+                  }
                   else return ['status' => 'error', 'error' => 'could_not_upload_manifest'];
               } else {
                   return ['status' => 'error', 'error' => 'could_not_finish_upload'];
@@ -1075,6 +1156,8 @@ class BMI_External_Dropbox implements DeleteBackup
             Logger::error('[BMI PRO] Something went wrong during Dropbox removal process:' . $error_message);
             return [ 'status' => 'error' ];
         }
+
+        $this->purgeFilesCache();
 
         return [ 'status' => 'success' ];
   
