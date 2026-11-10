@@ -263,3 +263,6 @@
   if (!defined('CHAINED_HASH_CHUNK_SIZE')) {
     define('CHAINED_HASH_CHUNK_SIZE',1024 * 1024);
   }
+  if (!defined('BMI_DOWNLOAD_TOKEN_EXPIRY')) {
+    define('BMI_DOWNLOAD_TOKEN_EXPIRY', 7 * DAY_IN_SECONDS);
+  }

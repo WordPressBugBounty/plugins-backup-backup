@@ -302,6 +302,23 @@
 
       $current_patch = get_option('bmi_hotfixes', array());
 
+      // Move download token from transient (2.1.7 - 2.1.8) to plugin config, keeps already shared links working
+      if (!in_array('BMI_D9_M11_26', $current_patch)) {
+        if (!Dashboard\bmi_get_config('REQUEST:DOWNLOAD_TOKEN')) {
+          $legacy_token = get_transient('bmi_download_token');
+          if (!$legacy_token) $legacy_token = get_option('_transient_bmi_download_token');
+          if (is_string($legacy_token) && strlen($legacy_token) >= 32) {
+            // Keep the original creation time: the legacy transient was always set for 7 days
+            $legacy_timeout = intval(get_option('_transient_timeout_bmi_download_token'));
+            $legacy_created = $legacy_timeout > 0 ? $legacy_timeout - 7 * DAY_IN_SECONDS : time();
+            if (Dashboard\bmi_create_download_token($legacy_token, $legacy_created)) {
+              delete_transient('bmi_download_token');
+            }
+          }
+        }
+        $current_patch[] = 'BMI_D9_M11_26';
+      }
+
       if (!in_array('BMI_D20_M8_26', $current_patch)) {
         Dashboard\bmi_set_config('STORAGE::EXTERNAL::ONEDRIVE::DIRNAME', '');
         Dashboard\bmi_set_config('STORAGE::EXTERNAL::DROPBOX::DIRNAME', '');
@@ -1323,7 +1340,8 @@
       if (isset($get_bmi) && in_array($get_bmi, $allowed) && $secret_key !== false) {
         $is_valid_secret = ($secret_key === Dashboard\bmi_get_config('REQUEST:SECRET')) && $get_bmi === 'CURL_BACKUP';
         $is_valid_nonce = wp_verify_nonce($secret_key, 'bmi_download_nonce');
-        $is_valid_token = ($secret_key === get_transient('bmi_download_token'));
+        $download_token = Dashboard\bmi_get_download_token();
+        $is_valid_token = $download_token && hash_equals($download_token, $secret_key);
 
         if (isset($get_bid) && strlen($get_bid) > 0 && isset($secret_key) && ($is_valid_secret || $is_valid_nonce || $is_valid_token)) {
           $type = $get_bmi;

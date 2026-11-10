@@ -3,7 +3,7 @@ Contributors: Migrate
 Tags: Migration, Backup, Staging, Migrate, Backups
 Requires at least: 4.6
 Tested up to: 7.1.4
-Stable tag: 2.1.8.1
+Stable tag: 2.1.9
 License: GPLv3
 Requires PHP: 5.6
 
@@ -182,60 +182,18 @@ Vietnamese: [Tạo sao lưu, khôi phục các bản sao lưu và di chuyển c�
 
 == Changelog ==
 
-= 2.1.8.1 =
-* Tested with WordPress 7.1.4
-* [FEATURE] Added optional backup subfolders for Dropbox, Google Drive, Amazon S3, and Wasabi.
-* [ENHANCEMENT] Added pagination and transient caching for external storage file listings.
-* [ENHANCEMENT] Validated and created configured external storage directories before use.
-* [ENHANCEMENT] Added configuration failure diagnostics to troubleshooting reports.
-* [ENHANCEMENT] Improved global log writing with file-open checks and exclusive locking.
-* [ENHANCEMENT] Added missing defaults for external storage, database exclusions, and the new database export engine.
-* [ENHANCEMENT] Added intermediate progress logging for database export batches.
-* [FIX] Restored PHP 5.6 compatibility across backup, restore, hashing, external storage, and archive workflows.
-* [FIX] Added compatible authentication-token generation for environments without random_bytes().
-* [FIX] Prevented encrypted backups from being used when ZipArchive AES encryption is unavailable.
-* [FIX] Improved exception handling and WordPress compatibility during restoration.
-* [FIX] Recovered corrupted or incomplete plugin configurations from a verified last-known-good copy.
-* [FIX] Validated and verified configuration writes to prevent silent settings loss.
-* [FIX] Prevented PHP warnings and type errors caused by malformed file-filter settings and requests.
-* [FIX] Removed redundant closing div tag in optout template.
-* [FIX] Prevented unintentional backup deletion by resetting the deletion target on single backup removal.
-* [FIX] Automatically deleted broken backups when manifest extraction fails.
-* [FIX] Prevented post-backup cleanup errors from marking successfully created backups as failed.
-* [FIX] Ensured post-processing errors remain eligible for centralized error handling.
-* [FIX] Preserved PHP’s unlimited memory-limit value during archive memory calculations.
-* [FIX] Corrected the Dropbox content-type request header.
-* [FIX] Included Patchstack Vulnerability Disclosure Program link.
-* [SECURITY] Prevented unsafe PclZip archive entries from escaping the target restore directory during backup extraction.
-* [REFACTOR] Optimized backup list rendering with in-memory state, incremental pagination, debounced search, scoped tooltip initialization, and deduplicated upload-status updates.
+= 2.1.9 =
+* [FIX] Fixed shared backup download links failing on sites with a persistent object cache.
+* [ENHANCEMENT] Stored the download link token in plugin config and migrated existing tokens so already shared links keep working.
+* [FEATURE] Added the new search & replace engine to local staging creation.
+* [FIX] Prevented duplicated "www." in staging URLs when the source site uses a www domain.
 
 == Upgrade Notice ==
 
-= 2.1.8.1 =
+= 2.1.9 =
 
-What's new in 2.1.8.1?
-* Tested with WordPress 7.1.4
-* [FEATURE] Added optional backup subfolders for Dropbox, Google Drive, Amazon S3, and Wasabi.
-* [ENHANCEMENT] Added pagination and transient caching for external storage file listings.
-* [ENHANCEMENT] Validated and created configured external storage directories before use.
-* [ENHANCEMENT] Added configuration failure diagnostics to troubleshooting reports.
-* [ENHANCEMENT] Improved global log writing with file-open checks and exclusive locking.
-* [ENHANCEMENT] Added missing defaults for external storage, database exclusions, and the new database export engine.
-* [ENHANCEMENT] Added intermediate progress logging for database export batches.
-* [FIX] Restored PHP 5.6 compatibility across backup, restore, hashing, external storage, and archive workflows.
-* [FIX] Added compatible authentication-token generation for environments without random_bytes().
-* [FIX] Prevented encrypted backups from being used when ZipArchive AES encryption is unavailable.
-* [FIX] Improved exception handling and WordPress compatibility during restoration.
-* [FIX] Recovered corrupted or incomplete plugin configurations from a verified last-known-good copy.
-* [FIX] Validated and verified configuration writes to prevent silent settings loss.
-* [FIX] Prevented PHP warnings and type errors caused by malformed file-filter settings and requests.
-* [FIX] Removed redundant closing div tag in optout template.
-* [FIX] Prevented unintentional backup deletion by resetting the deletion target on single backup removal.
-* [FIX] Automatically deleted broken backups when manifest extraction fails.
-* [FIX] Prevented post-backup cleanup errors from marking successfully created backups as failed.
-* [FIX] Ensured post-processing errors remain eligible for centralized error handling.
-* [FIX] Preserved PHP’s unlimited memory-limit value during archive memory calculations.
-* [FIX] Corrected the Dropbox content-type request header.
-* [FIX] Included Patchstack Vulnerability Disclosure Program link.
-* [SECURITY] Prevented unsafe PclZip archive entries from escaping the target restore directory during backup extraction.
-* [REFACTOR] Optimized backup list rendering with in-memory state, incremental pagination, debounced search, scoped tooltip initialization, and deduplicated upload-status updates.
+What's new in 2.1.9?
+* [FIX] Fixed shared backup download links failing on sites with a persistent object cache.
+* [ENHANCEMENT] Stored the download link token in plugin config and migrated existing tokens so already shared links keep working.
+* [FEATURE] Added the new search & replace engine to local staging creation.
+* [FIX] Prevented duplicated "www." in staging URLs when the source site uses a www domain.

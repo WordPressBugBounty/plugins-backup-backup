@@ -38,6 +38,44 @@
     }
   }
 
+  // Download link token (BMI_BACKUP). Stored in plugin config, not a transient:
+  // a persistent object cache can hide transients from front-end requests.
+  if (!function_exists('bmi_create_download_token')) {
+    /**
+     * Saves a download token and its creation time.
+     *
+     * @param string|false $token   Token to store, a new one is generated when false.
+     * @param int|false    $created Creation timestamp, defaults to now.
+     * @return string|false The stored token, or false when saving failed.
+     */
+    function bmi_create_download_token($token = false, $created = false) {
+      if (!$token) $token = wp_generate_password(32, false);
+      if (!$created) $created = time();
+
+      if (!bmi_set_config('REQUEST:DOWNLOAD_TOKEN', $token)) return false;
+      if (!bmi_set_config('REQUEST:DOWNLOAD_TOKEN_TIME', intval($created))) return false;
+
+      return $token;
+    }
+  }
+
+  if (!function_exists('bmi_get_download_token')) {
+    /**
+     * Returns the current download token while it is younger than BMI_DOWNLOAD_TOKEN_EXPIRY.
+     *
+     * @return string|false Token, or false when missing or expired.
+     */
+    function bmi_get_download_token() {
+      $token = bmi_get_config('REQUEST:DOWNLOAD_TOKEN');
+      $created = intval(bmi_get_config('REQUEST:DOWNLOAD_TOKEN_TIME'));
+
+      if (!is_string($token) || $token === '') return false;
+      if ((time() - $created) >= BMI_DOWNLOAD_TOKEN_EXPIRY) return false;
+
+      return $token;
+    }
+  }
+
   if (!function_exists('bmi_try_checked')) {
     function bmi_try_checked($setting, $reversed = false) {
       if (!$reversed) {

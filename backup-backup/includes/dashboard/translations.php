@@ -342,11 +342,8 @@
   <div id="BMI_REV"><?php echo esc_html( BMI_REV ); ?></div>
   <div id="BMI_SECRET_KEY"><?php echo esc_html( wp_create_nonce('bmi_download_nonce') ); ?></div>
   <?php
-    $bmi_download_token = get_transient('bmi_download_token');
-    if (!$bmi_download_token) {
-      $bmi_download_token = wp_generate_password(32, false);
-      set_transient('bmi_download_token', $bmi_download_token, 7 * DAY_IN_SECONDS);
-    }
+    $bmi_download_token = bmi_get_download_token();
+    if (!$bmi_download_token) $bmi_download_token = bmi_create_download_token();
   ?>
   <div id="BMI_DOWNLOAD_TOKEN"><?php echo esc_html( $bmi_download_token ); ?></div>
   <div id="BMI_ASSETS"><?php echo esc_url( BMI_ASSETS ); ?></div>

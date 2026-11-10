@@ -7,6 +7,10 @@
   use BMI\Plugin\Backup_Migration_Plugin as BMP;
   use BMI\Plugin\Checker\BMI_Checker as Checker;
   use BMI\Plugin\Database\BMI_Search_Replace_Engine as BMISearchReplace;
+  use BMI\Plugin\Database\BMISearchReplaceV2Engine;
+  use BMI\Plugin\Progress\FileProgressStorage;
+  use BMI\Plugin\Checker\DomainParser;
+  use BMI\Plugin\Dashboard as Dashboard;
 
   // Exit on direct access
   if (!defined('ABSPATH')) exit;
@@ -736,6 +740,15 @@
     // Step: 3 (search & replace of new tables)
     private function searchReplace() {
 
+      // Pick the engine once per staging process, same setting as restoration uses
+      if (!isset($this->siteConfig['newSearchReplaceEngine'])) {
+        $this->siteConfig['newSearchReplaceEngine'] = Dashboard\bmi_get_config('OTHER::NEW_SEARCH_REPLACE_ENGINE') == false ? false : true;
+      }
+
+      if ($this->siteConfig['newSearchReplaceEngine'] === true) {
+        return $this->searchReplaceV2();
+      }
+
       require_once BMI_INCLUDES . DIRECTORY_SEPARATOR . 'database' . DIRECTORY_SEPARATOR . 'search-replace.php';
 
       // Domain
@@ -875,6 +888,163 @@
       }
 
       if (isset($this->siteConfig['batch']) && $this->siteConfig['batch'] == 3) $this->setContinuation(4);
+
+    }
+
+    // Step: 3 (search & replace of new tables using V2 engine)
+    private function searchReplaceV2() {
+
+      require_once BMI_INCLUDES . DIRECTORY_SEPARATOR . 'check' . DIRECTORY_SEPARATOR . 'class-domain-parser.php';
+      require_once BMI_INCLUDES . DIRECTORY_SEPARATOR . 'database' . DIRECTORY_SEPARATOR . 'search-replace-v2.php';
+
+      // Separate progress file, so it never mixes with restoration progress
+      $progressStorage = new FileProgressStorage(null, 'staging-search-replace-report.json');
+
+      if (!isset($this->siteConfig['batch']) || $this->siteConfig['batch'] == 1) {
+        $this->log(__('Performing database search replace on duplicated tables...', 'backup-backup'), 'STEP');
+
+        $pagesize = '?';
+        if (defined('BMI_MAX_SEARCH_REPLACE_PAGE')) $pagesize = BMI_MAX_SEARCH_REPLACE_PAGE;
+        $this->log(__('Page size for that process: ', 'backup-backup') . $pagesize, 'INFO');
+
+        $this->siteConfig['totalTables'] = 0;
+        $this->siteConfig['totalRows'] = 0;
+        $this->siteConfig['totalChanges'] = 0;
+        $this->siteConfig['totalUpdates'] = 0;
+
+        // Remove leftovers of previous (aborted) process
+        $progressStorage->clear();
+
+        $this->setContinuation(3, 2);
+      }
+
+      $pairs = $this->getSearchReplacePairs();
+
+      $startTime = time();
+      $maxExecutionTime = 5;
+      $engine = null;
+
+      while (!empty($this->siteConfig['finishedTables']) && (time() - $startTime) < $maxExecutionTime) {
+
+        $table = $this->siteConfig['finishedTables'][0];
+
+        // Stored progress has to belong to the current table
+        $storedReport = $progressStorage->load();
+        if ($storedReport !== null && (!isset($storedReport['info']['name']) || $storedReport['info']['name'] !== $table)) {
+          $progressStorage->clear();
+          $storedReport = null;
+        }
+
+        if ($storedReport === null) {
+          $this->log(sprintf(__('Performing search replace for table: %s', 'backup-backup'), $table), 'STEP');
+        }
+
+        if ($engine === null || $engine->table !== $table) {
+          $engine = new BMISearchReplaceV2Engine($table, null, null, $progressStorage);
+        }
+
+        $report = $engine->search_replace($pairs['search'], $pairs['replace']);
+
+        $this->siteConfig['totalRows'] += $report['stats']['rows'];
+        $this->siteConfig['totalChanges'] += $report['stats']['changes'];
+        $this->siteConfig['totalUpdates'] += $report['stats']['updates'];
+
+        // Fetch failed - skip the table, otherwise it would retry forever
+        if (!empty($report['errors'])) {
+          foreach ($report['errors'] as $error) {
+            $this->log(__('Error during adjustments: ', 'backup-backup') . sanitize_text_field(strval($error)), 'ERROR');
+          }
+
+          $progressStorage->clear();
+          $this->finishSearchReplaceTable($table);
+          continue;
+        }
+
+        if ($report['stats']['updates'] > 0) {
+          $info = __('Batch for adjustments (%page%/%allPages%) updated: %updates% fields.', 'backup-backup');
+          $info = str_replace('%page%', (string) $report['batch'], $info);
+          $info = str_replace('%allPages%', (string) $report['total_batches'], $info);
+          $info = str_replace('%updates%', (string) $report['stats']['updates'], $info);
+          $this->log($info, 'INFO');
+        }
+
+        if ($report['status'] === BMISearchReplaceV2Engine::STATUS_COMPLETED) {
+          if (strpos($table, 'usermeta') !== false) {
+            $this->replaceUserMetaPrefix($table);
+          }
+
+          $this->finishSearchReplaceTable($table);
+        }
+
+      }
+
+      $engine = null;
+
+      if (empty($this->siteConfig['finishedTables'])) {
+        unset($this->siteConfig['finishedTables']);
+        $this->setContinuation(4);
+      } else {
+        $this->setContinuation(3, 2);
+      }
+
+    }
+
+    private function getSearchReplacePairs() {
+
+      $domainParser = new DomainParser();
+      $useSSL = strpos($this->siteConfig['url'], 'https://') === 0;
+
+      // Target without "www.", the pairs add it back where the source had it,
+      // otherwise www sites would end up as "www.www.domain/staging"
+      return $domainParser->buildSearchReplacePairs(
+        $this->siteConfig['source_home_url'],
+        $domainParser->parse($this->siteConfig['url']),
+        untrailingslashit($this->siteConfig['root_source']),
+        untrailingslashit($this->siteConfig['root_staging']),
+        $useSSL
+      );
+
+    }
+
+    // Prefix replacement is only needed for meta_key column (e.g. wp_capabilities)
+    private function replaceUserMetaPrefix($table) {
+
+      global $wpdb;
+
+      $from = $this->siteConfig['source_db_prefix'];
+      $to = $this->siteConfig['db_prefix'];
+
+      // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Identifier is safely escaped via escapeSQLIDentifier()
+      $wpdb->query($wpdb->prepare('UPDATE ' . BMP::escapeSQLIDentifier($table) . ' SET `meta_key` = REPLACE(`meta_key`, %s, %s) WHERE `meta_key` LIKE %s AND `meta_key` NOT LIKE %s;',
+        $from, $to, '%' . $wpdb->esc_like($from) . '%', '%' . $wpdb->esc_like($to) . '%'));
+
+      if ($wpdb->last_error !== '') {
+        $this->log(__('Error during adjustments: ', 'backup-backup') . sanitize_text_field(strval($wpdb->last_error)), 'ERROR');
+        return;
+      }
+
+      $updated = intval($wpdb->rows_affected);
+      $this->siteConfig['totalChanges'] += $updated;
+      $this->siteConfig['totalUpdates'] += $updated;
+
+      if ($updated > 0) {
+        $this->log(sprintf(__("Batch for prefix key adjustments (%s/%s) updated: %s fields.", 'backup-backup'), 1, 1, $updated));
+      } else {
+        $this->log(sprintf(__("Prefix key replacements are not required for table: %s", 'backup-backup'), $table), 'INFO');
+      }
+
+    }
+
+    private function finishSearchReplaceTable($table) {
+
+      unset($this->siteConfig['finishedTables'][0]);
+      $this->siteConfig['finishedTables'] = array_values($this->siteConfig['finishedTables']);
+      $this->siteConfig['totalTables']++;
+
+      $this->log(sprintf(__('Search replace for table %s finished', 'backup-backup'), $table), 'SUCCESS');
+
+      $processPercentage = intval((($this->siteConfig['amountOfTables'] - sizeof($this->siteConfig['finishedTables'])) / $this->siteConfig['amountOfTables']) * 20);
+      $this->progress(40 + $processPercentage);
 
     }
 
